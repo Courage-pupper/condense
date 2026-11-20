@@ -273,7 +273,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         hm.add_command(label="Check for Updates…", command=self._check_updates)
         hm.add_checkbutton(label="Check for Updates Automatically", variable=self.var_update_auto, command=self._toggle_update_auto)
         hm.add_separator()
-        guide = "docs/install-mac.md" if IS_MAC_PLATFORM else "docs/install-linux.md"
+        guide = "docs/install-mac.md" if IS_MAC_PLATFORM else ("docs/install-windows.md" if PLATFORM == "windows" else "docs/install-linux.md")
         hm.add_command(label="Installation & Troubleshooting Guide", command=lambda: self._open_url(f"https://github.com/{updates.REPO}/blob/main/{guide}"))
         hm.add_command(label="What's New (Release Notes)", command=lambda: self._open_url(updates.RELEASES_PAGE))
         hm.add_command(label="Report a Problem…", command=lambda: self._open_url(f"https://github.com/{updates.REPO}/issues/new/choose"))
@@ -332,7 +332,11 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
             parts.append("VideoToolbox ✓")
         if "torch_gpu" in g:
             parts.append(f"{g.get('gpu_api') or 'PyTorch'} {'✓' if g['torch_gpu'] else '✗'}")
-            parts.append(f"VA-API {'✓' if g.get('vaapi_ok') else '✗'}")
+            if "hw_encoders" in g:
+                names = {"hevc_nvenc": "NVENC", "hevc_amf": "AMF", "hevc_qsv": "Quick Sync"}
+                parts.append(" ".join(names[e] for e in g["hw_encoders"]) + " ✓" if g["hw_encoders"] else "GPU encoder ✗")
+            else:
+                parts.append(f"VA-API {'✓' if g.get('vaapi_ok') else '✗'}")
         ok = g.get("mlx_ok", g.get("torch_gpu", True))
         self.sub_lbl.configure(text="  ·  ".join(parts), fg=THEME["fg_secondary"] if ok else THEME["warn"])
 
@@ -449,12 +453,16 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
 
     @staticmethod
     def _install_label() -> str:
-        return "Install App in ~/Applications" if IS_MAC_PLATFORM else "Add Condense to the App Menu"
+        if IS_MAC_PLATFORM:
+            return "Install App in ~/Applications"
+        return "Add Condense to the Start Menu" if PLATFORM == "windows" else "Add Condense to the App Menu"
 
     def _install_desktop_shortcut(self):
         try:
             paths = AppInstaller.install_shortcut()
-            where = "Launchpad / Spotlight; drag it to the Dock" if IS_MAC_PLATFORM else "find it in your app menu; pin it to the dock from there"
+            where = ("Launchpad / Spotlight; drag it to the Dock" if IS_MAC_PLATFORM else
+                     "Start menu and Desktop; right-click to pin it to the taskbar" if PLATFORM == "windows" else
+                     "find it in your app menu; pin it to the dock from there")
             self._append_log(f"Installed {paths['app']} ({where}).", "SUCCESS")
             if paths.get("desktop_icon"):
                 self._append_log(f"Desktop link: {paths['desktop_icon']}", "INFO")
@@ -497,6 +505,13 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
                 "# Optional: LosslessCut for trimming before transcription\n"
                 "brew install --cask losslesscut\n\n"
                 "Full guide: docs/install-mac.md\n")
+        elif PLATFORM == "windows":
+            guide = (
+                "# Install or update (PowerShell)\n"
+                "irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1 | iex\n\n"
+                "# Check what PyTorch sees\n"
+                f"& \"{MacAppInstaller.find_best_python()}\" -c \"import torch; print(torch.cuda.is_available(), torch.version.hip or torch.version.cuda)\"\n\n"
+                "Full guide: docs/install-windows.md\n")
         else:
             guide = (
                 "# Install or update (from the Condense folder)\n"

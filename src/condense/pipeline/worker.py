@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 from condense import __version__
-from condense.asr.runner import WHISPER_RUNNER
+from condense.asr.runner import WHISPER_RUNNER, runner_command
 from condense.core.exports import RTFConfidenceWriter
 from condense.core.transcript import TranscriptDocument
 from condense.core.util import *  # noqa: F401,F403
@@ -106,7 +106,30 @@ class PipelineWorker(threading.Thread):
         audio_bitrate = f"{self.config['hb_audio_bitrate']}k"
         rf = float(self.config["hb_quality"])
         cmd = ["ffmpeg", "-hide_banner", "-y"]
-        if hw == "vaapi":
+        h264 = "h264" in encoder_choice or "x264" in encoder_choice
+        scale = (f"scale=w='min(iw,{self.RES_MAP[res_limit][0]})':h='min(ih,{self.RES_MAP[res_limit][1]})'"
+                 ":force_original_aspect_ratio=decrease:force_divisible_by=2") if res_limit in self.RES_MAP else ""
+        q = str(int(round(rf)))
+        if hw in ("nvenc", "amf", "qsv", "cpu"):
+            cmd += ["-i", str(input_path)]
+            if scale:
+                cmd += ["-vf", scale]
+            if hw == "nvenc":    # NVIDIA: constant quality (-cq is on the same scale as x264/x265 RF)
+                codec = "h264_nvenc" if h264 else "hevc_nvenc"
+                cmd += ["-c:v", codec, "-preset", "p5", "-tune", "hq", "-rc", "vbr", "-cq", q, "-b:v", "0"]
+            elif hw == "amf":    # AMD: constant QP
+                codec = "h264_amf" if h264 else "hevc_amf"
+                cmd += ["-c:v", codec, "-quality", "quality", "-rc", "cqp", "-qp_i", q, "-qp_p", q]
+                if h264:
+                    cmd += ["-qp_b", q]
+            elif hw == "qsv":    # Intel Quick Sync
+                codec = "h264_qsv" if h264 else "hevc_qsv"
+                cmd += ["-c:v", codec, "-global_quality", q]
+            else:                # ffmpeg's own x264 / x265 (CPU), used when HandBrake is not installed
+                codec = "libx264" if h264 else "libx265"
+                cmd += ["-c:v", codec, "-crf", q, "-preset", "medium"]
+            quality = q
+        elif hw == "vaapi":
             codec = "av1_vaapi" if "av1" in encoder_choice else ("h264_vaapi" if "h264" in encoder_choice else "hevc_vaapi")
             # constant QP; H.264/HEVC QP is on the same 0–51 scale as x264/x265 RF, AV1 uses a 0–255 index (≈ 4 × RF)
             quality = str(int(max(1, min(255, round(rf * 4))))) if codec == "av1_vaapi" else str(int(round(rf)))
@@ -127,7 +150,7 @@ class PipelineWorker(threading.Thread):
                 max_w, max_h = self.RES_MAP[res_limit]
                 cmd += ["-vf", f"scale=w='min(iw,{max_w})':h='min(ih,{max_h})':force_original_aspect_ratio=decrease:force_divisible_by=2"]
             cmd += ["-c:v", codec, "-q:v", quality]
-        if codec.startswith("hevc"):
+        if codec.startswith("hevc") or codec == "libx265":
             cmd += ["-tag:v", "hvc1"]  # makes HEVC playable in QuickTime / Finder previews
         if fps_mode != "Same as source":
             cmd += ["-r", fps_mode.split()[0]]
@@ -152,8 +175,9 @@ class PipelineWorker(threading.Thread):
     ) -> Path:
         duration = self.probe_video_duration(input_path)
         cmd, vt_codec, vt_quality = self.build_hw_encode_command(hw, input_path, output_path, encoder_choice)
-        hw_name = "VA-API" if hw == "vaapi" else "VideoToolbox"
-        engine = "GPU" if hw == "vaapi" else "Media Engine"
+        hw_name = {"vaapi": "VA-API", "videotoolbox": "VideoToolbox", "nvenc": "NVENC", "amf": "AMF", "qsv": "Quick Sync",
+                   "cpu": "ffmpeg (CPU)"}.get(hw, hw)
+        engine = {"videotoolbox": "Media Engine", "cpu": "CPU"}.get(hw, "GPU")
         self.log(f"[{stage_label}] Executing {hw_name} hardware encode: {' '.join(cmd)}", "CMD")
         self.last_encode = {"tool": "ffmpeg", "encoder": vt_codec, "quality": vt_quality, "command": cmd}
 
@@ -210,7 +234,9 @@ class PipelineWorker(threading.Thread):
         if ret != 0:
             err_tail = "\n".join(tail_lines[-6:])
             hint = ("\nThis GPU may not encode AV1 (AMD RX 7000 and Intel Arc or newer do); choose vaapi_h265."
-                    if vt_codec == "av1_vaapi" else "")
+                    if vt_codec == "av1_vaapi" else
+                    "\nThe GPU or its driver may not support this encoder: choose auto_h265 or x265 (CPU) in Settings ▸ Video."
+                    if hw in ("nvenc", "amf", "qsv") else "")
             raise RuntimeError(f"FFmpeg {hw_name} exited with code {ret}:\n{err_tail}{hint}")
 
         return output_path
@@ -242,6 +268,20 @@ class PipelineWorker(threading.Thread):
 
         if requested_encoder.startswith("ffmpeg_"):
             return self.run_ffmpeg_videotoolbox_encode_for_jobs(**vt_kwargs)
+        if requested_encoder.startswith(("auto_", "nvenc_", "amf_", "qsv_")):
+            kind = "h264" if "h264" in requested_encoder else "h265"
+            ffcodec = "h264" if kind == "h264" else "hevc"
+            wanted = ["nvenc", "amf", "qsv"] if requested_encoder.startswith("auto_") else [requested_encoder.split("_")[0]]
+            for hw in wanted:
+                if SystemProbe.ffmpeg_encoder_works(f"{ffcodec}_{hw}"):
+                    if requested_encoder.startswith("auto_"):
+                        self.log(f"Video encoder: {ffcodec}_{hw} (this computer's GPU).", "INFO")
+                    return self.run_ffmpeg_hw_encode_for_jobs(hw=hw, **dict(vt_kwargs, encoder_choice=f"{hw}_{kind}"))
+            fallback = "x264" if kind == "h264" else "x265"
+            what = "No GPU video encoder works on this computer" if requested_encoder.startswith("auto_") else \
+                f"The {requested_encoder.split('_')[0].upper()} encoder does not work on this computer (other GPU, or an old driver)"
+            self.log(f"{what}; encoding with {fallback} on the CPU instead.", "WARN")
+            requested_encoder = fallback
         if requested_encoder.startswith("vaapi_"):
             if has_ffmpeg_vaapi():
                 return self.run_ffmpeg_hw_encode_for_jobs(hw="vaapi", **vt_kwargs)
@@ -255,6 +295,9 @@ class PipelineWorker(threading.Thread):
             if requested_encoder.startswith("vt_") and SystemProbe.has_ffmpeg_videotoolbox():
                 self.log("HandBrakeCLI not found. Routing to FFmpeg VideoToolbox (brew install handbrake to use HandBrake).", "WARN")
                 return self.run_ffmpeg_videotoolbox_encode_for_jobs(**vt_kwargs)
+            if requested_encoder in ("x265", "x264", "x265_10bit") and SystemProbe.ffmpeg_encoder_works("lib" + requested_encoder[:4]):
+                self.log(f"HandBrakeCLI not found; encoding with ffmpeg's {requested_encoder[:4]} instead (same quality scale).", "INFO")
+                return self.run_ffmpeg_hw_encode_for_jobs(hw="cpu", **dict(vt_kwargs, encoder_choice=requested_encoder))
             raise RuntimeError(f"HandBrakeCLI is not installed. Run: {INSTALL_HINTS['handbrake']}")
 
         supported_hb = SystemProbe.get_supported_hb_encoders()
@@ -668,11 +711,10 @@ class PipelineWorker(threading.Thread):
         env["PIPELINE_PROMPT"] = str(self.config.get("whisper_prompt") or "")
         env["PIPELINE_MODE"] = "full"
 
+        env["PYTHONIOENCODING"] = "utf-8"
         self.current_proc = subprocess.Popen(
             [
-                best_py,
-                "-c",
-                runner_code,
+                *runner_command(best_py, temp_dir),
                 str(media_path),
                 str(diar_wav_path),
                 model_name,
@@ -685,6 +727,8 @@ class PipelineWorker(threading.Thread):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             env=env,
         )
 

@@ -51,10 +51,12 @@ class RerunMixin:
                     seg_file = tmp / "segments.json"
                     seg_file.write_text(json.dumps(segments_json), encoding="utf-8")
                     env["PIPELINE_SEGMENTS_JSON"] = str(seg_file)
-                proc = subprocess.Popen([best_py, "-c", WHISPER_RUNNER, str(wav), str(wav), params.get("model", "large-v3"),
+                env["PYTHONIOENCODING"] = "utf-8"
+                proc = subprocess.Popen([*runner_command(best_py, tmp), str(wav), str(wav), params.get("model", "large-v3"),
                                          params.get("language", "auto"), str(out), params.get("diarize_mode", "Disabled"),
                                          str(params.get("num_speakers", 0)), params.get("backend", DEFAULT_BACKEND)],
-                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
+                                        errors="replace", env=env)
                 self._rerun_proc = proc
                 tail: List[str] = []
                 for line in proc.stdout:

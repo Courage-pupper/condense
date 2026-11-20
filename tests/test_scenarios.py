@@ -13,8 +13,14 @@ ROOT = TESTS.parent
 SCENARIOS = sorted((TESTS / "scenarios").glob("scenario_*.py"))
 
 
+# On Windows only the scenarios that need no shell-script stand-ins run (the rest use #!/bin/sh fakes).
+WINDOWS_OK = {"scenario_windows"}
+
+
 @pytest.mark.parametrize("script", SCENARIOS, ids=lambda p: p.stem.replace("scenario_", ""))
 def test_scenario(script, pristine_media, tmp_path):
+    if os.name == "nt" and script.stem not in WINDOWS_OK:
+        pytest.skip("uses shell-script stand-ins")
     media = tmp_path / "media"
     shutil.copytree(pristine_media, media)
     home = tmp_path / "home"
@@ -24,6 +30,9 @@ def test_scenario(script, pristine_media, tmp_path):
     env = {k: v for k, v in os.environ.items() if not k.startswith("XDG_") and k != "CONDENSE_WHISPER_PYTHON"}
     env.update(CONDENSE_TEST_MEDIA=str(media), CONDENSE_FAKES=str(TESTS / "fakes"), CONDENSE_TESTS=str(TESTS),
                PYTHONPATH=os.pathsep.join([str(ROOT / "src"), str(TESTS)]), HOME=str(home), CONDENSE_PLATFORM="mac")
+    env["USERPROFILE"] = str(home)  # Path.home() on Windows
+    for var in ("APPDATA", "LOCALAPPDATA"):
+        env.pop(var, None)
     res = subprocess.run([sys.executable, str(script)], cwd=str(media), env=env, capture_output=True, text=True, timeout=900)
     out = res.stdout + res.stderr
     assert res.returncode == 0, out[-5000:]

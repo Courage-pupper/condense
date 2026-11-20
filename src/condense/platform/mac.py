@@ -18,7 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
-from condense.platform.detect import IS_MAC_PLATFORM, PLATFORM, app_support_dir, log_file
+from condense.platform.detect import IS_MAC_PLATFORM, IS_WINDOWS, PLATFORM, app_support_dir, log_file
 
 APP_SUPPORT_DIR = app_support_dir()
 LEGACY_APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "SiliconVideoPipeline"
@@ -32,8 +32,14 @@ def setup_environment() -> None:
         os.environ["PATH"] = os.pathsep.join([p for p in _HOMEBREW_PATHS if p not in _cur_path] + _cur_path)
         # Let PyTorch silently fall back to CPU for any op not yet implemented on Metal (MPS).
         os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+    elif IS_WINDOWS:
+        from condense.platform.windows import hide_console_windows, winget_links_dir
+        hide_console_windows()
+        links = str(winget_links_dir())  # ffmpeg / HandBrakeCLI from winget, also when started from the Start menu
+        if links not in os.environ.get("PATH", "").split(os.pathsep):
+            os.environ["PATH"] = links + os.pathsep + os.environ.get("PATH", "")
     elif PLATFORM == "other":
-        print("Warning: Condense supports macOS (Apple Silicon) and Linux; Windows support is planned.", file=sys.stderr)
+        print("Warning: Condense supports macOS (Apple Silicon), Linux and Windows.", file=sys.stderr)
 
 
 
@@ -67,12 +73,17 @@ class MacAppInstaller:
         first = [Path(forced).expanduser()] if forced else []
         if IS_MAC_PLATFORM:
             others = [home / "mlx_whisper_env" / "bin" / "python3", home / ".venv" / "bin" / "python3", Path("/opt/homebrew/bin/python3")]
+        elif IS_WINDOWS:
+            others = [home / ".condense" / "env" / "Scripts" / "python.exe", home / ".venv" / "Scripts" / "python.exe"]
         else:
             others = [home / ".condense" / "env" / "bin" / "python3", home / "rocm_whisper_env" / "bin" / "python3",
                       home / ".venv" / "bin" / "python3"]
         # CONDENSE_WHISPER_PYTHON first (an environment you set up yourself), then the Python running Condense
         # (the installer puts Whisper there), then common locations.
-        return first + [Path(sys.executable)] + others
+        current = Path(sys.executable)
+        if current.name.lower() == "pythonw.exe":  # the GUI runs windowless; Whisper's output must be readable
+            current = current.with_name("python.exe")
+        return first + [current] + others
 
     @classmethod
     def find_best_python(cls) -> str:
@@ -301,6 +312,8 @@ class SystemProbe:
     def detect_gpu_linux(cls) -> Dict[str, str]:
         from condense.platform.linux import has_ffmpeg_vaapi, vaapi_device
 
+        if IS_WINDOWS:
+            return cls.detect_gpu_windows()
         info = cls.torch_info()
         vaapi = has_ffmpeg_vaapi()
         if info.get("gpu"):
@@ -323,6 +336,57 @@ class SystemProbe:
             "vaapi_ok": vaapi,
             "warning": warning,
         }
+
+    @classmethod
+    def detect_gpu_windows(cls) -> Dict[str, str]:
+        from condense.platform.windows import gpu_names, gpu_vendor
+
+        info = cls.torch_info()
+        names = gpu_names()
+        encoders = [name for name in ("hevc_nvenc", "hevc_amf", "hevc_qsv") if cls.ffmpeg_encoder_works(name)]
+        hw = ", ".join({"hevc_nvenc": "NVENC", "hevc_amf": "AMF", "hevc_qsv": "Quick Sync"}[e] for e in encoders)
+        if info.get("gpu"):
+            gpu_name, warning = info.get("name") or "GPU", ""
+            accel = f"PyTorch {info.get('torch')} · {info.get('api') or 'GPU'} ✓"
+        else:
+            gpu_name = names[0] if names else (platform.processor() or "Windows PC")
+            if info.get("torch") is None:
+                accel = "PyTorch not installed in the Whisper Python"
+            else:
+                accel = f"PyTorch {info.get('torch')} sees no GPU ({info.get('api') or 'CPU build'})"
+            hint = ""
+            if gpu_vendor(names) == "amd":
+                hint = " AMD's PyTorch for Windows needs a supported Radeon (RX 7900 / RX 9000 series) and a current driver."
+            warning = accel + " — Whisper runs on the CPU (slow)." + hint + " See docs/install-windows.md."
+        return {
+            "gpu_name": gpu_name,
+            "accel_status": accel,
+            "media_engine": f"GPU encoding: {hw}" if hw else "no GPU video encoder (CPU encoding)",
+            "torch_gpu": bool(info.get("gpu")),
+            "gpu_api": info.get("api") or "",
+            "hw_encoders": encoders,
+            "warning": warning,
+        }
+
+    _encoder_cache: Dict[str, bool] = {}
+
+    @classmethod
+    def ffmpeg_encoder_works(cls, codec: str) -> bool:
+        """Does this ffmpeg encoder actually run on this computer? (listed ≠ usable: NVENC needs an NVIDIA GPU,
+        AMF an AMD one …) Tested once with a tiny generated clip; cached."""
+        if codec in cls._encoder_cache:
+            return cls._encoder_cache[codec]
+        ok = False
+        if shutil.which("ffmpeg"):
+            try:
+                res = subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+                                      "color=c=black:s=256x256:d=0.2", "-frames:v", "3", "-c:v", codec, "-f", "null", "-"],
+                                     capture_output=True, text=True, timeout=30)
+                ok = res.returncode == 0
+            except Exception:
+                ok = False
+        cls._encoder_cache[codec] = ok
+        return ok
 
     @staticmethod
     def find_losslesscut() -> Optional[str]:

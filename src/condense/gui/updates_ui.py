@@ -84,8 +84,10 @@ class UpdatesMixin:
                     self._restart_app()
             else:
                 self._append_log(f"The update failed (exit code {code}); details above. Condense was not changed or is still usable.", "ERROR")
+                how = (f"powershell -ExecutionPolicy Bypass -File \"{updates.updater_path()}\" -Update" if PLATFORM == "windows"
+                       else f"{updates.updater_path()} --update")
                 messagebox.showerror("Update failed", "The update did not finish. The Console tab shows what happened.\n\n"
-                                     f"You can also run it in Terminal:  {updates.updater_path()} --update", parent=self)
+                                     f"You can also run it in a terminal:  {how}", parent=self)
 
     # ----- the dialog -----
     def _show_update_dialog(self, info: Dict):
@@ -149,6 +151,9 @@ class UpdatesMixin:
     def _restart_app(self):
         """Close normally (saves everything), then start the freshly installed version in this process's place."""
         self._on_close()
+        if os.name == "nt":  # exec does not replace a GUI process on Windows: start the new one, this one ends
+            subprocess.Popen([sys.executable, "-m", "condense"], close_fds=True)
+            return
         os.execv(sys.executable, [sys.executable, "-m", "condense"])
 
     def _open_url(self, url: str):

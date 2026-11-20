@@ -50,16 +50,25 @@ def latest_release(timeout: float = 8.0) -> Dict:
             "url": str(data.get("html_url") or RELEASES_PAGE)}
 
 
+def _windows() -> bool:
+    from condense.platform import IS_WINDOWS
+    return IS_WINDOWS
+
+
 def updater_path() -> Path:
     home = Path(os.environ.get("CONDENSE_HOME") or (Path.home() / ".condense"))
-    return home / "install.sh"
+    return home / ("install.ps1" if _windows() else "install.sh")
 
 
 def update_command() -> Optional[List[str]]:
-    """The command that updates this installation, or None if Condense was not installed with install.sh
+    """The command that updates this installation, or None if Condense was not installed with the one-line installer
     (e.g. a git checkout for development — then update with git pull and the platform installer)."""
     path = updater_path()
-    return ["bash", str(path), "--update"] if path.is_file() else None
+    if not path.is_file():
+        return None
+    if _windows():
+        return ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(path), "-Update"]
+    return ["bash", str(path), "--update"]
 
 
 def due(settings: Dict, now: Optional[float] = None) -> bool:
@@ -75,7 +84,7 @@ def run_update(on_line: Callable[[str], None]) -> int:
     cmd = update_command()
     if cmd is None:
         return 127
-    env = dict(os.environ, PYTHONUNBUFFERED="1")
+    env = dict(os.environ, PYTHONUNBUFFERED="1", CONDENSE_UPDATING="1")
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                             text=True, errors="replace", env=env)
     assert proc.stdout is not None

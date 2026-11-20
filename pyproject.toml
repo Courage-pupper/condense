@@ -17,6 +17,7 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: MacOS",
   "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
   "Programming Language :: Python :: 3",
   "Topic :: Multimedia :: Sound/Audio :: Speech",
   "Topic :: Scientific/Engineering",
@@ -34,6 +35,8 @@ mac = ["mlx-whisper", "openai-whisper", "torch"]
 # Linux: openai-whisper on the GPU through PyTorch. Install the ROCm (AMD) or CUDA (NVIDIA) build of torch first —
 # scripts/install-linux.sh does this — because PyPI's default torch for Linux is a CUDA build.
 linux = ["openai-whisper", "torch"]
+# Windows: the same. install-windows.ps1 installs the CUDA (NVIDIA) or AMD ROCm-for-Windows build of torch first.
+windows = ["openai-whisper", "torch"]
 # Optional neural speaker detection (needs a Hugging Face token).
 pyannote = ["pyannote.audio"]
 dev = ["pytest"]

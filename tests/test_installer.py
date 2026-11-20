@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.skipif(os.name == "nt", reason="install.sh is for macOS and Linux")
 ROOT = Path(__file__).resolve().parents[1]
 FAKE_PLATFORM_INSTALLER = """#!/usr/bin/env bash
 # stand-in for scripts/install-{os}.sh: records how it was called

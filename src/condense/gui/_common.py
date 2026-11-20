@@ -21,7 +21,7 @@ import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from condense import __version__, updates
-from condense.asr.runner import WHISPER_RUNNER
+from condense.asr.runner import WHISPER_RUNNER, runner_command
 from condense.core.exports import RTFConfidenceWriter
 from condense.core.transcript import TranscriptDocument
 from condense.core.util import *  # noqa: F401,F403

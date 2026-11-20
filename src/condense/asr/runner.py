@@ -371,3 +371,16 @@ with open(out_json, "w", encoding="utf-8") as f:
     json.dump(result, f, ensure_ascii=False, indent=2)
 print("WHISPER_DONE=1", flush=True)
 """
+
+
+def runner_command(python: str, temp_dir) -> list:
+    """[python, ...] that runs WHISPER_RUNNER. Normally `python -c <script>`; on Windows the script goes into a
+    file in temp_dir, because the command line there is limited to 32 767 characters (the script is ~15 000)."""
+    import os
+    from pathlib import Path
+    if os.name == "nt":
+        path = Path(temp_dir) / "condense_whisper_runner.py"
+        path.write_text(WHISPER_RUNNER, encoding="utf-8")
+        return [python, str(path)]
+    return [python, "-c", WHISPER_RUNNER]
+

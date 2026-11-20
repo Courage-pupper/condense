@@ -141,7 +141,7 @@ class SettingsTabMixin:
         tok = tk.Frame(se.form, bg=T["bg_card"])
         tok.columnconfigure(0, weight=1)
         self._entry(tok, self.var_hf_token, show="•").grid(row=0, column=0, sticky="ew", ipady=2)
-        self._check(tok, "Remember" if IS_MAC_PLATFORM else "Remember in keyring", self.var_remember_token, font="small").grid(row=0, column=1, padx=(8, 0))
+        self._check(tok, "Remember in keyring" if PLATFORM == "linux" else "Remember", self.var_remember_token, font="small").grid(row=0, column=1, padx=(8, 0))
         self.var_remember_token.trace_add("write", lambda *a: self.after_idle(self._sync_token))
         self._row_widget(se, "HF token", tok)
         if SecretStore.available():
