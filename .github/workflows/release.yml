@@ -57,13 +57,19 @@ jobs:
           cat >> notes.md <<'NOTES'
 
           ---
-          **Install** (macOS on Apple Silicon, Linux) — paste into Terminal:
+          **Install on macOS (Apple Silicon) or Linux** — paste into Terminal:
 
           ```
           curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash
           ```
 
-          **Already installed?** Condense offers this update itself (Help ▸ Check for Updates). Guides: [Mac](https://github.com/Courage-pupper/condense/blob/main/docs/install-mac.md) · [Linux](https://github.com/Courage-pupper/condense/blob/main/docs/install-linux.md).
+          **Install on Windows** — paste into PowerShell:
+
+          ```
+          irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1 | iex
+          ```
+
+          **Already installed?** Condense offers this update itself (Help ▸ Check for Updates). Guides: [Mac](https://github.com/Courage-pupper/condense/blob/main/docs/install-mac.md) · [Linux](https://github.com/Courage-pupper/condense/blob/main/docs/install-linux.md) · [Windows](https://github.com/Courage-pupper/condense/blob/main/docs/install-windows.md).
           NOTES
 
       - name: Build the Python package

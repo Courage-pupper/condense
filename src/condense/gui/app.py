@@ -526,5 +526,11 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
 
 
 def launch_gui() -> None:
+    if os.name == "nt":
+        try:  # sharp text on high-resolution screens (otherwise Windows scales the window up and blurs it)
+            import ctypes
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        except Exception:
+            pass
     app = CondenseApp()
     app.mainloop()

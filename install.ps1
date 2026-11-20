@@ -95,7 +95,9 @@ Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $tmp | Out-Null
 $zip = Join-Path $tmp "release.zip"
 try { Save-Url $url $zip } catch { Fail "Download of $url failed: $($_.Exception.Message)" }
-Expand-Archive -Path $zip -DestinationPath $tmp -Force
+# .NET's extractor: Expand-Archive in Windows PowerShell 5.1 fails on some valid archives
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+try { [IO.Compression.ZipFile]::ExtractToDirectory($zip, $tmp) } catch { Fail "Could not unpack the download: $($_.Exception.Message)" }
 $top = Get-ChildItem -Directory $tmp | Select-Object -First 1
 if (-not $top -or -not (Test-Path (Join-Path $top.FullName "scripts\install-windows.ps1"))) { Fail "The download does not contain scripts\install-windows.ps1." }
 Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue

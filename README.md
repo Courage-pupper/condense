@@ -20,11 +20,20 @@ Local video, audio and transcript processing for qualitative research. Everythin
 | Linux, AMD GPU | openai-whisper and PyTorch on the GPU (ROCm) | GPU (VA-API) | 🧪 preview |
 | Linux, NVIDIA GPU | openai-whisper and PyTorch on the GPU (CUDA) | CPU (HandBrake); NVENC planned | 🧪 preview |
 | Linux, no GPU | CPU | CPU | 🧪 preview (slow) |
-| Windows, NVIDIA | — | — | 🚧 planned |
+| Windows, NVIDIA GPU | openai-whisper and PyTorch on the GPU (CUDA) | GPU (NVENC) | 🧪 preview |
+| Windows, AMD RX 7900 / RX 9000 | openai-whisper and PyTorch on the GPU (AMD's ROCm for Windows, Windows 11) | GPU (AMF) | 🧪 preview |
+| Windows, other GPUs / no GPU | CPU | GPU (AMF / Quick Sync) where available, else CPU | 🧪 preview (slow) |
 
 ## Install
 
-Open **Terminal** (Mac) or a terminal (Linux), paste this line and press Return:
+**Windows:** open **PowerShell** (Start menu → type "PowerShell"), paste this line and press Enter — then see the
+[Windows guide](docs/install-windows.md):
+
+```powershell
+irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1 | iex
+```
+
+**Mac and Linux:** open **Terminal** (Mac) or a terminal (Linux), paste this line and press Return:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash
@@ -48,6 +57,7 @@ troubleshooting:
 
 - **[Installing on a Mac](docs/install-mac.md)**
 - **[Installing on Linux](docs/install-linux.md)**
+- **[Installing on Windows](docs/install-windows.md)**
 
 The first transcription downloads the Whisper model (about 1.5 GB for `large-v3-turbo`); after that Condense works offline.
 
@@ -58,7 +68,7 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/pytest -q
 ```
 
-The tests need `ffmpeg` but no GPU, no display and no real recordings: they generate tiny synthetic videos and use stand-ins for Tk, Whisper, PyTorch, HandBrake, the Keychain and the Linux keyring (`tests/stub_tk2.py`, `tests/fakes/`). `CONDENSE_PLATFORM=mac|linux` selects which platform layer runs, so both are tested on any machine. Each file in `tests/scenarios/` is an end-to-end scenario (task queue, editor, player, speakers, undo/backups, re-transcription, …).
+The tests need `ffmpeg` but no GPU, no display and no real recordings: they generate tiny synthetic videos and use stand-ins for Tk, Whisper, PyTorch, HandBrake, the Keychain and the Linux keyring (`tests/stub_tk2.py`, `tests/fakes/`). `CONDENSE_PLATFORM=mac|linux|windows` selects which platform layer runs, so all three are tested on any machine; CI also runs on real macOS, Ubuntu and Windows. Each file in `tests/scenarios/` is an end-to-end scenario (task queue, editor, player, speakers, undo/backups, re-transcription, …).
 
 Code layout:
 
@@ -68,7 +78,7 @@ src/condense/
   media/      LosslessCut cut lists
   asr/        the script run in the Whisper environment (transcription + speaker detection)
   pipeline/   the background worker that runs the task queue
-  platform/   OS integration: detect.py (what each platform offers), mac.py, linux.py
+  platform/   OS integration: detect.py (what each platform offers), mac.py, linux.py, windows.py
   gui/        Tk app: queue, settings, editor, player/timeline, video, re-runs
 ```
 

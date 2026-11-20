@@ -53,7 +53,7 @@ def gh(tmp_path):
 
 def ps_file(env, *args):
     res = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ROOT / "install.ps1"), *args],
-                         env=env, capture_output=True, text=True, timeout=180)
+                         env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180)
     return res
 
 
@@ -81,7 +81,8 @@ def test_one_liner_style_and_errors(gh):
     root, env = gh
     # exactly what `irm …/install.ps1 | iex` does: run the text, not a file
     cmd = f"Get-Content -Raw '{ROOT / 'install.ps1'}' | Invoke-Expression"
-    res = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], env=env, capture_output=True, text=True, timeout=180)
+    res = subprocess.run(["powershell", "-NoProfile", "-Command", cmd], env=env, capture_output=True, text=True,
+                         encoding="utf-8", errors="replace", timeout=180)
     assert res.returncode == 0, res.stdout + res.stderr
     assert calls(root)[-1]["Gpu"] == "auto"
     res = ps_file(dict(env, CONDENSE_HOME=str(root / "nohome")), "-Update")

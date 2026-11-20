@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.0 — 2026-11-20
+
+### Windows (preview)
+- New Windows platform layer (Windows 10/11, 64-bit). Whisper and speaker detection run on the GPU through PyTorch: CUDA on NVIDIA, AMD's ROCm build of PyTorch for Windows on the Radeon RX 7900 / RX 9000 series (Windows 11, AMD Software 26.2.2+), otherwise the CPU.
+- Video compression on the GPU with ffmpeg: NVENC (NVIDIA), AMF (AMD) and Quick Sync (Intel). The default `auto_h265` tests which encoder really works on the PC (an encoder listed by ffmpeg is not necessarily usable) and falls back to the CPU.
+- One-line install from PowerShell: `irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1 | iex` — winget installs Python 3.12, FFmpeg and HandBrake CLI; options (`-Gpu`, `-Venv`, `-WithPyannote`, …) are remembered; in-app updates work as on macOS and Linux.
+- Hugging Face token in the Windows Credential Manager, Start-menu and Desktop shortcuts with an icon, no console windows, sharp text on high-DPI screens, `%APPDATA%` / `%LOCALAPPDATA%` locations.
+
+### All platforms
+- Without HandBrake, the x265/x264 encoders now use ffmpeg's own x265/x264 instead of failing.
+- Whisper's output is read as UTF-8.
+
 ## 0.10.0 — 2026-11-20
 
 ### Installing and updating

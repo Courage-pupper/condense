@@ -33,7 +33,9 @@ def test_scenario(script, pristine_media, tmp_path):
     env["USERPROFILE"] = str(home)  # Path.home() on Windows
     for var in ("APPDATA", "LOCALAPPDATA"):
         env.pop(var, None)
-    res = subprocess.run([sys.executable, str(script)], cwd=str(media), env=env, capture_output=True, text=True, timeout=900)
+    env["PYTHONUTF8"] = "1"  # scenarios print ✓; a Windows console code page cannot
+    res = subprocess.run([sys.executable, str(script)], cwd=str(media), env=env, capture_output=True, text=True,
+                         encoding="utf-8", errors="replace", timeout=900)
     out = res.stdout + res.stderr
     assert res.returncode == 0, out[-5000:]
     assert "ALL TESTS PASSED" in out or "✓" in out, out[-5000:]

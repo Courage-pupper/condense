@@ -11,7 +11,8 @@ Each component keeps its own licence; this page lists them so users can check th
 |---|---|---|
 | [mlx-whisper](https://pypi.org/project/mlx-whisper/) / [MLX](https://github.com/ml-explore/mlx) | Whisper on Apple Silicon GPUs | MIT |
 | [openai-whisper](https://github.com/openai/whisper) | Whisper on the CPU (fallback) | MIT |
-| [PyTorch](https://pytorch.org) | Speaker detection; on Linux also Whisper on the GPU (Metal / CUDA / ROCm builds) | BSD-3-Clause |
+| [PyTorch](https://pytorch.org) | Speaker detection; on Linux and Windows also Whisper on the GPU (Metal / CUDA / ROCm builds) | BSD-3-Clause |
+| AMD's PyTorch for Windows wheels and ROCm SDK wheels (`repo.radeon.com`), Windows with AMD GPUs | PyTorch: BSD-3-Clause; ROCm components: AMD's licences (mostly MIT) | Downloaded from AMD by the Windows installer, not bundled. |
 | [NumPy](https://numpy.org) | Audio features | BSD-3-Clause |
 | [pyannote.audio](https://github.com/pyannote/pyannote-audio) (optional) | Neural speaker detection | MIT |
 
@@ -31,6 +32,7 @@ Their own dependencies (e.g. `huggingface_hub`, `tiktoken`) carry their own, per
 |---|---|---|
 | [ffmpeg](https://ffmpeg.org) | LGPL-2.1+ / GPL-2.0+ (depending on the build) | Called on the command line for cutting, converting and decoding. |
 | [HandBrakeCLI](https://handbrake.fr) | GPL-2.0 | Optional; called on the command line for video compression. |
+| Python, FFmpeg (gyan.dev build), HandBrake CLI via [winget](https://learn.microsoft.com/windows/package-manager/), Windows | their own licences | The Windows installer asks winget to install them from their publishers; Condense does not redistribute them. |
 | `secret-tool` ([libsecret](https://gitlab.gnome.org/GNOME/libsecret)), Linux | LGPL-2.1+ | Called on the command line to keep the Hugging Face token in the desktop keyring. |
 | [LosslessCut](https://github.com/mifi/lossless-cut) | GPL-2.0 | Not used as software: Condense only reads the `.llc` project files you create with it. |
 
