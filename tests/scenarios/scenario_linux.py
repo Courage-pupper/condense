@@ -48,7 +48,8 @@ cpu = TD.load(media / "P03_48k" / "P03_48k.transcript.json")
 assert "device=cuda fp16=True" in logs["P02"], logs["P02"][-2000:]
 assert gpu.data["provenance"]["whisper"]["backend_used"] == "openai-whisper on ROCm GPU (AMD Radeon RX 7900 XTX)", gpu.data["provenance"]["whisper"]
 assert "device=cpu fp16=False" in logs["P03_48k"] and cpu.data["provenance"]["whisper"]["backend_used"] == "openai-whisper on CPU"
-assert gpu.data["provenance"]["system"]["os"] and gpu.data["provenance"]["system"]["macos"] is None
+# provenance describes the real machine (this scenario may run on a Mac with CONDENSE_PLATFORM=linux)
+assert gpu.data["provenance"]["system"]["os"] and (gpu.data["provenance"]["system"]["macos"] is None) == (sys.platform != "darwin")
 assert [s["text"].strip() for s in gpu.segments] == ["Hello there.", "Pick a colour."]
 ok("PyTorch backend → cuda device + fp16 (ROCm GPU named in provenance); CPU backend → cpu, fp32")
 
