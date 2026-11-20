@@ -1,4 +1,5 @@
-"""macOS / Apple Silicon integration: environment, hardware probe, app bundle, Keychain."""
+"""macOS integration (environment, app bundle, Keychain) plus the hardware probe and Whisper-Python discovery,
+which also cover Linux (see detect.py / linux.py)."""
 import json
 import math
 import os
@@ -17,21 +18,22 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
-APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "Condense"
+from condense.platform.detect import IS_MAC_PLATFORM, PLATFORM, app_support_dir, log_file
+
+APP_SUPPORT_DIR = app_support_dir()
 LEGACY_APP_SUPPORT_DIR = Path.home() / "Library" / "Application Support" / "SiliconVideoPipeline"
 
 
 def setup_environment() -> None:
-    # Apps launched from Finder/Dock get a minimal PATH without Homebrew; make ffmpeg/HandBrakeCLI findable.
-    _HOMEBREW_PATHS = ["/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin"]
-    _cur_path = os.environ.get("PATH", "").split(os.pathsep)
-    os.environ["PATH"] = os.pathsep.join([p for p in _HOMEBREW_PATHS if p not in _cur_path] + _cur_path)
-
-    # Let PyTorch silently fall back to CPU for any op not yet implemented on Metal (MPS).
-    os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
-
-    if sys.platform != "darwin":
-        print("Warning: Condense currently supports macOS on Apple Silicon only (Windows and Linux are planned).", file=sys.stderr)
+    if IS_MAC_PLATFORM:
+        # Apps launched from Finder/Dock get a minimal PATH without Homebrew; make ffmpeg/HandBrakeCLI findable.
+        _HOMEBREW_PATHS = ["/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin"]
+        _cur_path = os.environ.get("PATH", "").split(os.pathsep)
+        os.environ["PATH"] = os.pathsep.join([p for p in _HOMEBREW_PATHS if p not in _cur_path] + _cur_path)
+        # Let PyTorch silently fall back to CPU for any op not yet implemented on Metal (MPS).
+        os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+    elif PLATFORM == "other":
+        print("Warning: Condense supports macOS (Apple Silicon) and Linux; Windows support is planned.", file=sys.stderr)
 
 
 
@@ -61,20 +63,24 @@ class MacAppInstaller:
     @staticmethod
     def _python_candidates() -> List[Path]:
         home = Path.home()
-        return [
-            Path(sys.executable),  # the Python running Condense (the installer puts Whisper here)
-            home / "mlx_whisper_env" / "bin" / "python3",
-            home / ".venv" / "bin" / "python3",
-            Path("/opt/homebrew/bin/python3"),
-        ]
+        forced = os.environ.get("CONDENSE_WHISPER_PYTHON", "").strip()
+        first = [Path(forced).expanduser()] if forced else []
+        if IS_MAC_PLATFORM:
+            others = [home / "mlx_whisper_env" / "bin" / "python3", home / ".venv" / "bin" / "python3", Path("/opt/homebrew/bin/python3")]
+        else:
+            others = [home / ".condense" / "env" / "bin" / "python3", home / "rocm_whisper_env" / "bin" / "python3",
+                      home / ".venv" / "bin" / "python3"]
+        # CONDENSE_WHISPER_PYTHON first (an environment you set up yourself), then the Python running Condense
+        # (the installer puts Whisper there), then common locations.
+        return first + [Path(sys.executable)] + others
 
     @classmethod
     def find_best_python(cls) -> str:
-        """Prefer a Python that has mlx_whisper (GPU), then one with openai-whisper (CPU). Cached."""
+        """The Python that runs Whisper: on macOS one with mlx_whisper (GPU), else one with openai-whisper. Cached."""
         if cls._best_python_cache:
             return cls._best_python_cache
         candidates = [c for c in cls._python_candidates() if c.exists()]
-        for module in ("mlx_whisper", "whisper"):
+        for module in (("mlx_whisper", "whisper") if IS_MAC_PLATFORM else ("whisper",)):
             for candidate in candidates:
                 try:
                     res = subprocess.run(
@@ -140,7 +146,7 @@ class MacAppInstaller:
         has_icon = cls._build_icns(svg_path, res_dir / "AppIcon.icns")
 
         app_py = sys.executable  # must be the Python where Condense is installed
-        log_path = home / "Library" / "Logs" / "Condense.log"
+        log_path = log_file()
         launcher = macos_dir / "launcher"
         launcher.write_text(
             "#!/bin/bash\n"
@@ -159,7 +165,7 @@ class MacAppInstaller:
             "CFBundlePackageType": "APPL",
             "CFBundleShortVersionString": "1.0",
             "CFBundleVersion": "1",
-            "LSMinimumSystemVersion": "12.0",
+            "LSMinimumSystemVersion": "14.0",  # MLX needs macOS 14+
             "NSHighResolutionCapable": True,
         }
         if has_icon:
@@ -203,6 +209,8 @@ class SystemProbe:
 
     @classmethod
     def detect_gpu(cls) -> Dict[str, str]:
+        if not IS_MAC_PLATFORM:
+            return cls.detect_gpu_linux()
         chip = cls._sysctl("machdep.cpu.brand_string") or platform.processor() or "Unknown Mac"
         gpu_cores = ""
         try:
@@ -264,6 +272,58 @@ class SystemProbe:
             "warning": warning,
         }
 
+    TORCH_PROBE = (
+        "import json\n"
+        "info = {'torch': None, 'gpu': False, 'api': '', 'name': '', 'whisper': False}\n"
+        "try:\n"
+        "    import importlib.util; info['whisper'] = importlib.util.find_spec('whisper') is not None\n"
+        "    import torch\n"
+        "    info['torch'] = torch.__version__\n"
+        "    info['gpu'] = bool(torch.cuda.is_available())\n"
+        "    info['api'] = 'ROCm' if getattr(torch.version, 'hip', None) else ('CUDA' if getattr(torch.version, 'cuda', None) else '')\n"
+        "    if info['gpu']:\n"
+        "        info['name'] = torch.cuda.get_device_name(0)\n"
+        "except Exception as exc:\n"
+        "    info['error'] = str(exc)[:200]\n"
+        "print(json.dumps(info))\n"
+    )
+
+    @classmethod
+    def torch_info(cls) -> Dict:
+        """What the Whisper Python's PyTorch sees: version, ROCm/CUDA, GPU name."""
+        try:
+            res = subprocess.run([MacAppInstaller.find_best_python(), "-c", cls.TORCH_PROBE], capture_output=True, text=True, timeout=60)
+            return json.loads(res.stdout.strip().splitlines()[-1])
+        except Exception as exc:
+            return {"torch": None, "gpu": False, "api": "", "name": "", "whisper": False, "error": str(exc)[:200]}
+
+    @classmethod
+    def detect_gpu_linux(cls) -> Dict[str, str]:
+        from condense.platform.linux import has_ffmpeg_vaapi, vaapi_device
+
+        info = cls.torch_info()
+        vaapi = has_ffmpeg_vaapi()
+        if info.get("gpu"):
+            gpu_name = f"{info.get('name') or 'GPU'}"
+            accel = f"PyTorch {info.get('torch')} · {info.get('api') or 'GPU'} ✓"
+            warning = ""
+        else:
+            gpu_name = platform.processor() or platform.machine() or "Linux"
+            if info.get("torch") is None:
+                accel = "PyTorch not installed in the Whisper Python"
+            else:
+                accel = f"PyTorch {info.get('torch')} sees no GPU ({info.get('api') or 'CPU build'})"
+            warning = accel + " — Whisper runs on the CPU (slow). See docs/install-linux.md."
+        return {
+            "gpu_name": gpu_name,
+            "accel_status": accel,
+            "media_engine": f"VA-API ({vaapi_device()})" if vaapi else "no VA-API encoder (CPU encoding)",
+            "torch_gpu": bool(info.get("gpu")),
+            "gpu_api": info.get("api") or "",
+            "vaapi_ok": vaapi,
+            "warning": warning,
+        }
+
     @staticmethod
     def find_losslesscut() -> Optional[str]:
         for app in (Path("/Applications/LosslessCut.app"), Path.home() / "Applications" / "LosslessCut.app"):
@@ -283,7 +343,7 @@ class SystemProbe:
 
         whisper_ok = None
         best_py = MacAppInstaller.find_best_python()
-        for module, label in (("mlx_whisper", "MLX"), ("whisper", "openai-whisper")):
+        for module, label in ((("mlx_whisper", "MLX"), ("whisper", "openai-whisper")) if IS_MAC_PLATFORM else (("whisper", "openai-whisper"),)):
             try:
                 res = subprocess.run([best_py, "-c", f"import {module}"], capture_output=True, timeout=8)
                 if res.returncode == 0:
@@ -354,6 +414,7 @@ class KeychainSecret:
     """Stores one secret (the Hugging Face token) in the macOS login Keychain via /usr/bin/security.
     The secret is written through `security -i` on stdin, so it never appears on a command line."""
 
+    LABEL = "macOS Keychain"
     SERVICE = "Condense"
     LEGACY_SERVICE = "SiliconVideoPipeline"  # name used before the app was called Condense
     ACCOUNT = "huggingface-token"

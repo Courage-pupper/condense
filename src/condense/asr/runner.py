@@ -62,16 +62,34 @@ elif backend.startswith("MLX"):
             result = mlx_whisper.transcribe(audio_path, path_or_hf_repo=repo, **kwargs)
         backend_label = "MLX on Apple Silicon GPU"
 
+def gpu_api_label(torch_mod):
+    return "ROCm" if getattr(torch_mod.version, "hip", None) else "CUDA"
+
 if result is None:
-    # openai-whisper's MPS support is unreliable (sparse alignment-head tensors, fp16 NaNs), so use CPU.
+    # openai-whisper on a CUDA device: NVIDIA (CUDA) or AMD (ROCm builds of PyTorch use the same torch.cuda API).
+    # Apple's MPS stays off: openai-whisper is unreliable there (sparse alignment-head tensors, fp16 NaNs).
+    whisper_device, gpu_label = "cpu", ""
+    if backend.startswith("PyTorch"):
+        try:
+            import torch
+            if torch.cuda.is_available():
+                whisper_device = "cuda"
+                gpu_label = f"{gpu_api_label(torch)} GPU ({torch.cuda.get_device_name(0)})"
+            else:
+                print("PyTorch sees no GPU (check the ROCm/CUDA build of torch and your GPU driver); using the CPU.", flush=True)
+        except ImportError:
+            print("PyTorch is not installed in this Python; using the CPU.", flush=True)
     import whisper
-    model = whisper.load_model(model_name, device="cpu")
+    if whisper_device == "cuda":
+        print(f"Running openai-whisper '{model_name}' on the {gpu_label}. First run downloads the model.", flush=True)
+    model = whisper.load_model(model_name, device=whisper_device)
+    use_fp16 = whisper_device == "cuda"
     try:
-        result = model.transcribe(audio_path, fp16=False, hallucination_silence_threshold=2.0, **kwargs)
+        result = model.transcribe(audio_path, fp16=use_fp16, hallucination_silence_threshold=2.0, **kwargs)
         kwargs["hallucination_silence_threshold"] = 2.0
     except TypeError:
-        result = model.transcribe(audio_path, fp16=False, **kwargs)
-    backend_label = "openai-whisper on CPU"
+        result = model.transcribe(audio_path, fp16=use_fp16, **kwargs)
+    backend_label = f"openai-whisper on {gpu_label}" if gpu_label else "openai-whisper on CPU"
 
 segments = result.get("segments", [])
 result["diarization_method"] = "Disabled"
@@ -79,12 +97,23 @@ result["backend_label"] = backend_label
 
 def pick_torch_device():
     import torch
-    return "mps" if torch.backends.mps.is_available() else "cpu"
+    if torch.cuda.is_available():  # NVIDIA CUDA or AMD ROCm
+        return "cuda"
+    mps = getattr(torch.backends, "mps", None)
+    return "mps" if (mps is not None and mps.is_available()) else "cpu"
+
+def device_label(dev):
+    if dev == "mps":
+        return "Metal/MPS"
+    if dev == "cuda":
+        import torch
+        return gpu_api_label(torch)
+    return "CPU"
 
 def run_spectral_diarization(wav_file, segs, k_Hint, dev):
     import torch
     import torch.nn.functional as F
-    label = "Metal/MPS" if dev == "mps" else "CPU"
+    label = device_label(dev)
     if not segs or not os.path.exists(wav_file):
         return "Disabled"
     with wave.open(wav_file, "rb") as wf:
@@ -308,7 +337,7 @@ if not diarize_mode.startswith("Disabled") and len(segments) > 0:
                     remap[best_spk] = f"SPEAKER_{next_id:02d}"
                     next_id += 1
                 seg["speaker"] = remap[best_spk]
-            dev_lbl = "Metal/MPS" if device == "mps" else "CPU"
+            dev_lbl = device_label(device)
             result["diarization_method"] = f"pyannote.audio 3.1 {dev_lbl} ({len(remap)} Speakers)"
             used_pyannote = True
         except Exception as exc:
@@ -320,7 +349,7 @@ if not diarize_mode.startswith("Disabled") and len(segments) > 0:
         except Exception as exc:
             if device == "cpu":
                 raise
-            print(f"MPS diarization failed ({exc}); retrying on CPU.", flush=True)
+            print(f"GPU diarization failed ({exc}); retrying on CPU.", flush=True)
             method_str = run_spectral_diarization(wav_16k_path, segments, num_speakers, "cpu")
         result["diarization_method"] = method_str
 

@@ -1,4 +1,5 @@
 """Colours, fonts, markers and other GUI constants."""
+import sys
 from pathlib import Path
 
 THEME = {
@@ -17,8 +18,13 @@ THEME = {
     "border": "#2a3040",
 }
 
-FONT_UI = "Helvetica Neue"
-FONT_MONO = "Menlo"
+# Fonts follow the real OS (missing families fall back to Tk's default, which is not monospaced on Linux)
+if sys.platform == "darwin":
+    FONT_UI, FONT_MONO = "Helvetica Neue", "Menlo"
+elif sys.platform.startswith("win"):
+    FONT_UI, FONT_MONO = "Segoe UI", "Consolas"
+else:
+    FONT_UI, FONT_MONO = "DejaVu Sans", "DejaVu Sans Mono"  # installed on Ubuntu/Debian/Fedora by default
 # name -> (family, base size, weight). Every widget uses these named fonts, so View > Larger/Smaller Text
 # (⌘+ / ⌘− / ⌘0) resizes the whole window live.
 FONT_SPECS = {

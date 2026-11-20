@@ -37,7 +37,8 @@ class SettingsTabMixin:
     @staticmethod
     def _quality_text(v) -> str:
         rf = int(float(v))
-        return f"RF {rf}  ·  VideoToolbox q{SystemProbe.rf_to_videotoolbox_q(rf)}"
+        hw = SystemProbe.rf_to_videotoolbox_q(rf) if IS_MAC_PLATFORM else rf
+        return f"RF {rf}  ·  {HW_QUALITY_NAME} {'q' if IS_MAC_PLATFORM else ''}{hw}"
 
     def _build_settings_tab(self):
         self.settings_scroll = ScrollFrame(self.tab_settings, bg=THEME["bg_panel"])
@@ -66,7 +67,7 @@ class SettingsTabMixin:
         self._row_full(out, self._check(out.form, "Apply LosslessCut (.llc) trims if present", self.var_respect_llc))
         folder = tk.Frame(out.form, bg=T["bg_card"])
         folder.columnconfigure(0, weight=1)
-        self.var_output_dir = tk.StringVar(value=str(Path.home() / "Movies" / "Condense"))
+        self.var_output_dir = tk.StringVar(value=str(default_output_dir()))
         self._persist["output_dir"] = self.var_output_dir
         self._entry(folder, self.var_output_dir).grid(row=0, column=0, sticky="ew", ipady=2)
         self._tool(folder, "Browse…", self._browse_output).grid(row=0, column=1, padx=(6, 0))
@@ -75,17 +76,8 @@ class SettingsTabMixin:
 
         # --- Video
         hb = self._card(self.cards_frame, "VIDEO  ·  STAGES 1–2")
-        self.var_hb_encoder = tk.StringVar(value="vt_h265 (Apple Media Engine)")
-        self._row_combo(hb, "Encoder", self.var_hb_encoder, [
-            "vt_h265 (Apple Media Engine)",
-            "vt_h265_10bit (Apple Media Engine)",
-            "vt_h264 (Apple Media Engine)",
-            "ffmpeg_hevc_videotoolbox (Media Engine, no HandBrake)",
-            "ffmpeg_h264_videotoolbox (Media Engine, no HandBrake)",
-            "svt_av1 (CPU - no AV1 HW encoder on Apple Silicon)",
-            "x265 (CPU)",
-            "x264 (CPU)",
-        ], "hb_encoder")
+        self.var_hb_encoder = tk.StringVar(value=DEFAULT_ENCODER)
+        self._row_combo(hb, "Encoder", self.var_hb_encoder, list(VIDEO_ENCODERS), "hb_encoder")
         self.var_hb_quality = tk.IntVar(value=22)
         self._persist["hb_quality"] = self.var_hb_quality
         qf = tk.Frame(hb.form, bg=T["bg_card"])
@@ -112,8 +104,8 @@ class SettingsTabMixin:
         self.var_speech_filter = tk.BooleanVar(value=False)
         self._persist["speech_filter"] = self.var_speech_filter
         self._row_full(aw, self._check(aw.form, "Voice bandpass filter (80 Hz – 8 kHz)", self.var_speech_filter))
-        self.var_whisper_backend = tk.StringVar(value="MLX (Apple Silicon GPU)")
-        self._row_combo(aw, "Backend", self.var_whisper_backend, ["MLX (Apple Silicon GPU)", "openai-whisper (CPU)"], "whisper_backend")
+        self.var_whisper_backend = tk.StringVar(value=DEFAULT_BACKEND)
+        self._row_combo(aw, "Backend", self.var_whisper_backend, list(WHISPER_BACKENDS), "whisper_backend")
         self.var_whisper_model = tk.StringVar(value="large-v3-turbo")
         self._row_combo(aw, "Model", self.var_whisper_model, ["tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"], "whisper_model")
         self.var_whisper_lang = tk.StringVar(value="auto (Auto-Detect)")
@@ -129,9 +121,9 @@ class SettingsTabMixin:
 
         # --- Speakers & exports
         se = self._card(self.cards_frame, "SPEAKERS & EXPORTS")
-        self.var_diarize_mode = tk.StringVar(value="PyTorch MPS Spectral (Offline - No Token Needed)")
+        self.var_diarize_mode = tk.StringVar(value=GPU_DIARIZATION)
         self._row_combo(se, "Diarization", self.var_diarize_mode, [
-            "PyTorch MPS Spectral (Offline - No Token Needed)",
+            GPU_DIARIZATION,
             "Pyannote.audio 3.1 Neural (Requires HF Token)",
             "Disabled (No Speaker Labels)",
         ], "diarize_mode")
@@ -149,11 +141,15 @@ class SettingsTabMixin:
         tok = tk.Frame(se.form, bg=T["bg_card"])
         tok.columnconfigure(0, weight=1)
         self._entry(tok, self.var_hf_token, show="•").grid(row=0, column=0, sticky="ew", ipady=2)
-        self._check(tok, "Remember in Keychain", self.var_remember_token, font="small").grid(row=0, column=1, padx=(8, 0))
+        self._check(tok, "Remember" if IS_MAC_PLATFORM else "Remember in keyring", self.var_remember_token, font="small").grid(row=0, column=1, padx=(8, 0))
         self.var_remember_token.trace_add("write", lambda *a: self.after_idle(self._sync_token))
         self._row_widget(se, "HF token", tok)
-        note = ("Only needed for pyannote. Stored in your macOS login Keychain, never in the settings file."
-                if KeychainSecret.available() else "Only needed for pyannote. Keychain not available here, so it is not saved.")
+        if SecretStore.available():
+            note = f"Only needed for pyannote. Stored in your {SecretStore.LABEL}, never in the settings file."
+        elif IS_MAC_PLATFORM:
+            note = "Only needed for pyannote. The Keychain is not available here, so it is not saved."
+        else:
+            note = "Only needed for pyannote. Not saved: install libsecret-tools (secret-tool) to keep it in your keyring."
         self._row_full(se, self._wrapping_label(se.form, note, font="small", fg=T["fg_dim"]), pady=(0, 6))
         fmt = self._flow(se.form, padx=12, bg=T["bg_card"])
         self.var_fmt_srt = tk.BooleanVar(value=True)
@@ -193,14 +189,19 @@ class SettingsTabMixin:
             padx = ((0, 5) if c == 0 else (5, 0)) if cols == 2 else (0, 0)
             card.grid(row=r, column=c, sticky="nsew", padx=padx, pady=(0, 10))
 
-    def _on_mousewheel(self, event):
+    def _on_mousewheel(self, event, units_override: int = 0):
+        """Mouse wheel: scroll the Settings cards, and never change a combobox value by scrolling over it.
+        X11 (Linux) reports the wheel as Button-4/5 instead of <MouseWheel>; app.py passes those as ±1."""
         try:
             widget = self.winfo_containing(event.x_root, event.y_root)
         except Exception:
             widget = None
         if widget is not None and self.settings_scroll.contains(widget):
-            d = event.delta
-            units = (-d if abs(d) < 120 else -int(d / 120)) if IS_MAC else (-int(d / 120) if d else 0)
+            d = getattr(event, "delta", 0) or 0
+            if units_override:
+                units = units_override
+            else:
+                units = (-d if abs(d) < 120 else -int(d / 120)) if IS_MAC else (-int(d / 120) if d else 0)
             if units:
                 self.settings_scroll.scroll(units)
             return "break"

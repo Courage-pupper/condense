@@ -55,6 +55,10 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
 
         self.bind_all("<MouseWheel>", self._on_mousewheel, add="+")
         self.bind_class("TCombobox", "<MouseWheel>", self._on_mousewheel)  # scrolling must not change values
+        if not IS_MAC:  # X11: the wheel arrives as buttons 4 (up) and 5 (down)
+            for button, units in (("<Button-4>", -3), ("<Button-5>", 3)):
+                self.bind_all(button, lambda e, u=units: self._on_mousewheel(e, u), add="+")
+                self.bind_class("TCombobox", button, lambda e, u=units: self._on_mousewheel(e, u))
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         try:
             self.createcommand("tk::mac::Quit", self._on_close)
@@ -169,7 +173,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         if IS_MAC:
             app_menu = tk.Menu(mb, name="apple", tearoff=0)
             app_menu.add_command(label="Setup & Status…", command=self._show_setup_modal)
-            app_menu.add_command(label="Install App in ~/Applications", command=self._install_desktop_shortcut)
+            app_menu.add_command(label=self._install_label(), command=self._install_desktop_shortcut)
             mb.add_cascade(menu=app_menu)
 
         acc = "Command-" if IS_MAC else "Ctrl+"
@@ -184,6 +188,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         if not IS_MAC:
             file_menu.add_separator()
             file_menu.add_command(label="Setup & Status…", command=self._show_setup_modal)
+            file_menu.add_command(label=self._install_label(), command=self._install_desktop_shortcut)
         mb.add_cascade(label="File", menu=file_menu)
 
         em = tk.Menu(mb, tearoff=0)
@@ -306,7 +311,10 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
             parts.append(f"MLX {'✓' if g['mlx_ok'] else '✗'}")
             parts.append(f"Metal {'✓' if g['mps_ok'] else '✗'}")
             parts.append("VideoToolbox ✓")
-        ok = g.get("mlx_ok", True)
+        if "torch_gpu" in g:
+            parts.append(f"{g.get('gpu_api') or 'PyTorch'} {'✓' if g['torch_gpu'] else '✗'}")
+            parts.append(f"VA-API {'✓' if g.get('vaapi_ok') else '✗'}")
+        ok = g.get("mlx_ok", g.get("torch_gpu", True))
         self.sub_lbl.configure(text="  ·  ".join(parts), fg=THEME["fg_secondary"] if ok else THEME["warn"])
 
     def _build_footer(self):
@@ -371,7 +379,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
                 pass
         self.lbl_hb_q.config(text=self._quality_text(self.var_hb_quality.get()))
         if self.var_remember_token.get():
-            self._stored_token = KeychainSecret.load()
+            self._stored_token = SecretStore.load()
             if self._stored_token:
                 self.var_hf_token.set(self._stored_token)
 
@@ -415,10 +423,15 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         self.destroy()
 
     # ================================================================== dialogs
+    @staticmethod
+    def _install_label() -> str:
+        return "Install App in ~/Applications" if IS_MAC_PLATFORM else "Add Condense to the App Menu"
+
     def _install_desktop_shortcut(self):
         try:
-            paths = MacAppInstaller.install_shortcut()
-            self._append_log(f"Installed {paths['app']} (Launchpad / Spotlight; drag it to the Dock).", "SUCCESS")
+            paths = AppInstaller.install_shortcut()
+            where = "Launchpad / Spotlight; drag it to the Dock" if IS_MAC_PLATFORM else "find it in your app menu; pin it to the dock from there"
+            self._append_log(f"Installed {paths['app']} ({where}).", "SUCCESS")
             if paths.get("desktop_icon"):
                 self._append_log(f"Desktop link: {paths['desktop_icon']}", "INFO")
             self._append_log(f"App launches log to {paths['log']}", "INFO")
@@ -434,7 +447,8 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         win.configure(bg=THEME["bg_panel"])
         bar = tk.Frame(win, bg=THEME["bg_panel"])
         bar.pack(fill=tk.X, padx=14, pady=(12, 0))
-        self._tool(bar, "Install App in ~/Applications", lambda: (win.destroy(), self._install_desktop_shortcut())).pack(side=tk.LEFT)
+        self._tool(bar, self._install_label(), lambda: (win.destroy(), self._install_desktop_shortcut())).pack(side=tk.LEFT)
+        self._tool(bar, "Keyboard Shortcuts", self._show_shortcuts).pack(side=tk.LEFT, padx=(6, 0))
         txt = tk.Text(win, bg="#0b0c10", fg="#a7f3d0", font=self.f["mono_small"], padx=12, pady=12, wrap=tk.WORD, highlightthickness=0)
         txt.pack(fill=tk.BOTH, expand=True, padx=14, pady=12)
         status = ["# Status"]
@@ -443,28 +457,31 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
                 status.append(f"  {'✓' if self.deps.get(name) else '✗'} {label}: {self.deps.get(name) or 'not found'}")
         else:
             status.append("  (still detecting…)")
-        status.append(f"  Python for Whisper: {MacAppInstaller.find_best_python()}")
+        status.append(f"  Python for Whisper: {MacAppInstaller.find_best_python()}  (override: CONDENSE_WHISPER_PYTHON)")
+        if self.gpu_info.get("accel_status"):
+            status.append(f"  Acceleration: {self.gpu_info['accel_status']}")
+        if self.gpu_info.get("media_engine"):
+            status.append(f"  Video encoding: {self.gpu_info['media_engine']}")
+        status.append(f"  Token storage: {SecretStore.LABEL if SecretStore.available() else 'not available'}")
         status.append(f"  Settings file: {SettingsStore.PATH}")
-        txt.insert("1.0", "\n".join(status) + "\n\n" + (
-            "# Keyboard\n"
-            "  ⌘O add videos · ⇧⌘O open transcript · ⌘R run · ⌘. stop\n"
-            "  ⌘+ / ⌘− / ⌘0 text size · ⌘1 / ⌘2 / ⌘3 tabs\n"
-            "  Transcript: click a word to edit its segment · Esc play/pause (also while typing)\n"
-            "  ⌘[ / ⌘] back/forward 5 s · ⌘⇧. faster · ⌘⇧, slower · ⌘S save segment · ⌘↩ save + mark checked + next · ⌘I insert a missed segment\n"
-            "  ⇧⌘R re-transcribe the selected segment / a passage (bigger model, other language or translate)\n"
-            "  ⌘Z / ⇧⌘Z undo / redo transcript changes · ⌃⇧L laughs · ⌃⇧I inaudible · ⌃⇧U unclear · ⌃⇧C crosstalk · ⌃⇧P pause · ⌃⇧G German\n"
-            "  double-click a word to play from there\n"
-            "  ←/→ previous/next uncertain word (when the transcript has focus) · Space play/pause\n\n"
-            "# 1. Homebrew tools (https://brew.sh)\n"
-            "brew install ffmpeg handbrake python@3.12 python-tk@3.12\n\n"
-            "# 2. Python env with MLX Whisper (Apple GPU) + PyTorch (MPS diarization)\n"
-            "/opt/homebrew/bin/python3.12 -m venv ~/mlx_whisper_env\n"
-            "~/mlx_whisper_env/bin/pip install -U mlx-whisper openai-whisper torch numpy\n\n"
-            "# 3. Optional: neural diarization (needs a Hugging Face token)\n"
-            "~/mlx_whisper_env/bin/pip install pyannote.audio\n\n"
-            "# 4. Optional: LosslessCut\n"
-            "brew install --cask losslesscut\n"
-        ))
+        status.append(f"  App launcher log: {log_file()}")
+        if IS_MAC_PLATFORM:
+            guide = (
+                "# Install or update (from the Condense folder)\n"
+                "./scripts/install-mac.sh                   # Homebrew tools, ~/.condense/env, the app\n"
+                "./scripts/install-mac.sh --with-pyannote   # + neural speaker detection\n\n"
+                "# Optional: LosslessCut for trimming before transcription\n"
+                "brew install --cask losslesscut\n\n"
+                "Full guide: docs/install-mac.md\n")
+        else:
+            guide = (
+                "# Install or update (from the Condense folder)\n"
+                "./scripts/install-linux.sh --gpu rocm      # AMD; or --gpu cuda (NVIDIA) / --gpu cpu\n"
+                "./scripts/install-linux.sh --venv ~/rocm_whisper_env   # reuse a PyTorch env that already works\n\n"
+                "# Check what PyTorch sees\n"
+                f"{MacAppInstaller.find_best_python()} -c \"import torch; print(torch.cuda.is_available(), torch.version.hip or torch.version.cuda)\"\n\n"
+                "Full guide: docs/install-linux.md\n")
+        txt.insert("1.0", "\n".join(status) + "\n\n" + guide + "\nKeyboard shortcuts: View ▸ Keyboard Shortcuts\n")
         txt.config(state=tk.DISABLED)
 
 

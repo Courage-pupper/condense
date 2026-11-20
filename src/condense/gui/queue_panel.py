@@ -315,7 +315,8 @@ class QueueMixin:
         if st.get("audio"):
             parts.append(f"Audio: {str(s.get('audio_format', '')).split(' (')[0]}")
         if st.get("whisper"):
-            backend = "MLX" if str(s.get("whisper_backend", "")).startswith("MLX") else "CPU"
+            b = str(s.get("whisper_backend", ""))
+            backend = "MLX" if b.startswith("MLX") else ("GPU" if b.startswith("PyTorch") else "CPU")
             diar = str(s.get("diarize_mode", "")).split()[0].replace("PyTorch", "spectral").replace("Pyannote.audio", "pyannote")
             lang = str(s.get("whisper_lang", "auto")).split()[0]
             fmts = [n for k, n in (("fmt_para_rtf", "¶RTF"), ("fmt_para_txt", "¶TXT"), ("fmt_srt", "SRT"), ("fmt_vtt", "VTT"),
@@ -605,7 +606,7 @@ class QueueMixin:
             p = Path(self.var_output_dir.get()).expanduser()
         while not p.exists() and p != p.parent:
             p = p.parent
-        subprocess.Popen(["open", str(p)])
+        self._open_externally(p)
 
     def _open_selected_transcript(self):
         task = self._selected_task()
@@ -645,21 +646,21 @@ class QueueMixin:
                 "rtf": bool(self.var_fmt_rtf.get()), "para_rtf": bool(self.var_fmt_para_rtf.get()), "para_txt": bool(self.var_fmt_para_txt.get())}
 
     def _sync_token(self):
-        """Keep the Keychain in step with the token field and the 'Remember' checkbox."""
-        if not KeychainSecret.available():
+        """Keep the keyring (macOS Keychain / Secret Service) in step with the token field and the 'Remember' checkbox."""
+        if not SecretStore.available():
             return
         token = self.var_hf_token.get().strip()
         if self.var_remember_token.get():
             if token and token != self._stored_token:
-                if KeychainSecret.save(token):
+                if SecretStore.save(token):
                     self._stored_token = token
-                    self._append_log("Hugging Face token saved in the macOS Keychain.", "SUCCESS")
+                    self._append_log(f"Hugging Face token saved in the {SecretStore.LABEL}.", "SUCCESS")
                 else:
-                    self._append_log("Could not save the token in the Keychain (unexpected characters?).", "WARN")
+                    self._append_log(f"Could not save the token in the {SecretStore.LABEL} (unexpected characters, or the keyring is locked?).", "WARN")
         elif self._stored_token:
-            KeychainSecret.delete()
+            SecretStore.delete()
             self._stored_token = ""
-            self._append_log("Hugging Face token removed from the Keychain.", "INFO")
+            self._append_log(f"Hugging Face token removed from the {SecretStore.LABEL}.", "INFO")
 
     # ================================================================== running
     def _start_pipeline(self):

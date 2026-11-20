@@ -52,7 +52,7 @@ class EditorMixin:
         self._persist["show_video"] = self.var_show_video
         player.add(self._check(player, "Video", self.var_show_video, font="small"))
         self.var_show_video.trace_add("write", lambda *a: self.after_idle(self._toggle_video_panel))
-        player.add(self._tool(player, "QuickTime ↗", self._open_in_quicktime))
+        player.add(self._tool(player, "QuickTime ↗" if IS_MAC_PLATFORM else "Video player ↗", self._open_in_quicktime))
         player.add(self._label(player, "Esc play/pause · ⌘[ ⌘] ±5 s · ⌘⇧. ⌘⇧, speed", font="small", fg=T["fg_dim"]))
 
         self.timeline = tk.Canvas(tab, height=30, bg=T["bg_input"], highlightthickness=0, bd=0, cursor="hand2")
@@ -558,6 +558,8 @@ class EditorMixin:
             f"  {c}I               insert a missing segment\n"
             f"  {c}1 / {c}2 / {c}3     Settings / Console / Transcript tab\n"
             f"  {c}+ / {c}- / {c}0     zoom")
+        if not IS_MAC:
+            text = text.replace("⌃", "Ctrl+").replace("⇧", "Shift+")
         T = THEME
         win = tk.Toplevel(self)
         win.title("Keyboard shortcuts")
@@ -745,7 +747,7 @@ class EditorMixin:
         doc = self.active_doc
         if doc is not None:
             folder = doc.backup_dir if doc.backup_dir.exists() else doc.out_dir
-            subprocess.Popen(["open", str(folder)])
+            self._open_externally(folder)
 
     # ----- resume where you left off -----
     def _remember_position(self):

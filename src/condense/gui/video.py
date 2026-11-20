@@ -188,13 +188,27 @@ class VideoMixin:
         finally:
             self.after(40, self._video_pump)
 
+    def _open_externally(self, path) -> bool:
+        """Open a file or folder with the desktop's default app (Finder / Files / the video player)."""
+        try:
+            subprocess.Popen(open_command(path), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return True
+        except Exception as exc:
+            self._append_log(f"Could not open {path}: {exc}", "ERROR")
+            return False
+
     def _open_in_quicktime(self):
+        """macOS: open the video in QuickTime at the current position. Linux: open it in the default video player."""
         media = self._video_media() or (self._media() if self.active_doc else None)
         if media is None:
             self.lbl_status.config(text="No video for this transcript.")
             return
         pos = self._current_pos()
         self._player_pause()
+        if not IS_MAC_PLATFORM:
+            if self._open_externally(media):
+                self.lbl_status.config(text=f"Opened in your video player — jump to {short_ts(pos)[:-2]} there.")
+            return
         path = str(media).replace("\\", "\\\\").replace('"', '\\"')
         script = (f'tell application "QuickTime Player"\nactivate\nset d to open (POSIX file "{path}")\n'
                   f"set current time of d to {pos:.2f}\nend tell")

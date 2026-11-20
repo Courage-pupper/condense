@@ -17,5 +17,6 @@ invented example text, or reproduce it with the synthetic test media (`python te
 
 ## Secrets
 
-Hugging Face tokens are stored in the macOS Keychain, never in settings files or transcripts. Never paste a token into
+Hugging Face tokens are stored in the macOS Keychain or, on Linux, the desktop keyring (Secret Service via
+`secret-tool`) — never in settings files or transcripts, and never on a command line. Never paste a token into
 an issue; if you did, revoke it at <https://huggingface.co/settings/tokens>.

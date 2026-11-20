@@ -2,7 +2,9 @@ name: tests
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_call:   # the release workflow runs the same tests first
 
 jobs:
   test:
@@ -34,3 +36,9 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -q
+
+      - name: Check the install scripts
+        run: |
+          bash -n scripts/install-mac.sh
+          bash -n scripts/install-linux.sh
+          ./scripts/install-linux.sh --help > /dev/null

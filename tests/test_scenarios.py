@@ -19,8 +19,11 @@ def test_scenario(script, pristine_media, tmp_path):
     shutil.copytree(pristine_media, media)
     home = tmp_path / "home"
     home.mkdir()
-    env = dict(os.environ, CONDENSE_TEST_MEDIA=str(media), CONDENSE_FAKES=str(TESTS / "fakes"), CONDENSE_TESTS=str(TESTS),
-               PYTHONPATH=os.pathsep.join([str(ROOT / "src"), str(TESTS)]), HOME=str(home))
+    # Scenarios test the macOS layer unless they set CONDENSE_PLATFORM themselves (scenario_linux does).
+    # XDG_* are cleared so the Linux layer uses the temporary HOME.
+    env = {k: v for k, v in os.environ.items() if not k.startswith("XDG_") and k != "CONDENSE_WHISPER_PYTHON"}
+    env.update(CONDENSE_TEST_MEDIA=str(media), CONDENSE_FAKES=str(TESTS / "fakes"), CONDENSE_TESTS=str(TESTS),
+               PYTHONPATH=os.pathsep.join([str(ROOT / "src"), str(TESTS)]), HOME=str(home), CONDENSE_PLATFORM="mac")
     res = subprocess.run([sys.executable, str(script)], cwd=str(media), env=env, capture_output=True, text=True, timeout=900)
     out = res.stdout + res.stderr
     assert res.returncode == 0, out[-5000:]

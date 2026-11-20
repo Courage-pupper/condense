@@ -28,5 +28,7 @@ from condense.core.util import *  # noqa: F401,F403
 from condense.gui.theme import *  # noqa: F401,F403
 from condense.gui.widgets import IS_MAC, MOD, FlowFrame, ScrollFrame
 from condense.pipeline.worker import PipelineWorker
-from condense.platform import APP_SUPPORT_DIR, KeychainSecret, MacAppInstaller, SystemProbe
+from condense.platform import (APP_SUPPORT_DIR, DEFAULT_BACKEND, DEFAULT_ENCODER, GPU_DIARIZATION, HW_QUALITY_NAME, IS_MAC_PLATFORM,
+                               PLATFORM, VIDEO_ENCODERS, WHISPER_BACKENDS, AppInstaller, KeychainSecret, MacAppInstaller,
+                               SecretStore, SystemProbe, default_output_dir, log_file, open_command)
 from condense.settings import SettingsStore

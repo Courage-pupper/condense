@@ -53,7 +53,7 @@ class RerunMixin:
                     env["PIPELINE_SEGMENTS_JSON"] = str(seg_file)
                 proc = subprocess.Popen([best_py, "-c", WHISPER_RUNNER, str(wav), str(wav), params.get("model", "large-v3"),
                                          params.get("language", "auto"), str(out), params.get("diarize_mode", "Disabled"),
-                                         str(params.get("num_speakers", 0)), params.get("backend", "MLX (Apple Silicon GPU)")],
+                                         str(params.get("num_speakers", 0)), params.get("backend", DEFAULT_BACKEND)],
                                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
                 self._rerun_proc = proc
                 tail: List[str] = []
@@ -270,11 +270,11 @@ class RerunMixin:
                          "wherever they overlap most. ⌘Z undoes the whole re-run.", font="small", fg=T["fg_dim"], bg=T["bg_panel"],
                     wraplength=440, justify=tk.LEFT).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 10))
         v_method = tk.StringVar(value=self.var_diarize_mode.get() if not self.var_diarize_mode.get().startswith("Disabled")
-                                else "PyTorch MPS Spectral (Offline - No Token Needed)")
+                                else GPU_DIARIZATION)
         v_n = tk.IntVar(value=max(2, len(doc.roster())))
         v_keep = tk.BooleanVar(value=True)
         self._label(win, "Method", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=2, column=0, sticky="w", pady=3)
-        ttk.Combobox(win, textvariable=v_method, values=["PyTorch MPS Spectral (Offline - No Token Needed)", "Pyannote.audio 3.1 Neural (Requires HF Token)"],
+        ttk.Combobox(win, textvariable=v_method, values=[GPU_DIARIZATION, "Pyannote.audio 3.1 Neural (Requires HF Token)"],
                      state="readonly", width=40, font=self.f["small"]).grid(row=2, column=1, sticky="w", padx=(10, 0), pady=3)
         self._label(win, "Number of speakers", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=3, column=0, sticky="w", pady=3)
         tk.Spinbox(win, from_=0, to=12, textvariable=v_n, width=4, bg=T["bg_input"], fg=T["fg_primary"], buttonbackground=T["bg_card"], relief=tk.FLAT,
