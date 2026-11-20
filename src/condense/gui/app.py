@@ -191,7 +191,8 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         em.add_command(label="Redo Transcript Change", accelerator=f"{acc}Shift-Z" if IS_MAC else "Ctrl+Shift+Z", command=self._redo)
         em.add_separator()
         em.add_command(label="Mark Segment Checked & Next", accelerator=f"{acc}Return" if IS_MAC else "Ctrl+Enter", command=self._check_and_next)
-        em.add_command(label="Toggle Segment Checked", command=self._toggle_checked)
+        em.add_command(label="Toggle Segment Checked  (C)", command=self._toggle_checked)
+        em.add_command(label="Select All Segments  (⌘A in transcript)" if IS_MAC else "Select All Segments  (Ctrl+A in transcript)", command=self._select_all_segments)
         em.add_separator()
         mm = tk.Menu(em, tearoff=0)
         for label, text, key in MARKERS:
@@ -235,6 +236,8 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         v.add_command(label="Settings", accelerator=f"{acc}1", command=lambda: self.notebook.select(self.tab_settings))
         v.add_command(label="Console", accelerator=f"{acc}2", command=lambda: self.notebook.select(self.tab_console))
         v.add_command(label="Transcript", accelerator=f"{acc}3", command=lambda: self.notebook.select(self.tab_preview))
+        v.add_separator()
+        v.add_command(label="Keyboard Shortcuts", accelerator=f"{acc}/", command=self._show_shortcuts)
         mb.add_cascade(label="View", menu=v)
 
         pm = tk.Menu(mb, tearoff=0)
@@ -248,8 +251,11 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         pm.add_separator()
         pm.add_command(label="Save Segment Edit", accelerator=f"{acc}S", command=self._save_segment_edit)
         pm.add_command(label="Insert Missing Segment…", accelerator=f"{acc}I", command=self._insert_segment_dialog)
-        pm.add_command(label="Next Uncertain Word", command=lambda: self._jump_low_conf(+1))
-        pm.add_command(label="Previous Uncertain Word", command=lambda: self._jump_low_conf(-1))
+        pm.add_command(label="Replay Segment  (R)", command=self._replay_segment)
+        pm.add_command(label="Next Segment  (↓)", command=lambda: self._move_segment(+1))
+        pm.add_command(label="Previous Segment  (↑)", command=lambda: self._move_segment(-1))
+        pm.add_command(label="Next Uncertain Word  (→)", command=lambda: self._jump_low_conf(+1))
+        pm.add_command(label="Previous Uncertain Word  (←)", command=lambda: self._jump_low_conf(-1))
         mb.add_cascade(label="Playback", menu=pm)
         self.configure(menu=mb)
 
@@ -262,6 +268,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
             "bracketleft": lambda: self._seek_rel(-5), "bracketright": lambda: self._seek_rel(+5),
             "s": self._save_segment_edit,
             "i": self._insert_segment_dialog,
+            "slash": self._show_shortcuts,
         }
         # Use the <Mod-Key-x> form: in Tk "<Command-1>" would mean Command + mouse button 1.
         for key, fn in keys.items():

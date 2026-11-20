@@ -6,7 +6,8 @@
 Local video, audio and transcript processing for qualitative research. Everything runs on your own computer: no recordings or transcripts are uploaded anywhere.
 
 - **Tasks:** merge clips, compress video with the hardware encoder, extract audio, transcribe with Whisper. Each task keeps its own settings.
-- **Transcript editor:** play/pause at any speed, follow-along highlighting, video preview, correct segments while listening, split/merge/insert segments, speakers with one-key assignment, transcription markers (`[laughs]`, `[inaudible 0:12:31]`, …), "checked" progress, a timeline, undo/redo and automatic backups.
+- **Transcript editor:** play/pause at any speed, follow-along highlighting, video preview, correct segments while listening, split/merge/insert segments, speakers assigned with the number keys — to one segment or to a whole selected stretch at once (drag, ⇧-click or ⇧↓), transcription markers (`[laughs]`, `[inaudible 0:12:31]`, …), "checked" progress, a timeline, undo/redo and automatic backups.
+- **Keyboard-driven review:** ↑/↓ through segments, 1–9 speakers, R replays, C marks checked, ⌘↩ saves and moves on; View ▸ Keyboard Shortcuts (⌘/) lists them all.
 - **Accuracy tools:** vocabulary per task, re-transcribe a passage (bigger model, forced language or translation to English), re-run speaker detection while keeping the speakers you assigned by hand.
 - **Exports:** paragraphs per speaker turn (RTF/TXT, for Word or MAXQDA), SRT/VTT subtitles, plain text, and an RTF with colour-coded word confidence.
 - **Traceability:** each transcript has a `<name>.transcript.json` master file with word timings, speakers, the settings, tool versions, SHA-256 checksums of the inputs and a log of every edit. All exports are regenerated from it.

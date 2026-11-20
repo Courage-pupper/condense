@@ -73,7 +73,7 @@ class Text(W):
         self.content += chars
 
     def mark_set(self, name, index):
-        self.marks = getattr(self, "marks", {}); self.marks[name] = index
+        self.marks = self.__dict__.get("marks", {}); self.marks[name] = index
 
     def delete(self, a, b=None):
         if a == "1.0" and b in ("end", None):
@@ -93,6 +93,9 @@ class Text(W):
 
     def tag_remove(self, tag, *a):
         self.tags.pop(tag, None)
+
+    def tag_ranges(self, tag):
+        return self.tags.get(tag, ())
 
 
 tk = types.ModuleType("tkinter")

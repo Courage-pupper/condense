@@ -64,7 +64,7 @@ app._render_doc(TD.load(d.path))
 assert app._video_media().name == "Interview O'Brien.mp4"
 names = [w.cget("text") for w in app.spk_chips._items]
 print("    chips:", names)
-assert names[1:] == ["⌃1 SPEAKER_02", "⌃2 P03", "+ Speaker"]
+assert names[1:] == ["1  SPEAKER_02", "2  P03", "0  + Speaker"]
 app._select_span(app.span_lookup[(0, 0)])
 assert app.edit_seg_idx == 0
 app._assign_speaker_number(2)

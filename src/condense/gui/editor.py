@@ -133,11 +133,48 @@ class EditorMixin:
         pt.tag_config("CURRENT", background="#3b4a63")
         pt.tag_config("MARKER", foreground="#8fb3ff", font=self.f["marker"])
         pt.tag_config("CHECKMARK", foreground=T["ok"], font=self.f["small_bold"])
+        pt.tag_config("MULTISEL", background="#3a2f5c")
         pt.bind("<ButtonRelease-1>", self._on_text_click)
+        pt.bind("<Shift-ButtonRelease-1>", self._on_shift_click)
         pt.bind("<Double-Button-1>", lambda e: (self._on_text_click(e), self._play_from_current_word(), "break")[-1])
-        pt.bind("<Right>", lambda e: (self._jump_low_conf(+1), "break")[-1])
-        pt.bind("<Left>", lambda e: (self._jump_low_conf(-1), "break")[-1])
-        pt.bind("<space>", lambda e: (self._toggle_play(), "break")[-1])
+        # A plain <Key-c> binding also fires for ⌘C / Ctrl+C: step aside when a modifier is held, so copy,
+        # ⌘1–3 (tabs), ⌘R (start queue) and ⌃1–9 keep working from the transcript. Shift, Caps Lock and
+        # Num Lock (Mod2 on Linux) are not modifiers here.
+        mods = 0x4 | 0x8 | 0x40 | 0x20000 | (0x10 if IS_MAC else 0)
+
+        def brk(fn):
+            def handler(event=None):
+                if event is not None and int(getattr(event, "state", 0) or 0) & mods:
+                    return None
+                fn()
+                return "break"
+            return handler
+        # single keys while the transcript has focus (it is read-only, so they never type anything)
+        pt.bind("<Right>", brk(lambda: self._jump_low_conf(+1)))
+        pt.bind("<Left>", brk(lambda: self._jump_low_conf(-1)))
+        pt.bind("<Down>", brk(lambda: self._move_segment(+1)))
+        pt.bind("<Up>", brk(lambda: self._move_segment(-1)))
+        pt.bind("<Shift-Down>", brk(lambda: self._move_segment(+1, extend=True)))
+        pt.bind("<Shift-Up>", brk(lambda: self._move_segment(-1, extend=True)))
+        pt.bind("<space>", brk(self._toggle_play))
+        for d in range(1, 10):
+            pt.bind(f"<Key-{d}>", brk(lambda d=d: self._assign_speaker_number(d)))
+            try:
+                pt.bind(f"<KeyPress-KP_{d}>", brk(lambda d=d: self._assign_speaker_number(d)))  # number pad
+            except Exception:
+                pass
+        pt.bind("<Key-0>", brk(self._add_speaker_quick))
+        for k in ("c", "C"):
+            pt.bind(f"<Key-{k}>", brk(self._toggle_checked))
+        for k in ("r", "R"):
+            pt.bind(f"<Key-{k}>", brk(self._replay_segment))
+        pt.bind("<Return>", brk(self._focus_editor))
+        pt.bind(f"<{MOD}-Key-a>", lambda e: (self._select_all_segments(), "break")[-1])
+        self.edit_text.bind("<Tab>", brk(self._focus_transcript))  # a tab character is never wanted in a transcript
+        self.cmb_seg_speaker.bind("<<ComboboxSelected>>", lambda e: self._on_speaker_combo())
+        self.sel_segs: List[int] = []
+        self.sel_anchor: Optional[int] = None
+        self._sel_nseg = 0
 
         # player state
         self.playing = False
@@ -269,13 +306,16 @@ class EditorMixin:
                 seg_ranges[si] = (seg_start, f"{pos['line']}.{pos['col']}")
             put("\n")
         txt.configure(state=tk.DISABLED)
-        for tag in ("EDITSEG", "PLAYING", "CURRENT"):
+        for tag in ("MULTISEL", "EDITSEG", "PLAYING", "CURRENT"):
             txt.tag_raise(tag)
 
         self.word_spans, self.line_spans, self.low_conf, self.current_span = spans, line_spans, low, None
         self.span_starts = [sp["start"] for sp in spans]
         self.span_lookup = {(sp["seg"], sp["w"]): i for i, sp in enumerate(spans)}
         self.seg_ranges = seg_ranges
+        if new_doc:
+            self.sel_segs, self.sel_anchor = [], None
+        self._paint_multi_selection()
         total = max(1, len(spans))
         edited = sum(1 for s in doc.segments if s.get("edited"))
         self.lbl_ci_summary.config(
@@ -291,8 +331,8 @@ class EditorMixin:
             self._update_task_progress(doc)
             media = self._media()
             if media:
-                self.lbl_word.config(text="Click a word to select it and edit its segment · double-click plays from there · ←/→ uncertain words",
-                                     fg=THEME["fg_dim"])
+                self.lbl_word.config(text="Click a word to edit its segment · drag or ⇧-click to select several · 1–9 assigns a speaker · "
+                                          "↑/↓ segments · ←/→ uncertain words · View ▸ Keyboard Shortcuts", fg=THEME["fg_dim"])
             else:
                 self.lbl_word.config(text="⚠ Playback media not found (moved or deleted?) — see 'media' in the .transcript.json", fg=THEME["warn"])
             self._resume_position(doc)
@@ -332,17 +372,201 @@ class EditorMixin:
         if autoplay:
             self._player_start(max(0.0, sp["start"] - 1.0), duration=max(3.0, sp["end"] - sp["start"] + 2.5))
 
-    def _on_text_click(self, event):
-        self.preview_text.focus_set()
+    def _span_at(self, event) -> Optional[int]:
         index = self.preview_text.index(f"@{event.x},{event.y}")
         line, col = (int(v) for v in index.split("."))
         for i in self.line_spans.get(line, []):
             sp = self.word_spans[i]
             if sp["c0"] <= col < max(sp["c1"], sp["c0"] + 1):
-                self._select_span(i)
-                if self.playing:
-                    self._player_start(max(0.0, sp["start"] - 0.5))
+                return i
+        return None
+
+    def _on_text_click(self, event):
+        self.preview_text.focus_set()
+        dragged = self._segments_in_sel()  # read before a save re-renders the text (which drops the selection)
+        doc = self.active_doc
+        n_before = len(doc.segments) if doc is not None else 0
+        i = self._span_at(event)
+        if i is not None:
+            self._select_span(i)
+            if self.playing:
+                self._player_start(max(0.0, self.word_spans[self.current_span]["start"] - 0.5))
+        if len(dragged) > 1 and doc is not None and len(doc.segments) == n_before:
+            anchor = dragged[-1] if self.edit_seg_idx == dragged[0] else dragged[0]
+            self._set_multi_selection(dragged, anchor)
+        else:
+            self._clear_multi_selection()
+
+    def _on_shift_click(self, event):
+        """⇧-click: select every segment from the open one (or the selection's start) to the clicked one."""
+        self.preview_text.focus_set()
+        anchor = self.sel_anchor if self.sel_anchor is not None else self.edit_seg_idx
+        i = self._span_at(event)
+        if i is None:
+            return None
+        self._select_span(i)
+        if anchor is not None and self.current_span is not None:
+            self._extend_selection(anchor, self.word_spans[self.current_span]["seg"])
+        return None  # let Tk's own release handling run (it stops drag auto-scrolling)
+
+    # ----- selecting several segments -----
+    def _ix(self, index) -> Tuple[int, int]:
+        line, col = str(self.preview_text.index(str(index))).split(".")
+        return int(line), int(col)
+
+    def _segments_in_sel(self) -> List[int]:
+        """Segments touched by the mouse selection in the transcript (empty if nothing is selected)."""
+        try:
+            rng = self.preview_text.tag_ranges("sel")
+        except Exception:
+            return []
+        if not rng or len(rng) < 2:
+            return []
+        a, b = self._ix(rng[0]), self._ix(rng[-1])
+        return sorted(si for si, (s, e) in self.seg_ranges.items() if self._ix(s) < b and self._ix(e) > a)
+
+    def _visible_segments(self) -> List[int]:
+        return sorted(self.seg_ranges)
+
+    def _extend_selection(self, anchor: int, to: int):
+        lo, hi = min(anchor, to), max(anchor, to)
+        segs = [s for s in self._visible_segments() if lo <= s <= hi]
+        if len(segs) > 1:
+            self._set_multi_selection(segs, anchor)
+        else:
+            self._clear_multi_selection()
+
+    def _set_multi_selection(self, segs: List[int], anchor: Optional[int] = None):
+        self.sel_segs = sorted(set(segs))
+        self.sel_anchor = anchor if anchor is not None else self.sel_segs[0]
+        self._sel_nseg = len(self.active_doc.segments) if self.active_doc is not None else 0
+        self._paint_multi_selection()
+        self._refresh_speaker_chips()
+
+    def _clear_multi_selection(self):
+        had = bool(self.__dict__.get("sel_segs"))
+        self.sel_segs, self.sel_anchor = [], None
+        self.preview_text.tag_remove("MULTISEL", "1.0", tk.END)
+        if had:
+            self._refresh_speaker_chips()
+
+    def _paint_multi_selection(self):
+        self.preview_text.tag_remove("MULTISEL", "1.0", tk.END)
+        segs = self.__dict__.get("sel_segs") or []
+        if not segs:
+            return
+        doc = self.active_doc
+        # split / merge / insert / delete renumber segments: then the old selection would point at the wrong ones
+        if doc is None or len(doc.segments) != self._sel_nseg or any(s not in self.seg_ranges for s in segs):
+            self.sel_segs, self.sel_anchor = [], None
+            return
+        for s in segs:
+            self.preview_text.tag_add("MULTISEL", *self.seg_ranges[s])
+
+    def _selected_segments(self) -> List[int]:
+        """What an action applies to: the selected segments, or the one open in the editor."""
+        segs = self.__dict__.get("sel_segs") or []
+        if len(segs) > 1:
+            return list(segs)
+        return [self.edit_seg_idx] if self.edit_seg_idx is not None else []
+
+    def _select_all_segments(self):
+        segs = self._visible_segments()
+        if len(segs) > 1:
+            self._set_multi_selection(segs, segs[0])
+            self.lbl_status.config(text=f"Selected all {len(segs)} segments — press 1–9 to assign them all, click a word to cancel.")
+
+    def _goto_segment(self, si: int):
+        first = self.span_lookup.get((si, 0))
+        if first is not None:
+            self._select_span(first)
+        else:
+            self._load_segment_into_editor(si)
+        rng = self.seg_ranges.get(si)
+        if rng:
+            self.preview_text.see(rng[0])
+
+    def _move_segment(self, direction: int, extend: bool = False):
+        """↑/↓ open the previous/next segment; with ⇧ they grow or shrink the selection."""
+        segs = self._visible_segments()
+        if self.active_doc is None or not segs:
+            return
+        cur = self.edit_seg_idx
+        if cur is None:
+            target = segs[0] if direction > 0 else segs[-1]
+        else:
+            later = [s for s in segs if (s > cur if direction > 0 else s < cur)]
+            if not later:
                 return
+            target = later[0] if direction > 0 else later[-1]
+        anchor = (self.sel_anchor if self.sel_anchor is not None else cur) if extend else None
+        self._goto_segment(target)
+        if extend and anchor is not None and self.edit_seg_idx is not None:
+            self._extend_selection(anchor, self.edit_seg_idx)
+        else:
+            self._clear_multi_selection()
+
+    def _focus_editor(self):
+        if self.edit_seg_idx is None:
+            self._move_segment(+1)
+        if self.edit_seg_idx is not None:
+            self.edit_text.focus_set()
+            self.edit_text.mark_set("insert", "end-1c")
+
+    def _focus_transcript(self):
+        self._autosave_edit()
+        self.preview_text.focus_set()
+
+    def _replay_segment(self):
+        """R: play the open segment from its start (a little lead-in, stops just after it ends)."""
+        doc, idx = self.active_doc, self.edit_seg_idx
+        if doc is None or idx is None or idx >= len(doc.segments):
+            self.lbl_status.config(text="Click a word to pick a segment first.")
+            return
+        seg = doc.segments[idx]
+        start, end = float(seg.get("start", 0.0)), float(seg.get("end", 0.0))
+        self._player_start(max(0.0, start - 0.3), duration=max(1.0, end - start + 0.6))
+
+    def _show_shortcuts(self):
+        c = "⌘" if IS_MAC else "Ctrl+"
+        text = (
+            "In the transcript (click it first)\n"
+            "  1 – 9            assign speaker 1–9 (to every selected segment)\n"
+            "  0                add a new speaker and assign it\n"
+            "  ↑ / ↓            previous / next segment\n"
+            "  ⇧↑ / ⇧↓          select several segments\n"
+            "  drag, ⇧-click    select several segments with the mouse\n"
+            f"  {c}A               select all segments\n"
+            "  ← / →            previous / next uncertain word\n"
+            "  Space            play / pause\n"
+            "  R                replay the open segment\n"
+            "  C                mark checked / not checked (all selected)\n"
+            "  Return           edit the open segment's text\n"
+            "  double-click     play from that word\n\n"
+            "While typing in the segment box\n"
+            f"  {c}Return          save, mark checked, next segment\n"
+            f"  {c}S               save the segment\n"
+            "  Tab              save and go back to the transcript\n"
+            "  ⌃1 – ⌃9          assign speaker 1–9\n"
+            "  ⌃L ⌃I ⌃U ⌃C ⌃P ⌃G ⌃N   markers (laughs, inaudible, unclear, crosstalk, pause, German, gestures)\n\n"
+            "Anywhere\n"
+            "  Esc              play / pause\n"
+            f"  {c}[ / {c}]          back / forward 5 s\n"
+            f"  {c}⇧. / {c}⇧,        faster / slower\n"
+            f"  {c}Z / {c}⇧Z         undo / redo a transcript change\n"
+            f"  {c}⇧R              re-transcribe a passage\n"
+            f"  {c}I               insert a missing segment\n"
+            f"  {c}1 / {c}2 / {c}3     Settings / Console / Transcript tab\n"
+            f"  {c}+ / {c}- / {c}0     zoom")
+        T = THEME
+        win = tk.Toplevel(self)
+        win.title("Keyboard shortcuts")
+        win.configure(bg=T["bg_panel"])
+        win.transient(self)
+        tk.Label(win, text=text, font=self.f["mono_small"], justify=tk.LEFT, anchor="w", bg=T["bg_panel"], fg=T["fg_primary"],
+                 padx=18, pady=14).pack(fill=tk.BOTH, expand=True)
+        win.bind("<Escape>", lambda e: (win.destroy(), "break")[-1])
+        return win
 
     def _jump_low_conf(self, direction: int):
         if not self.low_conf:
@@ -576,10 +800,20 @@ class EditorMixin:
 
     def _toggle_checked(self):
         doc, idx = self.active_doc, self.edit_seg_idx
-        if doc is None or idx is None:
+        if doc is None or not self._selected_segments():
             self.lbl_status.config(text="Click a word to pick a segment first.")
             return
         self._autosave_edit(rerender=False)
+        segs = self._selected_segments()
+        if len(segs) > 1:  # several selected: mark them all checked (or all unchecked if they already are)
+            now = not all(doc.segments[s].get("checked") for s in segs)
+            for s in segs:
+                doc.set_checked(s, now)
+            if self._commit(f"Marked {len(segs)} segments ({segs[0] + 1}–{segs[-1] + 1}) {'checked' if now else 'not checked'}.") is not None:
+                self._rerender()
+                if self.edit_seg_idx is not None:
+                    self._load_segment_into_editor(self.edit_seg_idx)
+            return
         now = not bool(doc.segments[idx].get("checked"))
         doc.set_checked(idx, now)
         if self._commit(f"Segment {idx + 1} marked {'checked' if now else 'not checked'}.") is not None:
@@ -643,28 +877,62 @@ class EditorMixin:
         if doc is None:
             return
         T = THEME
-        current = self.var_seg_speaker.get().strip()
-        chips.add(self._label(chips, "Assign:", font="small", fg=T["fg_secondary"]))
+        segs = [s for s in (self.__dict__.get("sel_segs") or []) if s < len(doc.segments)]
+        if len(segs) > 1:
+            names = {doc.segments[s].get("speaker") or "" for s in segs}
+            current = names.pop() if len(names) == 1 else ""
+            chips.add(self._label(chips, f"Assign to {len(segs)} selected segments ({segs[0] + 1}–{segs[-1] + 1}):", font="small_bold",
+                                  fg="#c4b5fd"))
+        else:
+            current = self.var_seg_speaker.get().strip()
+            chips.add(self._label(chips, "Assign:", font="small", fg=T["fg_secondary"]))
         for i, name in enumerate(doc.roster()):
             color = SPEAKER_COLORS[i % len(SPEAKER_COLORS)]
             active = name == current
-            chip = tk.Label(chips, text=(f"⌃{i + 1} " if i < 9 else "") + name, font=self.f["small_bold"], padx=8, pady=2, cursor="hand2",
+            chip = tk.Label(chips, text=(f"{i + 1}  " if i < 9 else "") + name, font=self.f["small_bold"], padx=8, pady=2, cursor="hand2",
                             bg=color if active else T["bg_input"], fg=T["bg_root"] if active else color,
                             highlightthickness=1, highlightbackground=color)
             chip.bind("<Button-1>", lambda e, n=name: self._assign_speaker(n))
             chips.add(chip)
-        add = tk.Label(chips, text="+ Speaker", font=self.f["small"], padx=8, pady=2, cursor="hand2", bg=T["bg_input"], fg=T["fg_secondary"],
+        add = tk.Label(chips, text="0  + Speaker", font=self.f["small"], padx=8, pady=2, cursor="hand2", bg=T["bg_input"], fg=T["fg_secondary"],
                        highlightthickness=1, highlightbackground=T["border"])
         add.bind("<Button-1>", lambda e: self._add_speaker_quick())
         chips.add(add)
 
     def _assign_speaker(self, name: str):
-        if self.active_doc is None or self.edit_seg_idx is None:
+        if self.active_doc is None or not self._selected_segments():
             self.lbl_status.config(text="Click a word in the transcript first, then pick the speaker for that segment.")
+            return
+        segs = self._selected_segments()
+        if len(segs) > 1:
+            self._assign_speaker_many(name, segs)
             return
         self.var_seg_speaker.set(name)
         self._save_segment_edit()
         self._refresh_speaker_chips()
+
+    def _assign_speaker_many(self, name: str, segs: List[int]):
+        """One speaker for many segments: a single save, a single undo step."""
+        doc = self.active_doc
+        self._autosave_edit(rerender=False)  # keep a text edit that was still being typed
+        if len(doc.segments) != self._sel_nseg:  # that save deleted a segment: the selection no longer fits
+            self._clear_multi_selection()
+            self._rerender()
+            return
+        changed = [s for s in segs if doc.set_segment_speaker(s, name)]
+        if not changed:
+            self.lbl_status.config(text=f"All {len(segs)} selected segments are already {name}.")
+            return
+        if self._commit(f"Assigned {name} to {len(changed)} segment(s) between {segs[0] + 1} and {segs[-1] + 1} ({'⌘' if IS_MAC else 'Ctrl+'}Z undoes).") is not None:
+            self._rerender()
+            if self.edit_seg_idx is not None:
+                self._load_segment_into_editor(self.edit_seg_idx)
+            self._refresh_speaker_chips()
+
+    def _on_speaker_combo(self):
+        """Picking a speaker in the editor's list applies it to the whole selection when several segments are selected."""
+        if len(self._selected_segments()) > 1 and self.var_seg_speaker.get().strip():
+            self._assign_speaker(self.var_seg_speaker.get().strip())
 
     def _assign_speaker_number(self, number: int):
         doc = self.active_doc
@@ -683,5 +951,5 @@ class EditorMixin:
             return
         if doc.add_speaker(name) and self._commit(f"Added speaker {name.strip()}.") is not None:
             self._rerender()
-            if self.edit_seg_idx is not None:
+            if self._selected_segments():
                 self._assign_speaker(name.strip())
