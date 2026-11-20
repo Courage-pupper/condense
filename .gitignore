@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# Research data — never commit recordings or transcripts
+*.mp4
+*.mkv
+*.mov
+*.m4v
+*.avi
+*.webm
+*.wav
+*.m4a
+*.mp3
+*.flac
+*.llc
+*.srt
+*.vtt
+*.rtf
+*.transcript.json
+_backups/
