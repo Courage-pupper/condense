@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+# Fake macOS `security` for tests: stores one secret in $HOME/.fake_keychain
+import os, re, sys
+store = os.path.join(os.environ["HOME"], ".fake_keychain")
+args = sys.argv[1:]
+if args == ["-i"]:
+    line = sys.stdin.read()
+    m = re.search(r'add-generic-password .*-w "([^"]+)"', line)
+    if not m: sys.exit(1)
+    open(store, "w").write(m.group(1)); sys.exit(0)
+if args and args[0] == "find-generic-password":
+    if os.path.exists(store): print(open(store).read()); sys.exit(0)
+    sys.exit(44)
+if args and args[0] == "delete-generic-password":
+    if os.path.exists(store): os.remove(store)
+    sys.exit(0)
+sys.exit(2)

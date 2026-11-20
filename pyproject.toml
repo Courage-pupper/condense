@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "condense"
+dynamic = ["version"]
+description = "Local video, audio and transcript processing for qualitative research: merge, compress, transcribe, check and export."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Courage-pupper" }]
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+# Apple Silicon: Whisper on the GPU via MLX, PyTorch (Metal) for speaker detection, openai-whisper as CPU fallback.
+mac = ["mlx-whisper", "openai-whisper", "torch"]
+# Optional neural speaker detection (needs a Hugging Face token).
+pyannote = ["pyannote.audio"]
+dev = ["pytest"]
+
+[project.scripts]
+condense = "condense.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "condense.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

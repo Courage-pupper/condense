@@ -1,0 +1,467 @@
+"""The main window, assembled from the GUI mixins."""
+from condense.gui._common import *  # noqa: F401,F403
+from condense.gui.editor import EditorMixin
+from condense.gui.player import PlayerMixin
+from condense.gui.queue_panel import QueueMixin
+from condense.gui.rerun import RerunMixin
+from condense.gui.settings_tab import SettingsTabMixin
+from condense.gui.video import VideoMixin
+
+
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Condense — Video, Audio & Transcripts")
+        self.configure(bg=THEME["bg_root"])
+        self.settings = SettingsStore.load()
+
+        self.f: Dict[str, "tkfont.Font"] = {
+            name: tkfont.Font(self, family=fam, size=size, weight=weight, slant=FONT_SLANTS.get(name, "roman"))
+            for name, (fam, size, weight) in FONT_SPECS.items()
+        }
+        self.ui_scale = 1.0
+        self._flows: List[FlowFrame] = []
+
+        self._set_initial_geometry()
+        self.minsize(900, 600)
+
+        self.jobs: List[Dict] = []
+        self.job_counter = 0
+        self.msg_queue: queue.Queue = queue.Queue()
+        self.stop_event = threading.Event()
+        self.worker: Optional[PipelineWorker] = None
+        self._persist: Dict[str, object] = {}
+        self._combo_values: Dict[str, List[str]] = {}
+
+        self.active_doc: Optional[TranscriptDocument] = None
+        self._undo_stacks: Dict[str, Tuple[List, List]] = {}  # per transcript path: (undo, redo) of (label, file text)
+        self.word_spans: List[Dict] = []
+        self.line_spans: Dict[int, List[int]] = {}
+        self.low_conf: List[int] = []
+        self.current_span: Optional[int] = None
+        self._play_proc: Optional[subprocess.Popen] = None
+
+        self.gpu_info: Dict = {"gpu_name": "Detecting hardware…"}
+        self.deps: Dict[str, Optional[str]] = {}
+
+        self._configure_styles()
+        self._build_menubar()
+        self._build_header()
+        self._build_footer()  # before the main area, so it is never pushed off-screen
+        self._build_main_layout()
+        self._apply_settings()
+        self._set_zoom(float(self.settings.get("ui_scale", 1.0)), save=False)
+        self._load_queue()
+
+        self.bind_all("<MouseWheel>", self._on_mousewheel, add="+")
+        self.bind_class("TCombobox", "<MouseWheel>", self._on_mousewheel)  # scrolling must not change values
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+        try:
+            self.createcommand("tk::mac::Quit", self._on_close)
+            self.createcommand("tk::mac::ShowPreferences", lambda: self.notebook.select(self.tab_settings))
+        except Exception:
+            pass
+
+        threading.Thread(target=self._probe_system, daemon=True).start()
+        self.after(100, self._poll_queue)
+
+    # ================================================================== styles, fonts, zoom
+    def _set_initial_geometry(self):
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        saved = str(self.settings.get("geometry") or "")
+        m = re.match(r"^(\d+)x(\d+)\+(-?\d+)\+(-?\d+)$", saved)
+        if m:
+            w, h, x, y = (int(v) for v in m.groups())
+            if 900 <= w <= sw and 600 <= h <= sh and 0 <= x < sw - 100 and 0 <= y < sh - 100:
+                self.geometry(saved)
+                return
+        w = max(900, min(1360, int(sw * 0.85)))
+        h = max(600, min(860, int(sh * 0.82)))
+        w, h = min(w, sw), min(h, sh - 60)
+        self.geometry(f"{w}x{h}+{max(0, (sw - w) // 2)}+{max(25, (sh - h) // 2 - 20)}")
+
+    def _configure_styles(self):
+        T, f = THEME, self.f
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        self.style = style
+        style.configure(".", background=T["bg_root"], foreground=T["fg_primary"], font=f["body"])
+        style.configure("TFrame", background=T["bg_panel"])
+        style.configure("TLabel", background=T["bg_panel"], foreground=T["fg_primary"], font=f["body"])
+
+        style.configure("Primary.TButton", background=T["accent"], foreground="#ffffff", borderwidth=0, font=f["body_bold"], padding=(12, 5))
+        style.map("Primary.TButton", background=[("active", T["accent_hover"]), ("disabled", T["bg_card"])], foreground=[("disabled", T["fg_dim"])])
+        style.configure("Tool.TButton", background=T["bg_card"], foreground=T["fg_primary"], borderwidth=1, bordercolor=T["border"],
+                        lightcolor=T["bg_card"], darkcolor=T["bg_card"], font=f["small_bold"], padding=(8, 3))
+        style.map("Tool.TButton", background=[("active", "#2b3348")], foreground=[("disabled", T["fg_dim"])])
+
+        style.configure("TNotebook", background=T["bg_root"], borderwidth=0, tabmargins=(0, 0, 0, 0))
+        style.configure("TNotebook.Tab", background=T["bg_card"], foreground=T["fg_secondary"], padding=(12, 4), font=f["small_bold"], borderwidth=0)
+        style.map("TNotebook.Tab", background=[("selected", T["accent"])], foreground=[("selected", "#ffffff")])
+
+        style.configure("TCombobox", fieldbackground=T["bg_input"], background=T["bg_card"], foreground=T["fg_primary"], arrowcolor=T["fg_secondary"],
+                        bordercolor=T["border"], lightcolor=T["bg_input"], darkcolor=T["bg_input"], padding=(4, 1))
+        style.map("TCombobox", fieldbackground=[("readonly", T["bg_input"])], foreground=[("readonly", T["fg_primary"])],
+                  selectbackground=[("readonly", T["bg_input"])], selectforeground=[("readonly", T["fg_primary"])])
+        self.option_add("*TCombobox*Listbox.background", T["bg_card"])
+        self.option_add("*TCombobox*Listbox.foreground", T["fg_primary"])
+        self.option_add("*TCombobox*Listbox.selectBackground", T["accent"])
+        self.option_add("*TCombobox*Listbox.selectForeground", "#ffffff")
+        self.option_add("*TCombobox*Listbox.font", f["body"])
+
+        style.configure("Queue.Treeview", background=T["bg_input"], foreground=T["fg_primary"], fieldbackground=T["bg_input"], borderwidth=0, font=f["body"])
+        style.configure("Queue.Treeview.Heading", background=T["bg_card"], foreground=T["fg_secondary"], font=f["small_bold"], relief="flat", padding=(4, 3))
+        style.map("Queue.Treeview", background=[("selected", "#2b3348")], foreground=[("selected", "#ffffff")])
+
+        style.configure("Horizontal.TProgressbar", troughcolor=T["bg_input"], background=T["accent"], thickness=6, borderwidth=0)
+        for orient in ("Vertical", "Horizontal"):
+            style.configure(f"{orient}.TScrollbar", background=T["bg_card"], troughcolor=T["bg_panel"], arrowcolor=T["fg_dim"],
+                            bordercolor=T["bg_panel"], lightcolor=T["bg_card"], darkcolor=T["bg_card"])
+
+    def _set_zoom(self, scale: float, save: bool = True):
+        self.ui_scale = min(1.8, max(0.7, round(scale, 2)))
+        for name, (_fam, base, _w) in FONT_SPECS.items():
+            self.f[name].configure(size=max(7, int(round(base * self.ui_scale))))
+        self.style.configure("Queue.Treeview", rowheight=int(self.f["body"].metrics("linespace") * 1.45) + 4)
+        for flow in self._flows:
+            self.after_idle(flow.relayout)
+        if save:
+            self.settings["ui_scale"] = self.ui_scale
+            SettingsStore.save(self.settings)
+
+    def _flow(self, parent, **kw) -> FlowFrame:
+        flow = FlowFrame(parent, **kw)
+        self._flows.append(flow)
+        return flow
+
+    # ================================================================== small widget helpers
+    def _label(self, parent, text: str, font: str = "body", fg: Optional[str] = None, bg: Optional[str] = None, **kw):
+        return tk.Label(parent, text=text, bg=bg or THEME["bg_card"], fg=fg or THEME["fg_primary"], font=self.f[font], **kw)
+
+    def _wrapping_label(self, parent, text: str, **kw):
+        lbl = self._label(parent, text, justify=tk.LEFT, anchor="w", **kw)
+        lbl.bind("<Configure>", lambda e: lbl.configure(wraplength=max(120, e.width - 4)))
+        return lbl
+
+    def _check(self, parent, text: str, var, bg: Optional[str] = None, fg: Optional[str] = None, font: str = "body"):
+        bg = bg or THEME["bg_card"]
+        fg = fg or THEME["fg_primary"]
+        style_name = f"C{bg[1:]}{fg[1:]}{font}.TCheckbutton"
+        self.style.configure(style_name, background=bg, foreground=fg, font=self.f[font], indicatorbackground=THEME["bg_input"],
+                             indicatorforeground="#ffffff", focuscolor=bg, padding=(0, 1))
+        self.style.map(style_name, background=[("active", bg)], foreground=[("active", fg)],
+                       indicatorbackground=[("selected", THEME["accent"]), ("active", THEME["bg_input"])])
+        return ttk.Checkbutton(parent, text=text, variable=var, style=style_name)
+
+    def _tool(self, parent, text: str, cmd, primary: bool = False):
+        return ttk.Button(parent, text=text, style="Primary.TButton" if primary else "Tool.TButton", command=cmd)
+
+    def _entry(self, parent, var, show: str = "", width: int = 20, font: str = "mono_small"):
+        return tk.Entry(parent, textvariable=var, bg=THEME["bg_input"], fg=THEME["fg_primary"], insertbackground=THEME["fg_primary"], relief=tk.FLAT,
+                        highlightthickness=1, highlightbackground=THEME["border"], highlightcolor=THEME["accent"], font=self.f[font], show=show, width=width)
+
+    def _separator(self, parent):
+        return tk.Frame(parent, bg=THEME["border"], width=1, height=self.f["small"].metrics("linespace") + 8)
+
+    # ================================================================== menu bar
+    def _build_menubar(self):
+        mb = tk.Menu(self)
+        if IS_MAC:
+            app_menu = tk.Menu(mb, name="apple", tearoff=0)
+            app_menu.add_command(label="Setup & Status…", command=self._show_setup_modal)
+            app_menu.add_command(label="Install App in ~/Applications", command=self._install_desktop_shortcut)
+            mb.add_cascade(menu=app_menu)
+
+        acc = "Command-" if IS_MAC else "Ctrl+"
+        file_menu = tk.Menu(mb, tearoff=0)
+        file_menu.add_command(label="Add Videos…", accelerator=f"{acc}O", command=self._add_videos)
+        file_menu.add_command(label="New Merge Task…", command=self._add_merge_task)
+        file_menu.add_command(label="Add Folder…", command=self._add_folder)
+        file_menu.add_separator()
+        file_menu.add_command(label="Open Transcript…", accelerator=f"{acc}Shift-O" if IS_MAC else "Ctrl+Shift+O", command=self._open_transcript)
+        file_menu.add_command(label="Show Output Folder", command=self._open_selected_job_folder)
+        file_menu.add_command(label="Re-export Open Transcript", command=self._reexport_open_transcript)
+        if not IS_MAC:
+            file_menu.add_separator()
+            file_menu.add_command(label="Setup & Status…", command=self._show_setup_modal)
+        mb.add_cascade(label="File", menu=file_menu)
+
+        em = tk.Menu(mb, tearoff=0)
+        em.add_command(label="Undo Transcript Change", accelerator=f"{acc}Z", command=self._undo)
+        em.add_command(label="Redo Transcript Change", accelerator=f"{acc}Shift-Z" if IS_MAC else "Ctrl+Shift+Z", command=self._redo)
+        em.add_separator()
+        em.add_command(label="Mark Segment Checked & Next", accelerator=f"{acc}Return" if IS_MAC else "Ctrl+Enter", command=self._check_and_next)
+        em.add_command(label="Toggle Segment Checked", command=self._toggle_checked)
+        em.add_separator()
+        mm = tk.Menu(em, tearoff=0)
+        for label, text, key in MARKERS:
+            mm.add_command(label=f"{label}   {text.replace('{t}', 't')}", accelerator=f"Control-Shift-{key}" if IS_MAC else f"Ctrl+Shift+{key}",
+                           command=lambda t=text: self._insert_marker(t))
+        em.add_cascade(label="Insert Marker", menu=mm)
+        self.marker_menu = mm
+        em.add_separator()
+        em.add_command(label="Re-transcribe Passage…", accelerator=f"{acc}Shift-R" if IS_MAC else "Ctrl+Shift+R", command=self._retranscribe_dialog)
+        em.add_command(label="Re-run Speaker Detection…", command=self._rediarize_dialog)
+        em.add_separator()
+        em.add_command(label="Restore Backup…", command=self._restore_backup)
+        em.add_command(label="Show Backups Folder", command=self._show_backups)
+        mb.add_cascade(label="Edit", menu=em)
+
+        q = tk.Menu(mb, tearoff=0)
+        q.add_command(label="Run Pending Tasks", accelerator=f"{acc}R", command=self._start_pipeline)
+        q.add_command(label="Stop", accelerator=f"{acc}.", command=self._stop_pipeline)
+        q.add_separator()
+        q.add_command(label="Move Up", command=self._move_up)
+        q.add_command(label="Move Down", command=self._move_down)
+        q.add_command(label="Remove Selected", command=self._remove_selected)
+        q.add_command(label="Combine Selected into One Merge Task", command=self._combine_selected)
+        q.add_command(label="Split Merge Task into Single Tasks", command=self._split_merge_task)
+        q.add_command(label="Apply Current Settings to Selected", command=self._task_use_current_settings)
+        q.add_command(label="Reset Selected to Pending", command=self._reset_selected_jobs)
+        q.add_command(label="Clear Completed", command=self._clear_completed_jobs)
+        mb.add_cascade(label="Queue", menu=q)
+        self.queue_menu = q
+
+        v = tk.Menu(mb, tearoff=0)
+        v.add_command(label="Larger Text", accelerator=f"{acc}+", command=lambda: self._set_zoom(self.ui_scale + 0.1))
+        v.add_command(label="Smaller Text", accelerator=f"{acc}-", command=lambda: self._set_zoom(self.ui_scale - 0.1))
+        v.add_command(label="Actual Size", accelerator=f"{acc}0", command=lambda: self._set_zoom(1.0))
+        v.add_separator()
+        self.var_show_pct = tk.BooleanVar(value=False)
+        v.add_checkbutton(label="Show % on Uncertain Words", variable=self.var_show_pct, command=self._rerender)
+        self.var_show_video = tk.BooleanVar(value=True)
+        v.add_checkbutton(label="Show Video Preview", variable=self.var_show_video, command=self._toggle_video_panel)
+        v.add_separator()
+        v.add_command(label="Settings", accelerator=f"{acc}1", command=lambda: self.notebook.select(self.tab_settings))
+        v.add_command(label="Console", accelerator=f"{acc}2", command=lambda: self.notebook.select(self.tab_console))
+        v.add_command(label="Transcript", accelerator=f"{acc}3", command=lambda: self.notebook.select(self.tab_preview))
+        mb.add_cascade(label="View", menu=v)
+
+        pm = tk.Menu(mb, tearoff=0)
+        pm.add_command(label="Play / Pause", accelerator="Esc", command=self._toggle_play)
+        pm.add_command(label="Back 5 Seconds", accelerator=f"{acc}[", command=lambda: self._seek_rel(-5))
+        pm.add_command(label="Forward 5 Seconds", accelerator=f"{acc}]", command=lambda: self._seek_rel(+5))
+        pm.add_separator()
+        pm.add_command(label="Faster", accelerator=f"{acc}Shift-." if IS_MAC else "Ctrl+Shift+.", command=lambda: self._speed_step(+1))
+        pm.add_command(label="Slower", accelerator=f"{acc}Shift-," if IS_MAC else "Ctrl+Shift+,", command=lambda: self._speed_step(-1))
+        pm.add_command(label="Normal Speed", command=lambda: (self.var_speed.set("1×"), self._on_speed_change()))
+        pm.add_separator()
+        pm.add_command(label="Save Segment Edit", accelerator=f"{acc}S", command=self._save_segment_edit)
+        pm.add_command(label="Insert Missing Segment…", accelerator=f"{acc}I", command=self._insert_segment_dialog)
+        pm.add_command(label="Next Uncertain Word", command=lambda: self._jump_low_conf(+1))
+        pm.add_command(label="Previous Uncertain Word", command=lambda: self._jump_low_conf(-1))
+        mb.add_cascade(label="Playback", menu=pm)
+        self.configure(menu=mb)
+
+        keys = {
+            "o": self._add_videos, "O": self._open_transcript, "r": self._start_pipeline, "period": self._stop_pipeline,
+            "equal": lambda: self._set_zoom(self.ui_scale + 0.1), "plus": lambda: self._set_zoom(self.ui_scale + 0.1),
+            "minus": lambda: self._set_zoom(self.ui_scale - 0.1), "0": lambda: self._set_zoom(1.0),
+            "1": lambda: self.notebook.select(self.tab_settings), "2": lambda: self.notebook.select(self.tab_console),
+            "3": lambda: self.notebook.select(self.tab_preview),
+            "bracketleft": lambda: self._seek_rel(-5), "bracketright": lambda: self._seek_rel(+5),
+            "s": self._save_segment_edit,
+            "i": self._insert_segment_dialog,
+        }
+        # Use the <Mod-Key-x> form: in Tk "<Command-1>" would mean Command + mouse button 1.
+        for key, fn in keys.items():
+            self.bind_all(f"<{MOD}-Key-{key}>", lambda e, fn=fn: (fn(), "break")[-1])
+        self.bind_all("<Escape>", self._toggle_play)  # works while typing in the segment editor
+        self.bind_all(f"<{MOD}-Key-z>", self._undo_key)
+        self.bind_all(f"<{MOD}-Key-R>", lambda e: (self._retranscribe_dialog(), "break")[-1])
+        self.bind_all(f"<{MOD}-Shift-Key-r>", lambda e: (self._retranscribe_dialog(), "break")[-1])
+        self.bind_all(f"<{MOD}-Shift-Key-z>", self._redo_key)
+        self.bind_all(f"<{MOD}-Key-Z>", self._redo_key)
+        for _label, text, key in MARKERS:
+            for seq in (f"<Control-Shift-Key-{key}>", f"<Control-Key-{key}>"):  # with Shift, Tk reports the capital letter
+                self.bind_all(seq, lambda e, t=text: (self._insert_marker(t), "break")[-1])
+        # Shift turns . and , into > and < — bind both spellings so the shortcut works on every keyboard layout
+        for seq, d in ((f"<{MOD}-Key-greater>", +1), (f"<{MOD}-Shift-Key-period>", +1), (f"<{MOD}-Key-less>", -1), (f"<{MOD}-Shift-Key-comma>", -1)):
+            self.bind_all(seq, lambda e, d=d: (self._speed_step(d), "break")[-1])
+
+    # ================================================================== header & footer
+    def _build_header(self):
+        header = tk.Frame(self, bg=THEME["bg_panel"], padx=14, pady=7)
+        header.pack(fill=tk.X, side=tk.TOP)
+        self._tool(header, "Setup & Status", self._show_setup_modal).pack(side=tk.RIGHT)
+        self._label(header, "Condense", font="title", bg=THEME["bg_panel"]).pack(side=tk.LEFT)
+        self.sub_lbl = self._wrapping_label(header, "", font="mono_small", fg=THEME["fg_secondary"], bg=THEME["bg_panel"])
+        self.sub_lbl.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(14, 10))
+        self._update_header()
+
+    def _update_header(self):
+        g = self.gpu_info
+        if g.get("warning"):
+            self.sub_lbl.configure(text=f"{g.get('gpu_name')}  ·  ⚠ {g['warning']}", fg=THEME["warn"])
+            return
+        parts = [str(g.get("gpu_name"))]
+        if "mlx_ok" in g:
+            parts.append(f"MLX {'✓' if g['mlx_ok'] else '✗'}")
+            parts.append(f"Metal {'✓' if g['mps_ok'] else '✗'}")
+            parts.append("VideoToolbox ✓")
+        ok = g.get("mlx_ok", True)
+        self.sub_lbl.configure(text="  ·  ".join(parts), fg=THEME["fg_secondary"] if ok else THEME["warn"])
+
+    def _build_footer(self):
+        footer = tk.Frame(self, bg=THEME["bg_panel"], padx=14, pady=8)
+        footer.pack(fill=tk.X, side=tk.BOTTOM)
+        row = tk.Frame(footer, bg=THEME["bg_panel"])
+        row.pack(fill=tk.X)
+        self.btn_stop = self._tool(row, "■ Stop", self._stop_pipeline)
+        self.btn_stop.configure(state=tk.DISABLED)
+        self.btn_stop.pack(side=tk.RIGHT, padx=(6, 0))
+        self.btn_run = self._tool(row, "▶  Run Pending Tasks", self._start_pipeline, primary=True)
+        self.btn_run.pack(side=tk.RIGHT)
+        self.lbl_status = self._wrapping_label(row, "Ready. Add videos (⌘O) or a merge task, check the task details, then Run (⌘R).",
+                                               font="small", fg=THEME["fg_secondary"], bg=THEME["bg_panel"])
+        self.lbl_status.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 12))
+        self.progress_var = tk.DoubleVar(value=0.0)
+        ttk.Progressbar(footer, variable=self.progress_var, maximum=100.0, style="Horizontal.TProgressbar").pack(fill=tk.X, pady=(6, 0))
+
+    # ================================================================== main split
+    def _build_main_layout(self):
+        self.paned = tk.PanedWindow(self, orient=tk.HORIZONTAL, sashwidth=6, sashrelief=tk.FLAT, bd=0, bg=THEME["bg_root"], showhandle=False)
+        self.paned.pack(fill=tk.BOTH, expand=True, padx=10, pady=(6, 4))
+        left = tk.Frame(self.paned, bg=THEME["bg_panel"], padx=10, pady=8)
+        right = tk.Frame(self.paned, bg=THEME["bg_root"])
+        self.paned.add(left, minsize=300, stretch="always")
+        self.paned.add(right, minsize=480, stretch="always")
+        self.after(80, self._restore_sash)
+
+        self._build_queue_panel(left)
+
+        self.notebook = ttk.Notebook(right)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
+        self.tab_settings = tk.Frame(self.notebook, bg=THEME["bg_panel"])
+        self.tab_console = tk.Frame(self.notebook, bg=THEME["bg_panel"], padx=8, pady=8)
+        self.tab_preview = tk.Frame(self.notebook, bg=THEME["bg_panel"], padx=10, pady=8)
+        self.notebook.add(self.tab_settings, text="Settings")
+        self.notebook.add(self.tab_console, text="Console")
+        self.notebook.add(self.tab_preview, text="Transcript")
+        self._build_settings_tab()
+        self._build_console_tab()
+        self._build_preview_tab()
+
+    def _restore_sash(self):
+        if self.paned.winfo_width() <= 1:
+            self.after(100, self._restore_sash)
+            return
+        try:
+            frac = min(0.6, max(0.22, float(self.settings.get("sash_fraction", 0.36))))
+            self.paned.sash_place(0, int(self.paned.winfo_width() * frac), 0)
+        except Exception:
+            pass
+
+    # ================================================================== settings persistence
+    def _apply_settings(self):
+        for key, value in (self.settings.get("vars") or {}).items():
+            var = self._persist.get(key)
+            if var is None or (key in self._combo_values and value not in self._combo_values[key]):
+                continue
+            try:
+                var.set(value)
+            except Exception:
+                pass
+        self.lbl_hb_q.config(text=self._quality_text(self.var_hb_quality.get()))
+        if self.var_remember_token.get():
+            self._stored_token = KeychainSecret.load()
+            if self._stored_token:
+                self.var_hf_token.set(self._stored_token)
+
+    def _save_settings(self):
+        values = {}
+        for key, var in self._persist.items():
+            try:
+                values[key] = var.get()
+            except Exception:
+                pass
+        self.settings["vars"] = values
+        self.settings["ui_scale"] = self.ui_scale
+        self._remember_position()
+        try:
+            self.settings["geometry"] = self.geometry()
+            self.settings["sash_fraction"] = round(self.paned.sash_coord(0)[0] / max(1, self.paned.winfo_width()), 3)
+        except Exception:
+            pass
+        SettingsStore.save(self.settings)
+
+    def _on_close(self):
+        if self.worker is not None and self.worker.is_alive():
+            if not messagebox.askyesno("Quit?", "A pipeline run is in progress. Stop it and quit?", parent=self):
+                return
+            self.stop_event.set()
+            proc = self.worker.current_proc
+            if proc is not None and proc.poll() is None:
+                proc.terminate()
+        try:
+            self._autosave_edit(rerender=False)
+        except Exception:
+            pass
+        self._sync_token()
+        self._save_settings()
+        self._save_queue()
+        self._player_pause()
+        self._video_stop()
+        proc = self.__dict__.get("_rerun_proc")
+        if proc is not None and proc.poll() is None:
+            proc.terminate()
+        self.destroy()
+
+    # ================================================================== dialogs
+    def _install_desktop_shortcut(self):
+        try:
+            paths = MacAppInstaller.install_shortcut()
+            self._append_log(f"Installed {paths['app']} (Launchpad / Spotlight; drag it to the Dock).", "SUCCESS")
+            if paths.get("desktop_icon"):
+                self._append_log(f"Desktop link: {paths['desktop_icon']}", "INFO")
+            self._append_log(f"App launches log to {paths['log']}", "INFO")
+        except Exception as exc:
+            self._append_log(f"Failed to install app: {exc}", "ERROR")
+        self.notebook.select(self.tab_console)
+
+    def _show_setup_modal(self):
+        win = tk.Toplevel(self)
+        win.title("Setup & Status")
+        win.geometry("720x520")
+        win.minsize(480, 320)
+        win.configure(bg=THEME["bg_panel"])
+        bar = tk.Frame(win, bg=THEME["bg_panel"])
+        bar.pack(fill=tk.X, padx=14, pady=(12, 0))
+        self._tool(bar, "Install App in ~/Applications", lambda: (win.destroy(), self._install_desktop_shortcut())).pack(side=tk.LEFT)
+        txt = tk.Text(win, bg="#0b0c10", fg="#a7f3d0", font=self.f["mono_small"], padx=12, pady=12, wrap=tk.WORD, highlightthickness=0)
+        txt.pack(fill=tk.BOTH, expand=True, padx=14, pady=12)
+        status = ["# Status"]
+        if self.deps:
+            for name, label in (("ffmpeg", "ffmpeg"), ("handbrake", "HandBrakeCLI"), ("whisper", "Whisper"), ("losslesscut", "LosslessCut")):
+                status.append(f"  {'✓' if self.deps.get(name) else '✗'} {label}: {self.deps.get(name) or 'not found'}")
+        else:
+            status.append("  (still detecting…)")
+        status.append(f"  Python for Whisper: {MacAppInstaller.find_best_python()}")
+        status.append(f"  Settings file: {SettingsStore.PATH}")
+        txt.insert("1.0", "\n".join(status) + "\n\n" + (
+            "# Keyboard\n"
+            "  ⌘O add videos · ⇧⌘O open transcript · ⌘R run · ⌘. stop\n"
+            "  ⌘+ / ⌘− / ⌘0 text size · ⌘1 / ⌘2 / ⌘3 tabs\n"
+            "  Transcript: click a word to edit its segment · Esc play/pause (also while typing)\n"
+            "  ⌘[ / ⌘] back/forward 5 s · ⌘⇧. faster · ⌘⇧, slower · ⌘S save segment · ⌘↩ save + mark checked + next · ⌘I insert a missed segment\n"
+            "  ⇧⌘R re-transcribe the selected segment / a passage (bigger model, other language or translate)\n"
+            "  ⌘Z / ⇧⌘Z undo / redo transcript changes · ⌃⇧L laughs · ⌃⇧I inaudible · ⌃⇧U unclear · ⌃⇧C crosstalk · ⌃⇧P pause · ⌃⇧G German\n"
+            "  double-click a word to play from there\n"
+            "  ←/→ previous/next uncertain word (when the transcript has focus) · Space play/pause\n\n"
+            "# 1. Homebrew tools (https://brew.sh)\n"
+            "brew install ffmpeg handbrake python@3.12 python-tk@3.12\n\n"
+            "# 2. Python env with MLX Whisper (Apple GPU) + PyTorch (MPS diarization)\n"
+            "/opt/homebrew/bin/python3.12 -m venv ~/mlx_whisper_env\n"
+            "~/mlx_whisper_env/bin/pip install -U mlx-whisper openai-whisper torch numpy\n\n"
+            "# 3. Optional: neural diarization (needs a Hugging Face token)\n"
+            "~/mlx_whisper_env/bin/pip install pyannote.audio\n\n"
+            "# 4. Optional: LosslessCut\n"
+            "brew install --cask losslesscut\n"
+        ))
+        txt.config(state=tk.DISABLED)
+
+
+
+def launch_gui() -> None:
+    app = CondenseApp()
+    app.mainloop()

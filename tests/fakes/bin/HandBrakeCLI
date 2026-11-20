@@ -1,0 +1,6 @@
+#!/bin/sh
+echo "   vt_h265
+   vt_h265_10bit
+   vt_h264
+   x265
+   x264"
