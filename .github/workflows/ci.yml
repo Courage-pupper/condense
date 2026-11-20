@@ -13,7 +13,7 @@ jobs:
       matrix:
         # GitHub's runners have no GPU: these cover everything except the GPU code paths.
         # windows-latest is added once the Windows platform layer exists.
-        os: [macos-14, ubuntu-latest]
+        os: [macos-latest, ubuntu-latest]  # macos-latest = Apple Silicon
     steps:
       - uses: actions/checkout@v4
 
