@@ -1,11 +1,18 @@
 name: release
 
-# Push a tag like v0.10.0 to publish a release:
-#   git tag -a v0.10.0 -m "Condense 0.10.0" && git push origin v0.10.0
-# The tag must match condense.__version__ and have a "## 0.10.0" section in CHANGELOG.md (used as release notes).
+# Publish a release in either way:
+#   - push a tag:  git tag -a v0.10.0 -m "Condense 0.10.0" && git push origin v0.10.0
+#   - or on GitHub: Releases > Draft a new release > new tag v0.10.0 on main > Publish
+# The tag must match condense.__version__ and have a "## 0.10.0" section in CHANGELOG.md. This workflow runs the
+# tests, then fills in the release: notes from the changelog and the built package files.
 on:
   push:
     tags: ["v*"]
+  release:
+    types: [published]
+
+concurrency:
+  group: release-${{ github.ref_name }}   # a release made on GitHub also creates the tag: handle it once at a time
 
 permissions:
   contents: read
@@ -65,4 +72,10 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           PRE=""
           case "$VERSION" in *a*|*b*|*rc*) PRE="--prerelease" ;; esac
-          gh release create "$GITHUB_REF_NAME" dist/* --title "Condense $VERSION" --notes-file notes.md --verify-tag $PRE
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            # made on GitHub's website (or by an earlier run): fill in notes and files
+            gh release edit "$GITHUB_REF_NAME" --title "Condense $VERSION" --notes-file notes.md $PRE
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --title "Condense $VERSION" --notes-file notes.md --verify-tag $PRE
+          fi
