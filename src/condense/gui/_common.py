@@ -20,7 +20,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, simpledialog, ttk
 
-from condense import __version__
+from condense import __version__, updates
 from condense.asr.runner import WHISPER_RUNNER
 from condense.core.exports import RTFConfidenceWriter
 from condense.core.transcript import TranscriptDocument

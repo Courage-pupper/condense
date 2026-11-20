@@ -2,7 +2,8 @@
 
 Condense processes research recordings, which are often personal data. It is designed to run entirely on your own
 computer: recordings and transcripts are never uploaded. The only network access is downloading software and models
-(pip, Homebrew, Hugging Face).
+(pip, Homebrew, Hugging Face) and a daily update check that asks GitHub for the latest release number (no data about you
+or your recordings; it can be turned off under Help ▸ Check for Updates Automatically).
 
 ## Reporting a vulnerability
 

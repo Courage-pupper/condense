@@ -7,6 +7,22 @@ stay on your Mac.
 
 Setting up takes about 15 minutes, most of it downloads.
 
+## Quick install
+
+Open **Terminal** (Applications ▸ Utilities), paste this line and press Return:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash
+```
+
+That is all: it installs Homebrew if needed (it asks for your Mac password once — typing shows no dots, that is
+normal), then everything described in steps 1–3 below, and puts **Condense** in Launchpad. Continue with
+[First start](#4-first-start). For neural speaker detection add `-s -- --with-pyannote` at the end of the line.
+
+Updates: Condense offers new versions itself (see [Updating](#updating)).
+
+The rest of this page explains each step, for manual installation and when something goes wrong.
+
 ## What you need
 
 | | |
@@ -31,7 +47,7 @@ brew --version
 
 ## 2. Get Condense
 
-**Option A — download a release (simplest).** On the [Releases page](https://github.com/Courage-pupper/condense/releases),
+**Option A — download a release.** On the [Releases page](https://github.com/Courage-pupper/condense/releases),
 download **Source code (zip)** of the latest release and double-click it to unzip. Move the folder somewhere permanent,
 for example your home folder, and open Terminal in it:
 
@@ -115,7 +131,10 @@ brew install --cask losslesscut
 
 Your settings, task queue and transcripts are kept when you update.
 
-- **Installed from a release:** download the new release, unzip it, and run `./scripts/install-mac.sh` in the new folder.
+- **Installed with the quick install line:** Condense checks once a day and shows *Update available* with what is
+  new; click **Update now**, then **Restart**. You can also check any time: Condense ▸ Check for Updates… (or
+  Help ▸ Check for Updates…). From Terminal: `~/.condense/install.sh --update`.
+- **Installed from a release folder:** download the new release, unzip it, and run `./scripts/install-mac.sh` in the new folder.
 - **Installed with git:**
 
   ```bash
@@ -142,6 +161,7 @@ set `CONDENSE_WHISPER_PYTHON=/path/to/env/bin/python` before starting Condense.
 | What | Where |
 |---|---|
 | Condense and its Python packages | `~/.condense/env` |
+| The updater, downloaded releases, the options you installed with | `~/.condense/install.sh`, `~/.condense/releases/`, `~/.condense/install-options` |
 | The app | `~/Applications/Condense.app` (and a link on the Desktop) |
 | Settings and the task queue | `~/Library/Application Support/Condense/` |
 | Console log of app launches | `~/Library/Logs/Condense.log` |

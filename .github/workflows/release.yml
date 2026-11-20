@@ -57,7 +57,13 @@ jobs:
           cat >> notes.md <<'NOTES'
 
           ---
-          **Install:** download *Source code* below, unpack it, and run `./scripts/install-mac.sh` (macOS) or `./scripts/install-linux.sh` (Linux) in the folder. Guides: [Mac](https://github.com/Courage-pupper/condense/blob/main/docs/install-mac.md) · [Linux](https://github.com/Courage-pupper/condense/blob/main/docs/install-linux.md).
+          **Install** (macOS on Apple Silicon, Linux) — paste into Terminal:
+
+          ```
+          curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash
+          ```
+
+          **Already installed?** Condense offers this update itself (Help ▸ Check for Updates). Guides: [Mac](https://github.com/Courage-pupper/condense/blob/main/docs/install-mac.md) · [Linux](https://github.com/Courage-pupper/condense/blob/main/docs/install-linux.md).
           NOTES
 
       - name: Build the Python package

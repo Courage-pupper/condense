@@ -24,19 +24,30 @@ Local video, audio and transcript processing for qualitative research. Everythin
 
 ## Install
 
-Download the latest [release](https://github.com/Courage-pupper/condense/releases) (or `git clone` this repository), open
-a terminal in the folder and run the installer for your system:
+Open **Terminal** (Mac) or a terminal (Linux), paste this line and press Return:
 
 ```bash
-./scripts/install-mac.sh       # macOS: Homebrew tools, ~/.condense/env with MLX Whisper, Condense.app
-./scripts/install-linux.sh     # Linux: apt packages, ~/.condense/env with the ROCm / CUDA / CPU build of PyTorch, app-menu entry
+curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash
 ```
 
-Both take `--with-pyannote` for neural speaker detection, and are re-run to update. The step-by-step guides cover
-requirements, GPU drivers, the Hugging Face token, updating, uninstalling and troubleshooting:
+It downloads the latest release and installs everything Condense needs — on a Mac also [Homebrew](https://brew.sh) if
+it is missing (it asks for your password once). Condense then appears in Launchpad (Mac) or your app menu (Linux).
+
+**Updating:** Condense checks once a day whether a new version is out and offers to install it with one click
+(Help ▸ Check for Updates). Your settings, tasks and transcripts are kept.
+
+Options go after `bash -s --`, e.g. neural speaker detection or a specific Linux GPU type:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash -s -- --with-pyannote
+curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash -s -- --gpu rocm --venv ~/rocm_whisper_env    # Linux: reuse a PyTorch environment that already works
+```
+
+The guides cover requirements, GPU drivers, the Hugging Face token, manual installation, uninstalling and
+troubleshooting:
 
 - **[Installing on a Mac](docs/install-mac.md)**
-- **[Installing on Linux](docs/install-linux.md)** — including how to reuse a PyTorch environment that already works with your GPU
+- **[Installing on Linux](docs/install-linux.md)**
 
 The first transcription downloads the Whisper model (about 1.5 GB for `large-v3-turbo`); after that Condense works offline.
 
@@ -66,6 +77,7 @@ src/condense/
 - **Automatic transcripts contain errors.** Whisper can mishear, skip or invent words, and speaker detection can mix people up. Check every passage you analyse or quote; Condense's "uncertain word" highlighting, checked marks and edit log are there to help, not to replace that check.
 - **Translations are machine translations.** Passages translated with *Re-transcribe → Translate to English* are marked `[translated from …]` in every export; have them checked before quoting.
 - **You are responsible for your data.** Condense keeps everything on your computer, but consent, ethics approval, pseudonymisation, storage and deletion (e.g. under the GDPR) remain your responsibility and your institution's rules apply. The vocabulary field and speaker names are saved in the `.transcript.json`; use pseudonyms there if files leave your computer.
+- **Update check:** once a day Condense asks GitHub whether a new release exists. That request contains no information about you or your recordings (GitHub sees your IP address, as with any web request). Turn it off with Help ▸ Check for Updates Automatically.
 - **pyannote models are gated:** to use neural speaker detection, accept the model conditions on Hugging Face with your own account and token.
 
 Never commit recordings or transcripts: `.gitignore` excludes media files, `*.transcript.json` and `_backups/`, and the test suite uses only synthetic media and invented text. See [SECURITY.md](SECURITY.md).

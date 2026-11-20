@@ -8,6 +8,25 @@
 Nothing is uploaded: recordings and transcripts stay on your computer. The instructions use **Ubuntu 24.04**; other
 distributions work if you install the same packages with their package manager.
 
+## Quick install
+
+Prepare the GPU driver first if you have an AMD or NVIDIA card ([step 1](#1-prepare-the-gpu-driver)), then paste
+this into a terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash
+```
+
+It asks for your password once (for `apt`), installs everything described in steps 2–3 below with the PyTorch build for
+your GPU, and adds **Condense** to your app menu. Add options after `-s --`, for example:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash -s -- --gpu rocm --venv ~/rocm_whisper_env   # reuse a PyTorch environment that already works
+curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash -s -- --with-pyannote                         # + neural speaker detection
+```
+
+Options you give are remembered for updates. Updates: Condense offers new versions itself (see [Updating](#updating)).
+
 ## What you need
 
 | | |
@@ -164,7 +183,11 @@ To cut parts out before transcription, edit the recording in [LosslessCut](https
 
 Settings, the task queue and transcripts are kept.
 
-- **Installed from a release:** unpack the new release and run `./scripts/install-linux.sh` in it (add the same
+- **Installed with the quick install line:** Condense checks once a day and shows *Update available* with what is
+  new; click **Update now**, then **Restart**. Check any time with Help ▸ Check for Updates…, or from a terminal:
+  `~/.condense/install.sh --update`. Updates reuse your options (`--venv`, `--gpu` …), keep your PyTorch and need no
+  password.
+- **Installed from a release folder:** unpack the new release and run `./scripts/install-linux.sh` in it (add the same
   `--venv` you used before, if any).
 - **Installed with git:**
 
@@ -180,6 +203,7 @@ Updating keeps the PyTorch already in the environment; add `--reinstall-torch` t
 | What | Where |
 |---|---|
 | Condense and its Python packages | `~/.condense/env` (or the `--venv` you chose) |
+| The updater, downloaded releases, the options you installed with | `~/.condense/install.sh`, `~/.condense/releases/`, `~/.condense/install-options` |
 | App-menu entry | `~/.local/share/applications/condense.desktop`, launcher `~/.local/share/condense/launcher.sh`, icon in `~/.local/share/icons/hicolor/scalable/apps/` |
 | Settings and the task queue | `~/.config/condense/` |
 | Console log of app-menu launches | `~/.local/state/condense/condense.log` |

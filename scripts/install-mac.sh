@@ -10,16 +10,19 @@
 # Options:
 #   --with-pyannote   also install pyannote.audio
 #   --no-app          do not create ~/Applications/Condense.app
+#   --skip-brew       do not install or upgrade the Homebrew tools (used for updates; they are already there)
 # Environment: CONDENSE_ENV=/path/to/env to use another environment folder.
 set -euo pipefail
 
 WITH_PYANNOTE=0
 NO_APP=0
+SKIP_BREW=0
 for arg in "$@"; do
   case "$arg" in
     --with-pyannote) WITH_PYANNOTE=1 ;;
     --no-app) NO_APP=1 ;;
-    -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --skip-brew) SKIP_BREW=1 ;;
+    -h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "Unknown option: $arg (see --help)" >&2; exit 2 ;;
   esac
 done
@@ -30,12 +33,20 @@ fi
 if [ "$(uname -m)" != "arm64" ]; then
   echo "Warning: this is not an Apple Silicon Mac; Whisper will run on the CPU (slow)." >&2
 fi
+# Homebrew may be installed but not on PATH yet (e.g. right after its installer ran, or in an app-started shell)
+if ! command -v brew >/dev/null 2>&1; then
+  for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [ -x "$b" ]; then eval "$("$b" shellenv)"; break; fi
+  done
+fi
 if ! command -v brew >/dev/null 2>&1; then
   echo "Homebrew is required: https://brew.sh (then open a new Terminal window and run this again)" >&2; exit 1
 fi
 
-echo "==> Installing ffmpeg, HandBrakeCLI and Python 3.12 (Homebrew)"
-brew install ffmpeg handbrake python@3.12 python-tk@3.12
+if [ "$SKIP_BREW" = "0" ]; then
+  echo "==> Installing ffmpeg, HandBrakeCLI and Python 3.12 (Homebrew)"
+  brew install ffmpeg handbrake python@3.12 python-tk@3.12
+fi
 
 PY="$(brew --prefix)/bin/python3.12"
 ENV_DIR="${CONDENSE_ENV:-$HOME/.condense/env}"

@@ -1,14 +1,16 @@
 """The main window, assembled from the GUI mixins."""
+from condense import __version__, updates
 from condense.gui._common import *  # noqa: F401,F403
 from condense.gui.editor import EditorMixin
 from condense.gui.player import PlayerMixin
 from condense.gui.queue_panel import QueueMixin
 from condense.gui.rerun import RerunMixin
 from condense.gui.settings_tab import SettingsTabMixin
+from condense.gui.updates_ui import UpdatesMixin
 from condense.gui.video import VideoMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")
@@ -45,6 +47,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         self.deps: Dict[str, Optional[str]] = {}
 
         self._configure_styles()
+        self._init_updates()
         self._build_menubar()
         self._build_header()
         self._build_footer()  # before the main area, so it is never pushed off-screen
@@ -172,6 +175,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         mb = tk.Menu(self)
         if IS_MAC:
             app_menu = tk.Menu(mb, name="apple", tearoff=0)
+            app_menu.add_command(label=f"About Condense {__version__}", command=self._show_about)
+            app_menu.add_command(label="Check for Updates…", command=self._check_updates)
+            app_menu.add_separator()
             app_menu.add_command(label="Setup & Status…", command=self._show_setup_modal)
             app_menu.add_command(label=self._install_label(), command=self._install_desktop_shortcut)
             mb.add_cascade(menu=app_menu)
@@ -262,6 +268,19 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         pm.add_command(label="Next Uncertain Word  (→)", command=lambda: self._jump_low_conf(+1))
         pm.add_command(label="Previous Uncertain Word  (←)", command=lambda: self._jump_low_conf(-1))
         mb.add_cascade(label="Playback", menu=pm)
+
+        hm = tk.Menu(mb, name="help", tearoff=0)
+        hm.add_command(label="Check for Updates…", command=self._check_updates)
+        hm.add_checkbutton(label="Check for Updates Automatically", variable=self.var_update_auto, command=self._toggle_update_auto)
+        hm.add_separator()
+        guide = "docs/install-mac.md" if IS_MAC_PLATFORM else "docs/install-linux.md"
+        hm.add_command(label="Installation & Troubleshooting Guide", command=lambda: self._open_url(f"https://github.com/{updates.REPO}/blob/main/{guide}"))
+        hm.add_command(label="What's New (Release Notes)", command=lambda: self._open_url(updates.RELEASES_PAGE))
+        hm.add_command(label="Report a Problem…", command=lambda: self._open_url(f"https://github.com/{updates.REPO}/issues/new/choose"))
+        if not IS_MAC:
+            hm.add_separator()
+            hm.add_command(label=f"About Condense {__version__}", command=self._show_about)
+        mb.add_cascade(label="Help", menu=hm)
         self.configure(menu=mb)
 
         keys = {
@@ -423,6 +442,11 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         self.destroy()
 
     # ================================================================== dialogs
+    def _show_about(self):
+        how = "installed with the installer — updates: Help ▸ Check for Updates" if updates.update_command() else "a development copy (update with git pull)"
+        messagebox.showinfo("About Condense", f"Condense {__version__}\n\nLocal video, audio and transcript processing for qualitative research.\n"
+                                              f"This copy is {how}.\n\nMIT licence · https://github.com/{updates.REPO}", parent=self)
+
     @staticmethod
     def _install_label() -> str:
         return "Install App in ~/Applications" if IS_MAC_PLATFORM else "Add Condense to the App Menu"
