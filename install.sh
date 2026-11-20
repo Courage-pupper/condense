@@ -61,8 +61,11 @@ main() {
     local meta
     if [ -n "$version" ]; then
       meta="$(curl -fsSL "$API/releases/tags/$version")" || die "Release $version not found."
-    else
-      meta="$(curl -fsSL "$API/releases/latest")" || die "Could not reach GitHub to find the latest release (offline?)."
+    elif ! meta="$(curl -fsSL "$API/releases/latest" 2>/dev/null)"; then
+      if curl -fsS -o /dev/null "$API" 2>/dev/null; then
+        die "No Condense release has been published yet: https://github.com/$REPO/releases"
+      fi
+      die "Could not reach GitHub to find the latest release (offline?)."
     fi
     tag="$(printf '%s' "$meta" | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
     [ -n "$tag" ] || die "Could not read the release information from GitHub."

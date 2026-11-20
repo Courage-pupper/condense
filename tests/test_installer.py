@@ -109,3 +109,12 @@ def test_missing_release_fails_cleanly(fake_github):
     res = subprocess.run(["bash", str(ROOT / "install.sh"), "--version", "v9.9.9"], env=dict(env, CONDENSE_OS="Linux"),
                          capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=60)
     assert res.returncode != 0 and "Release v9.9.9 not found" in res.stderr
+
+
+def test_no_release_yet(fake_github):
+    root, home, env = fake_github
+    (root / "api" / "releases" / "latest").unlink()
+    (root / "api" / "index").write_text("{}")
+    env = dict(env, CONDENSE_API=f"file://{root}/api/index", CONDENSE_OS="Linux")
+    res = subprocess.run(["bash", str(ROOT / "install.sh")], env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=60)
+    assert res.returncode != 0 and "No Condense release has been published yet" in res.stderr, res.stderr
