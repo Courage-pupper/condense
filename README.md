@@ -1,5 +1,8 @@
 # Condense
 
+[![tests](https://github.com/Courage-pupper/condense/actions/workflows/ci.yml/badge.svg)](https://github.com/Courage-pupper/condense/actions/workflows/ci.yml)
+[![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
+
 Local video, audio and transcript processing for qualitative research. Everything runs on your own computer: no recordings or transcripts are uploaded anywhere.
 
 - **Tasks:** merge clips, compress video with the hardware encoder, extract audio, transcribe with Whisper. Each task keeps its own settings.
@@ -56,10 +59,19 @@ src/condense/
   gui/        Tk app: queue, settings, editor, player/timeline, video, re-runs
 ```
 
-## Research data
+## Responsible use
 
-Never commit recordings or transcripts. `.gitignore` excludes media files, `*.transcript.json` and `_backups/`. Hugging Face tokens are stored in the macOS Keychain, not in files.
+- **Automatic transcripts contain errors.** Whisper can mishear, skip or invent words, and speaker detection can mix people up. Check every passage you analyse or quote; Condense's "uncertain word" highlighting, checked marks and edit log are there to help, not to replace that check.
+- **Translations are machine translations.** Passages translated with *Re-transcribe → Translate to English* are marked `[translated from …]` in every export; have them checked before quoting.
+- **You are responsible for your data.** Condense keeps everything on your computer, but consent, ethics approval, pseudonymisation, storage and deletion (e.g. under the GDPR) remain your responsibility and your institution's rules apply. The vocabulary field and speaker names are saved in the `.transcript.json`; use pseudonyms there if files leave your computer.
+- **pyannote models are gated:** to use neural speaker detection, accept the model conditions on Hugging Face with your own account and token.
 
-## License
+Never commit recordings or transcripts: `.gitignore` excludes media files, `*.transcript.json` and `_backups/`, and the test suite uses only synthetic media and invented text. See [SECURITY.md](SECURITY.md).
 
-MIT. Condense calls ffmpeg and HandBrake as separate programs and does not bundle them.
+## Citing
+
+If Condense helps your research, please cite it — see [CITATION.cff](CITATION.cff) (GitHub shows a "Cite this repository" button).
+
+## Licence
+
+Condense is MIT-licensed ([LICENSE](LICENSE)). It uses, but does not bundle, Whisper, MLX, PyTorch, pyannote, ffmpeg and HandBrake; their licences and conditions are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Condense is not affiliated with OpenAI, Apple, or any of the other projects and companies named here.

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Public-release housekeeping: third-party notices, citation file, security policy, contributing guide, issue/PR templates with privacy reminders, Dependabot for GitHub Actions.
+
 ## 0.9.0 — 2026-11-20
 
 First version in this repository, restructured from the single-file Apple Silicon app into the `condense` package. Behaviour is unchanged; the previous settings, task queue and Keychain token (stored under "SiliconVideoPipeline") are picked up automatically.
