@@ -283,30 +283,86 @@ class SystemProbe:
             "warning": warning,
         }
 
-    TORCH_PROBE = (
-        "import json\n"
-        "info = {'torch': None, 'gpu': False, 'api': '', 'name': '', 'whisper': False}\n"
-        "try:\n"
-        "    import importlib.util; info['whisper'] = importlib.util.find_spec('whisper') is not None\n"
-        "    import torch\n"
-        "    info['torch'] = torch.__version__\n"
-        "    info['gpu'] = bool(torch.cuda.is_available())\n"
-        "    info['api'] = 'ROCm' if getattr(torch.version, 'hip', None) else ('CUDA' if getattr(torch.version, 'cuda', None) else '')\n"
-        "    if info['gpu']:\n"
-        "        info['name'] = torch.cuda.get_device_name(0)\n"
-        "except Exception as exc:\n"
-        "    info['error'] = str(exc)[:200]\n"
-        "print(json.dumps(info))\n"
-    )
+    # Runs in the Whisper Python. "Visible" is not enough: with ROCm especially, torch.cuda.is_available() can be True
+    # while the first real calculation fails (card not supported by that ROCm build), so this also computes on the GPU.
+    TORCH_PROBE = """
+import json, time
+info = {"torch": None, "gpu": False, "works": False, "api": "", "name": "", "whisper": False, "mlx": False}
+try:
+    import importlib.util
+    info["whisper"] = importlib.util.find_spec("whisper") is not None
+    info["mlx"] = importlib.util.find_spec("mlx_whisper") is not None
+    import torch
+    info["torch"] = torch.__version__
+    if getattr(torch.version, "hip", None):
+        info["api"] = "ROCm"; info["api_version"] = str(torch.version.hip)
+    elif getattr(torch.version, "cuda", None):
+        info["api"] = "CUDA"; info["api_version"] = str(torch.version.cuda)
+    mps = getattr(torch.backends, "mps", None)
+    if torch.cuda.is_available():
+        dev = "cuda"
+        info["gpu"] = True
+        info["name"] = torch.cuda.get_device_name(0)
+        props = torch.cuda.get_device_properties(0)
+        info["vram_gb"] = round(props.total_memory / 1024 ** 3, 1)
+        info["arch"] = getattr(props, "gcnArchName", "") or "sm_%d%d" % (props.major, props.minor)
+    elif mps is not None and mps.is_available():
+        dev = "mps"
+        info["gpu"] = True; info["api"] = "Metal"; info["name"] = "Apple GPU"
+    else:
+        dev = None
+    if dev:
+        try:
+            t0 = time.time()
+            x = torch.randn(1024, 1024, device=dev)
+            value = float((x @ x).abs().sum().item())
+            if dev == "cuda":
+                torch.cuda.synchronize()
+            info["works"] = value == value  # not NaN
+            info["test_ms"] = int((time.time() - t0) * 1000)
+            if not info["works"]:
+                info["gpu_error"] = "the test calculation returned NaN"
+        except Exception as exc:
+            info["gpu_error"] = str(exc).strip().splitlines()[0][:300] if str(exc).strip() else type(exc).__name__
+except Exception as exc:
+    info["error"] = str(exc)[:300]
+print(json.dumps(info))
+"""
 
     @classmethod
     def torch_info(cls) -> Dict:
-        """What the Whisper Python's PyTorch sees: version, ROCm/CUDA, GPU name."""
+        """What the Whisper Python's PyTorch sees, including a short calculation on the GPU."""
         try:
-            res = subprocess.run([MacAppInstaller.find_best_python(), "-c", cls.TORCH_PROBE], capture_output=True, text=True, timeout=60)
+            res = subprocess.run([MacAppInstaller.find_best_python(), "-c", cls.TORCH_PROBE], capture_output=True, text=True,
+                                 timeout=180)  # the first GPU use can take a while (ROCm compiles kernels)
             return json.loads(res.stdout.strip().splitlines()[-1])
         except Exception as exc:
-            return {"torch": None, "gpu": False, "api": "", "name": "", "whisper": False, "error": str(exc)[:200]}
+            return {"torch": None, "gpu": False, "works": False, "api": "", "name": "", "whisper": False, "error": str(exc)[:200]}
+
+    @staticmethod
+    def torch_verdict(info: Dict, guide: str) -> Tuple[bool, str, str]:
+        """(GPU usable for Whisper?, one-line status, warning or '') from torch_info()."""
+        v = info.get("torch")
+        api = info.get("api") or ""
+        if info.get("gpu") and info.get("works"):
+            return True, f"PyTorch {v} · {api or 'GPU'} ✓", ""
+        if info.get("gpu"):
+            status = f"PyTorch {v} sees {info.get('name') or 'a GPU'} ({api}), but a test calculation failed"
+            hint = ""
+            if api == "ROCm":
+                hint = (" This card is probably not supported by this ROCm build; an override such as"
+                        " HSA_OVERRIDE_GFX_VERSION may help (Linux).")
+            return False, status, f"{status}: {info.get('gpu_error', 'unknown error')}. Whisper would run on the CPU (slow).{hint} See {guide}."
+        if v is None:
+            status = "PyTorch not installed in the Whisper Python"
+        else:
+            status = f"PyTorch {v} sees no GPU ({api or 'CPU build'})"
+        return False, status, f"{status} — Whisper runs on the CPU (slow). See {guide}."
+
+    @staticmethod
+    def gpu_details(info: Dict) -> Dict:
+        keep = ("torch", "api", "api_version", "name", "vram_gb", "arch", "test_ms", "gpu_error", "whisper", "mlx", "works")
+        return {k: info[k] for k in keep if k in info}
 
     @classmethod
     def detect_gpu_linux(cls) -> Dict[str, str]:
@@ -316,24 +372,16 @@ class SystemProbe:
             return cls.detect_gpu_windows()
         info = cls.torch_info()
         vaapi = has_ffmpeg_vaapi()
-        if info.get("gpu"):
-            gpu_name = f"{info.get('name') or 'GPU'}"
-            accel = f"PyTorch {info.get('torch')} · {info.get('api') or 'GPU'} ✓"
-            warning = ""
-        else:
-            gpu_name = platform.processor() or platform.machine() or "Linux"
-            if info.get("torch") is None:
-                accel = "PyTorch not installed in the Whisper Python"
-            else:
-                accel = f"PyTorch {info.get('torch')} sees no GPU ({info.get('api') or 'CPU build'})"
-            warning = accel + " — Whisper runs on the CPU (slow). See docs/install-linux.md."
+        ok, accel, warning = cls.torch_verdict(info, "docs/install-linux.md")
+        gpu_name = info.get("name") if info.get("gpu") else (platform.processor() or platform.machine() or "Linux")
         return {
-            "gpu_name": gpu_name,
+            "gpu_name": gpu_name or "GPU",
             "accel_status": accel,
             "media_engine": f"VA-API ({vaapi_device()})" if vaapi else "no VA-API encoder (CPU encoding)",
-            "torch_gpu": bool(info.get("gpu")),
+            "torch_gpu": ok,
             "gpu_api": info.get("api") or "",
             "vaapi_ok": vaapi,
+            "gpu_test": cls.gpu_details(info),
             "warning": warning,
         }
 
@@ -345,26 +393,18 @@ class SystemProbe:
         names = gpu_names()
         encoders = [name for name in ("hevc_nvenc", "hevc_amf", "hevc_qsv") if cls.ffmpeg_encoder_works(name)]
         hw = ", ".join({"hevc_nvenc": "NVENC", "hevc_amf": "AMF", "hevc_qsv": "Quick Sync"}[e] for e in encoders)
-        if info.get("gpu"):
-            gpu_name, warning = info.get("name") or "GPU", ""
-            accel = f"PyTorch {info.get('torch')} · {info.get('api') or 'GPU'} ✓"
-        else:
-            gpu_name = names[0] if names else (platform.processor() or "Windows PC")
-            if info.get("torch") is None:
-                accel = "PyTorch not installed in the Whisper Python"
-            else:
-                accel = f"PyTorch {info.get('torch')} sees no GPU ({info.get('api') or 'CPU build'})"
-            hint = ""
-            if gpu_vendor(names) == "amd":
-                hint = " AMD's PyTorch for Windows needs a supported Radeon (RX 7900 / RX 9000 series) and a current driver."
-            warning = accel + " — Whisper runs on the CPU (slow)." + hint + " See docs/install-windows.md."
+        ok, accel, warning = cls.torch_verdict(info, "docs/install-windows.md")
+        if not ok and gpu_vendor(names) == "amd" and not info.get("gpu"):
+            warning = warning.replace(" See docs", " AMD's PyTorch for Windows needs a supported Radeon (RX 7900 / RX 9000 series) and a current driver. See docs")
+        gpu_name = info.get("name") if info.get("gpu") else (names[0] if names else (platform.processor() or "Windows PC"))
         return {
-            "gpu_name": gpu_name,
+            "gpu_name": gpu_name or "GPU",
             "accel_status": accel,
             "media_engine": f"GPU encoding: {hw}" if hw else "no GPU video encoder (CPU encoding)",
-            "torch_gpu": bool(info.get("gpu")),
+            "torch_gpu": ok,
             "gpu_api": info.get("api") or "",
             "hw_encoders": encoders,
+            "gpu_test": cls.gpu_details(info),
             "warning": warning,
         }
 

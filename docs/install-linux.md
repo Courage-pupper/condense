@@ -147,6 +147,10 @@ Start **Condense** from your app menu (pin it to the dock from there), or run `~
 
 - The header shows the GPU and `ROCm ✓` (or `CUDA ✓`) and `VA-API ✓`. A warning there means PyTorch does not see the GPU
   — see [Troubleshooting](#troubleshooting).
+- **Help ▸ Test GPU…** checks, before you transcribe anything, whether Whisper can use the GPU: it runs a short
+  calculation on it and shows the GPU, its memory, the PyTorch / ROCm or CUDA version and the result. Condense runs the
+  same test at every start (the result is in the header), and **Run** asks first if a transcription would fall back to
+  the CPU.
 - **File ▸ Setup & Status** lists the tools Condense found, the Python that runs Whisper, and where settings live.
 - Settings defaults on Linux: Whisper backend **PyTorch GPU (ROCm / CUDA)**, video encoder **vaapi_h265**. Without a
   VA-API encoder Condense compresses with HandBrake on the CPU instead and says so in the Console. On NVIDIA choose
@@ -225,7 +229,10 @@ System packages stay installed. Your transcripts and recordings are never touche
 
 ## Troubleshooting
 
-**The header says PyTorch sees no GPU.** Check what the Whisper Python sees (Setup & Status shows which Python that is):
+**The header says PyTorch sees no GPU, or the GPU test fails.** Help ▸ Test GPU… shows the error. "Sees the GPU but a
+test calculation failed" (often `HIP error: invalid device function`) means the card is not supported by the installed
+ROCm build — see the override below, or install a newer PyTorch build with `--torch-index … --reinstall-torch`.
+Check what the Whisper Python sees (Setup & Status shows which Python that is):
 
 ```bash
 ~/.condense/env/bin/python -c "import torch; print(torch.__version__, torch.version.hip or torch.version.cuda, torch.cuda.is_available())"

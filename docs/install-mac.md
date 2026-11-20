@@ -90,7 +90,8 @@ Options:
 Open **Condense** from Launchpad, Spotlight or `~/Applications` (drag it to the Dock to keep it there). You can also
 start it from Terminal with `~/.condense/env/bin/condense`.
 
-- The header shows your chip and `MLX ✓ · Metal ✓ · VideoToolbox ✓`. **Setup & Status** (in the Condense menu)
+- The header shows your chip and `MLX ✓ · Metal ✓ · VideoToolbox ✓`; **Help ▸ Test GPU…** shows the details, and
+  **Run** asks first if MLX is missing and a transcription would fall back to the CPU. **Setup & Status** (in the Condense menu)
   lists every tool Condense found and where your settings live.
 - When you first open videos in your Desktop, Documents or Downloads folder, macOS asks whether Condense (or
   "python3.12") may access that folder — allow it.

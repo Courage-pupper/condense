@@ -187,12 +187,23 @@ import importlib.util, torch
 print("    openai-whisper:", "installed" if importlib.util.find_spec("whisper") else "MISSING")
 if torch.cuda.is_available():
     api = "ROCm" if getattr(torch.version, "hip", None) else "CUDA"
-    print(f"    Whisper and speaker detection will run on the GPU ({api}: {torch.cuda.get_device_name(0)}).")
+    name = torch.cuda.get_device_name(0)
+    try:  # visible is not enough: compute something on it
+        x = torch.randn(1024, 1024, device="cuda")
+        float((x @ x).sum().item()); torch.cuda.synchronize()
+    except Exception as exc:
+        print(f"    PyTorch sees the GPU ({api}: {name}) but a test calculation failed: {str(exc).splitlines()[0]}")
+        raise SystemExit(4)
+    print(f"    GPU test passed: Whisper and speaker detection will run on the GPU ({api}: {name}).")
 else:
     print("    PyTorch sees no GPU: Whisper will run on the CPU (much slower).")
     raise SystemExit(3)
 '@
 $checked = Invoke-Py $vpy $check
+if ($checked.Code -eq 4) {
+  Note "The GPU is visible but unusable with this PyTorch build: update the graphics driver and restart. AMD: the"
+  Note "card must be supported by AMD's PyTorch for Windows (RX 7900 / RX 9000 series)."
+}
 if ($checked.Code -eq 3 -and $Gpu -ne "cpu") {
   if ($Gpu -eq "amd") {
     Note "AMD: update AMD Software (Adrenalin) to 26.2.2 or newer and restart. PyTorch for Windows supports the RX 7900 and"

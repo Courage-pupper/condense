@@ -102,6 +102,9 @@ Start **Condense** from the Start menu or the Desktop (right-click → *Pin to t
 
 - The header shows the GPU, `CUDA ✓` or `ROCm ✓`, and the video encoder (`NVENC ✓`, `AMF ✓` or `Quick Sync ✓`). A warning
   there means PyTorch does not see the GPU — see [Troubleshooting](#troubleshooting).
+- **Help ▸ Test GPU…** checks, before you transcribe anything, whether Whisper can use the GPU (a short calculation on
+  it, with the GPU, its memory, the PyTorch / CUDA or ROCm version and the result). The same test runs at every start,
+  and **Run** asks first if a transcription would fall back to the CPU.
 - **File ▸ Setup & Status** lists the tools Condense found, the Python that runs Whisper and where settings live.
 - Settings defaults on Windows: Whisper backend **PyTorch GPU**, video encoder **auto_h265**, which tests NVENC, AMF and
   Quick Sync and uses the first that works on this PC (otherwise the CPU).
@@ -160,7 +163,7 @@ never touched.
 
 ## Troubleshooting
 
-**The header says PyTorch sees no GPU.** Check what PyTorch sees:
+**The header says PyTorch sees no GPU, or the GPU test fails.** Help ▸ Test GPU… shows the error. Check what PyTorch sees:
 
 ```powershell
 & "$HOME\.condense\env\Scripts\python.exe" -c "import torch; print(torch.__version__, torch.version.hip or torch.version.cuda, torch.cuda.is_available())"

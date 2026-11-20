@@ -7,10 +7,11 @@ from condense.gui.queue_panel import QueueMixin
 from condense.gui.rerun import RerunMixin
 from condense.gui.settings_tab import SettingsTabMixin
 from condense.gui.updates_ui import UpdatesMixin
+from condense.gui.gpu_check import GpuCheckMixin
 from condense.gui.video import VideoMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")
@@ -270,6 +271,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         mb.add_cascade(label="Playback", menu=pm)
 
         hm = tk.Menu(mb, name="help", tearoff=0)
+        hm.add_command(label="Test GPU…", command=self._test_gpu)
         hm.add_command(label="Check for Updates…", command=self._check_updates)
         hm.add_checkbutton(label="Check for Updates Automatically", variable=self.var_update_auto, command=self._toggle_update_auto)
         hm.add_separator()
@@ -325,7 +327,8 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         if g.get("warning"):
             self.sub_lbl.configure(text=f"{g.get('gpu_name')}  ·  ⚠ {g['warning']}", fg=THEME["warn"])
             return
-        parts = [str(g.get("gpu_name"))]
+        vram = (g.get("gpu_test") or {}).get("vram_gb")
+        parts = [str(g.get("gpu_name")) + (f" ({vram:g} GB)" if vram and g.get("torch_gpu") else "")]
         if "mlx_ok" in g:
             parts.append(f"MLX {'✓' if g['mlx_ok'] else '✗'}")
             parts.append(f"Metal {'✓' if g['mps_ok'] else '✗'}")
@@ -481,6 +484,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         bar.pack(fill=tk.X, padx=14, pady=(12, 0))
         self._tool(bar, self._install_label(), lambda: (win.destroy(), self._install_desktop_shortcut())).pack(side=tk.LEFT)
         self._tool(bar, "Keyboard Shortcuts", self._show_shortcuts).pack(side=tk.LEFT, padx=(6, 0))
+        self._tool(bar, "Test GPU", lambda: (win.destroy(), self._test_gpu())).pack(side=tk.LEFT, padx=(6, 0))
         txt = tk.Text(win, bg="#0b0c10", fg="#a7f3d0", font=self.f["mono_small"], padx=12, pady=12, wrap=tk.WORD, highlightthickness=0)
         txt.pack(fill=tk.BOTH, expand=True, padx=14, pady=12)
         status = ["# Status"]

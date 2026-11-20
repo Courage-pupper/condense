@@ -152,11 +152,24 @@ ok = importlib.util.find_spec("whisper") is not None
 print(f"    openai-whisper: {'installed' if ok else 'MISSING'}")
 if torch.cuda.is_available():
     api = "ROCm" if getattr(torch.version, "hip", None) else "CUDA"
-    print(f"    Whisper and speaker detection will run on the GPU ({api}: {torch.cuda.get_device_name(0)}).")
+    name = torch.cuda.get_device_name(0)
+    try:  # visible is not enough: compute something on it
+        x = torch.randn(1024, 1024, device="cuda")
+        float((x @ x).sum().item()); torch.cuda.synchronize()
+    except Exception as exc:
+        print(f"    PyTorch sees the GPU ({api}: {name}) but a test calculation failed: {str(exc).splitlines()[0]}")
+        sys.exit(4)
+    print(f"    GPU test passed: Whisper and speaker detection will run on the GPU ({api}: {name}).")
 else:
     print("    PyTorch sees no GPU: Whisper will run on the CPU (much slower).")
     sys.exit(3)
 EOF
+if [ "$STATUS" = "4" ]; then
+  echo
+  echo "  The GPU is visible but unusable with this PyTorch build. Usually the card is not supported by this ROCm"
+  echo "  version: try a newer build (--torch-index URL --reinstall-torch) or, for RX 7000 / RX 6000 cards,"
+  echo "  export HSA_OVERRIDE_GFX_VERSION=11.0.0 / 10.3.0 (docs/install-linux.md, Troubleshooting)."
+fi
 if [ "$STATUS" = "3" ] && [ "$GPU" != "cpu" ]; then
   echo
   echo "  The $GPU build of PyTorch is installed but sees no GPU. Common causes (docs/install-linux.md, Troubleshooting):"

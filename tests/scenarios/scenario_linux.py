@@ -112,3 +112,43 @@ opened = [c for c in opened if c[0] in ("xdg-open", "open", "osascript")]
 assert [c[0] for c in opened] == ["xdg-open", "xdg-open"] and opened[0][1].endswith("P02.mp4"), opened
 app._show_setup_modal()
 ok("Linux defaults in Settings, VA-API quality label, ROCm in the header, xdg-open for video and folders")
+
+print("[8] GPU test: a real calculation, the report, and a warning before running on the CPU")
+d = g["gpu_test"]
+assert d["works"] and d["arch"] == "gfx1100" and d["vram_gb"] == 24.0 and "test_ms" in d, d
+assert "AMD Radeon RX 7900 XTX (24 GB)" in app.sub_lbl.cget("text") and "ROCm ✓" in app.sub_lbl.cget("text")
+ok_, report = app._gpu_report(g)
+assert ok_ and report.startswith("✓ The GPU is ready") and "gfx1100, 24.0 GB" in report and "Test calculation: passed in" in report
+assert "PyTorch:         2.9.1+rocm6.4 · ROCm 6.4.43482" in report, report
+# visible but unusable — what happens with a card the installed ROCm build does not support
+os.environ["FAKE_TORCH_BROKEN"] = "1"
+bad = plat.SystemProbe.detect_gpu()
+os.environ.pop("FAKE_TORCH_BROKEN")
+assert not bad["torch_gpu"] and "test calculation failed" in bad["warning"] and "HIP error: invalid device function" in bad["warning"]
+assert "HSA_OVERRIDE_GFX_VERSION" in bad["warning"] and bad["gpu_name"] == "AMD Radeon RX 7900 XTX"
+ok_, report = app._gpu_report(bad)
+assert not ok_ and report.startswith("✗ Whisper cannot use the GPU") and "failed — HIP error: invalid device function" in report
+windows_shown = []
+app._show_text_window = lambda title, text: windows_shown.append((title, text))
+app._on_gpu_test({"type": "gpu_test", "gpu": bad})
+assert windows_shown and windows_shown[-1][0] == "GPU test" and "cannot use the GPU" in app.lbl_status.cget("text")
+assert "ROCm ✗" in app.sub_lbl.cget("text") or "⚠" in app.sub_lbl.cget("text")
+# before a run
+asked = []
+answer = {"v": False}
+pipe.messagebox.askyesno = lambda title, text, **k: asked.append((title, text)) or answer["v"]
+whisper_task = {"name": "P02", "inputs": ["x"], "steps": {"whisper": True}, "settings": {"whisper_backend": plat.DEFAULT_BACKEND}, "status": "Pending"}
+cpu_task = dict(whisper_task, settings={"whisper_backend": "openai-whisper (CPU)"})
+video_task = dict(whisper_task, steps={"compress": True})
+assert not app._gpu_preflight([whisper_task]) and asked and "invalid device function" in asked[-1][1]
+n = len(asked)
+assert app._gpu_preflight([cpu_task]) and app._gpu_preflight([video_task]) and len(asked) == n  # no question when CPU is chosen / no Whisper
+answer["v"] = True
+assert app._gpu_preflight([whisper_task])
+app.jobs = [dict(whisper_task, id="t1")]; answer["v"] = False; app.worker = None
+app._start_pipeline()
+assert app.worker is None and "Not started" in app.lbl_status.cget("text")
+app.gpu_info = g
+assert app._gpu_preflight([whisper_task]) and len(asked) == n + 2  # GPU fine again: no question
+ok("GPU found + test calculation passed → ✓ with VRAM; visible but failing → ✗ with the error and a hint; "
+   "Run asks first instead of silently using the CPU")

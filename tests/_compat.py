@@ -11,7 +11,7 @@ MODULES = [
     "condense.asr.runner", "condense.pipeline.worker", "condense.platform.mac", "condense.settings",
     "condense.gui.theme", "condense.gui.widgets", "condense.gui._common", "condense.gui.queue_panel",
     "condense.gui.settings_tab", "condense.gui.editor", "condense.gui.player", "condense.gui.rerun",
-    "condense.gui.video", "condense.gui.updates_ui", "condense.gui.app", "condense.updates",
+    "condense.gui.video", "condense.gui.updates_ui", "condense.gui.gpu_check", "condense.gui.app", "condense.updates",
 ]
 
 

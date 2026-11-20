@@ -9,6 +9,7 @@
 - Hugging Face token in the Windows Credential Manager, Start-menu and Desktop shortcuts with an icon, no console windows, sharp text on high-DPI screens, `%APPDATA%` / `%LOCALAPPDATA%` locations.
 
 ### All platforms
+- **GPU check before transcribing:** at start-up Condense now runs a short calculation on the GPU instead of only asking whether one is visible (with ROCm a card can be visible yet unusable). The header shows the result with the GPU's memory; **Help ▸ Test GPU…** shows the details (PyTorch, ROCm/CUDA version, GPU architecture, test result, video encoder). If a task would transcribe on the CPU although a GPU backend is chosen, **Run** asks first. The Linux and Windows installers run the same test at the end.
 - Without HandBrake, the x265/x264 encoders now use ffmpeg's own x265/x264 instead of failing.
 - Whisper's output is read as UTF-8.
 

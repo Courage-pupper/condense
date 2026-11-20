@@ -675,6 +675,9 @@ class QueueMixin:
         if empty:
             self.lbl_status.config(text=f"'{empty[0]}' has no steps ticked — choose at least one step in Task Details.")
             return
+        if not self._gpu_preflight(pending):
+            self.lbl_status.config(text="Not started. Help ▸ Test GPU shows why the GPU is not available.")
+            return
         config = {
             "tasks": json.loads(json.dumps(pending)),
             "output_dir": self.var_output_dir.get(),
@@ -735,6 +738,8 @@ class QueueMixin:
                         self._append_log(f"✓ Transcript ready: {', '.join(names) or Path(msg['doc_path']).name} — double-click it in the queue to open.", "SUCCESS")
                 elif mtype in ("rerun_progress", "rerun_done", "rerun_failed"):
                     self._handle_rerun_message(msg)
+                elif mtype == "gpu_test":
+                    self._on_gpu_test(msg)
                 elif mtype == "probe":
                     self.gpu_info, self.deps = msg["gpu"], msg["deps"]
                     self._update_header()
