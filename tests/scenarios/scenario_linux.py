@@ -152,3 +152,45 @@ app.gpu_info = g
 assert app._gpu_preflight([whisper_task]) and len(asked) == n + 2  # GPU fine again: no question
 ok("GPU found + test calculation passed → ✓ with VRAM; visible but failing → ✗ with the error and a hint; "
    "Run asks first instead of silently using the CPU")
+
+print("[9] the desktop's own file chooser instead of Tk's old one")
+from condense.gui import file_dialogs as fd
+argv_log = HOME / ".fake_dialog_argv"
+last = lambda: json.loads(argv_log.read_text().splitlines()[-1])
+os.environ.pop("XDG_CURRENT_DESKTOP", None)
+assert fd.native_backend() == "zenity"
+drive = Path(tempfile.mkdtemp(prefix="media_ExternalDrive_"))
+os.environ["FAKE_DIALOG_OUT"] = f"{media / 'P02.mp4'}\n{media / 'P03_48k.mp4'}\n"
+files = app._ask_open_files("Add videos (one task per video)", str(drive), pipe.MEDIA_FILETYPES)
+assert files == (str(media / "P02.mp4"), str(media / "P03_48k.mp4")), files
+a = last()
+assert a[1] == "--file-selection" and "--multiple" in a and "--separator=\n" in a and f"--filename={drive}/" in a and "--modal" in a
+vf = next(x for x in a if x.startswith("--file-filter=Video Files"))
+assert "*.mp4" in vf and "*.MP4" in vf and "*.MTS" in vf and any(x == "--file-filter=All Files | *" for x in a), a
+os.environ["FAKE_DIALOG_OUT"] = str(drive) + "\n"
+assert app._ask_directory("Default output folder", "/media/unplugged-drive") == str(drive)
+assert "--directory" in last() and f"--filename={HOME}/" in last()          # gone drive -> start at home
+os.environ["FAKE_DIALOG_CODE"] = "1"
+assert app._ask_open_files("x", None, pipe.MEDIA_FILETYPES) == ()           # cancelled
+os.environ["FAKE_DIALOG_CODE"] = "5"                                         # broken -> Tk's dialog
+pipe.filedialog.askopenfilename = lambda **k: "/from/tk.transcript.json"
+assert app._ask_open_file("Open transcript", None, [("Condense transcript", "*.transcript.json")]) == "/from/tk.transcript.json"
+assert "file dialog failed" in app.console_text.content
+os.environ["FAKE_DIALOG_CODE"] = "0"
+os.environ["XDG_CURRENT_DESKTOP"] = "KDE"
+assert fd.native_backend() == "kdialog"
+os.environ["FAKE_DIALOG_OUT"] = f"{media / 'P02.mp4'}\n"
+assert app._ask_open_files("Add", str(drive), pipe.MEDIA_FILETYPES) == (str(media / "P02.mp4"),)
+k = last()
+assert k[0].endswith("kdialog") and k[3:5] == ["--getopenfilename", str(drive)] and "--separate-output" in k and "|Video Files" in k[5]
+os.environ.pop("XDG_CURRENT_DESKTOP")
+os.environ["CONDENSE_FILE_DIALOG"] = "tk"
+assert fd.native_backend() == "tk"
+os.environ.pop("CONDENSE_FILE_DIALOG")
+app.jobs = []  # drop the bare test task from [8]
+before = len(app.jobs)
+os.environ["FAKE_DIALOG_OUT"] = f"{media / 'P02.mp4'}\n"
+app._add_videos()
+assert len(app.jobs) == before + 1 and app.settings["last_add_dir"] == str(media)
+ok("zenity (GNOME) or kdialog (KDE): multi-select, .MP4 matched too, starts in the last folder (or home if the drive is gone), "
+   "cancel = nothing, failure → Tk's dialog; Add Videos uses it")

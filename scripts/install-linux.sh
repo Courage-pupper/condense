@@ -69,7 +69,7 @@ esac
 TORCH_INDEX="${TORCH_INDEX:-$DEFAULT_INDEX}"
 
 # ---------------------------------------------------------------- system packages
-PKGS="ffmpeg handbrake-cli python3-venv python3-tk python3-pip libsecret-tools vainfo"
+PKGS="ffmpeg handbrake-cli python3-venv python3-tk python3-pip libsecret-tools vainfo zenity"
 if [ "$GPU" = "rocm" ]; then PKGS="$PKGS mesa-va-drivers"; fi   # VA-API video encoding on AMD
 if [ "$SKIP_SYSTEM" = "0" ]; then
   if command -v apt-get >/dev/null 2>&1; then

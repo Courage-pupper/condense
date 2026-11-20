@@ -269,7 +269,7 @@ class QueueMixin:
             self._append_log(f"Added {len(tasks)} task(s), one per video.", "INFO")
 
     def _ask_videos(self, title: str) -> List[str]:
-        files = filedialog.askopenfilenames(title=title, initialdir=self.settings.get("last_add_dir") or str(Path.home()), filetypes=MEDIA_FILETYPES)
+        files = self._ask_open_files(title, self.settings.get("last_add_dir"), MEDIA_FILETYPES)
         if files:
             self.settings["last_add_dir"] = str(Path(files[0]).parent)
         return list(files or [])
@@ -290,7 +290,7 @@ class QueueMixin:
         self.ent_task_name.focus_set()
 
     def _add_folder(self):
-        folder = filedialog.askdirectory(title="Add every video in a folder (one task per video)", initialdir=self.settings.get("last_add_dir") or str(Path.home()))
+        folder = self._ask_directory("Add every video in a folder (one task per video)", self.settings.get("last_add_dir"))
         if folder:
             self.settings["last_add_dir"] = folder
             found = sorted(str(p) for p in Path(folder).iterdir() if p.is_file() and p.suffix.lower() in VIDEO_EXTS)
@@ -589,7 +589,7 @@ class QueueMixin:
         task = self._editable_task()
         if task is None:
             return
-        f = filedialog.askdirectory(title="Output folder for this task", initialdir=task["output_dir"])
+        f = self._ask_directory("Output folder for this task", task["output_dir"])
         if f:
             task["output_dir"] = f
             task["output_auto"] = False
@@ -637,7 +637,7 @@ class QueueMixin:
                 self._append_log(f"Could not load transcript: {exc}", "ERROR")
 
     def _browse_output(self):
-        f = filedialog.askdirectory(title="Default output folder", initialdir=self.var_output_dir.get())
+        f = self._ask_directory("Default output folder", self.var_output_dir.get())
         if f:
             self.var_output_dir.set(f)
 

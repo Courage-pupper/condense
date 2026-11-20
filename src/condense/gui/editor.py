@@ -726,8 +726,7 @@ class EditorMixin:
             messagebox.showinfo("Backups", "No backups yet for this transcript. They are made automatically while you edit "
                                            f"(at most every {doc.BACKUP_EVERY_S // 60} minutes, the last {doc.BACKUPS_KEPT} are kept).", parent=self)
             return
-        path = filedialog.askopenfilename(title="Restore which backup?", initialdir=str(doc.backup_dir),
-                                          filetypes=[("Transcript backup", f"*{TranscriptDocument.SUFFIX}")])
+        path = self._ask_open_file("Restore which backup?", str(doc.backup_dir), [("Transcript backup", f"*{TranscriptDocument.SUFFIX}")])
         if not path:
             return
         try:

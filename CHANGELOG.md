@@ -8,6 +8,9 @@
 - One-line install from PowerShell: `irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1 | iex` — winget installs Python 3.12, FFmpeg and HandBrake CLI; options (`-Gpu`, `-Venv`, `-WithPyannote`, …) are remembered; in-app updates work as on macOS and Linux.
 - Hugging Face token in the Windows Credential Manager, Start-menu and Desktop shortcuts with an icon, no console windows, sharp text on high-DPI screens, `%APPDATA%` / `%LOCALAPPDATA%` locations.
 
+### Linux
+- **Native file chooser:** opening videos, folders and transcripts now uses the desktop's own dialog — GNOME/GTK through `zenity`, KDE through `kdialog` — with external drives, bookmarks, recent places and search, instead of Tk's old Motif-style dialog. It starts in the last folder used (or the home folder if that drive is no longer connected) and also matches upper-case extensions such as `.MP4`. The installer adds `zenity`; `CONDENSE_FILE_DIALOG=tk|zenity|kdialog` chooses explicitly.
+
 ### All platforms
 - **GPU check before transcribing:** at start-up Condense now runs a short calculation on the GPU instead of only asking whether one is visible (with ROCm a card can be visible yet unusable). The header shows the result with the GPU's memory; **Help ▸ Test GPU…** shows the details (PyTorch, ROCm/CUDA version, GPU architecture, test result, video encoder). If a task would transcribe on the CPU although a GPU backend is chosen, **Run** asks first. The Linux and Windows installers run the same test at the end.
 - Without HandBrake, the x265/x264 encoders now use ffmpeg's own x265/x264 instead of failing.

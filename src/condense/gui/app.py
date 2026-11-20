@@ -8,10 +8,11 @@ from condense.gui.rerun import RerunMixin
 from condense.gui.settings_tab import SettingsTabMixin
 from condense.gui.updates_ui import UpdatesMixin
 from condense.gui.gpu_check import GpuCheckMixin
+from condense.gui.file_dialogs import FileDialogsMixin
 from condense.gui.video import VideoMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")

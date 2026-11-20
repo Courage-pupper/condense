@@ -1,0 +1,7 @@
+#!/usr/bin/env python3
+# Fake desktop file chooser: logs argv, prints $FAKE_DIALOG_OUT, exits with $FAKE_DIALOG_CODE (default 0).
+import json, os, sys
+with open(os.path.join(os.environ["HOME"], ".fake_dialog_argv"), "a") as fh:
+    fh.write(json.dumps(sys.argv) + "\n")
+sys.stdout.write(os.environ.get("FAKE_DIALOG_OUT", ""))
+sys.exit(int(os.environ.get("FAKE_DIALOG_CODE", "0")))

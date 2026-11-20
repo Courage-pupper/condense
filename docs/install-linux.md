@@ -94,7 +94,7 @@ cd ~/condense
 The installer asks for your password once (for `apt`) and then
 
 1. installs **ffmpeg** (with ffplay), **HandBrakeCLI**, Python's **venv** and **Tk**, **libsecret-tools** (keyring
-   access) and **vainfo** — plus **mesa-va-drivers** on AMD,
+   access), **zenity** (the desktop's file chooser) and **vainfo** — plus **mesa-va-drivers** on AMD,
 2. detects the GPU type (AMD → ROCm, NVIDIA → CUDA, otherwise CPU),
 3. creates a private Python environment in `~/.condense/env` and installs the matching **PyTorch** build into it,
 4. installs Condense with openai-whisper, keeping that PyTorch build fixed so nothing replaces it with another one,
@@ -264,6 +264,10 @@ those packages support yet. Create the environment with Python 3.12: `--python /
 
 **Condense does not appear in the app menu.** Log out and back in, or start it once with
 `~/.condense/env/bin/condense --install-app`. Launch errors are in `~/.local/state/condense/condense.log`.
+
+**The file dialog looks old (no sidebar, no external drives).** Condense uses the desktop's own file chooser through
+`zenity` (GNOME and most desktops) or `kdialog` (KDE) and falls back to Tk's basic dialog when neither is installed:
+`sudo apt install zenity` (or `kdialog` on KDE). To force one: `export CONDENSE_FILE_DIALOG=zenity` (or `kdialog`, `tk`).
 
 **Text is tiny on a high-resolution screen.** Tk does not follow the desktop's scaling everywhere. Use View ▸ Larger
 Text (Ctrl++) — the setting is remembered.

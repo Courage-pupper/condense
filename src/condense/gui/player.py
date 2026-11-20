@@ -418,8 +418,7 @@ class PlayerMixin:
 
     def _open_transcript(self):
         initial = self.settings.get("last_transcript_dir") or str(Path.home())
-        path = filedialog.askopenfilename(title="Open transcript", initialdir=initial,
-                                          filetypes=[("Pipeline transcript", "*.transcript.json"), ("JSON", "*.json")])
+        path = self._ask_open_file("Open transcript", initial, [("Condense transcript", "*.transcript.json"), ("JSON", "*.json")])
         if not path:
             return
         try:
