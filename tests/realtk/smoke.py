@@ -143,6 +143,31 @@ def main():
     assert {TD.load(docs[0].path).segments[i]["speaker"] for i in (4, 5, 6)} == {roster[2]}
     ok("number keys assign speakers (one and several segments), undo/redo")
 
+    # Modifier shortcuts, as real key events. Mac: ⌃digit assigns, ⌘digit switches tabs. Linux/Windows: Alt+digit
+    # assigns, Ctrl+digit switches tabs, and Ctrl+C/Ctrl+I are left alone (copy, insert segment); markers are Ctrl+Shift.
+    from condense.gui.widgets import EDIT_MOD, IS_MAC, MOD
+    app._goto_segment(3)
+    pump(app, 0.2)
+    app._focus_editor()
+    key(app, app.edit_text, f"<{EDIT_MOD}-Key-4>")
+    assert TD.load(docs[0].path).segments[3]["speaker"] == roster[3], "speaker number while typing"
+    key(app, app.edit_text, f"<{MOD}-Key-1>")
+    assert app.notebook.select() == str(app.tab_settings), "tab shortcut"
+    app.notebook.select(app.tab_preview)
+    pump(app)
+    if not IS_MAC:
+        assert not app.bind_all("<Control-Key-c>"), "Ctrl+C is bound app-wide"
+        before_text = app.edit_text.get("1.0", "end-1c")
+        key(app, app.edit_text, "<Control-Key-c>")
+        assert app.edit_text.get("1.0", "end-1c") == before_text, "Ctrl+C changed the text"
+    app._focus_editor()
+    app.edit_text.mark_set("insert", "end-1c")
+    key(app, app.edit_text, "<Control-Shift-Key-L>")
+    assert "[laughs]" in app.edit_text.get("1.0", "end-1c"), "marker shortcut"
+    app._revert_segment_edit()
+    pump(app)
+    ok("modifier shortcuts: speaker while typing, tab switching, markers; Ctrl+C left to copy")
+
     app._goto_segment(7)
     app.var_seg_note.set("Robin shows the drawing to the group")
     app._save_segment_edit()

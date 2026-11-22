@@ -472,14 +472,14 @@ class PlayerMixin:
         win.transient(self)
         self._label(win, "Speakers in this transcript", font="body_bold", bg=T["bg_panel"]).grid(row=0, column=0, columnspan=4, sticky="w")
         self._label(win, "Rename by typing a new name (an existing name merges the two). Add speakers that detection missed, then assign them "
-                         "in the segment editor with the speaker chips or ⌃1–⌃9.", font="small", fg=T["fg_dim"], bg=T["bg_panel"],
+                         f"in the segment editor with the speaker chips or {EDIT_MOD_LABEL}1–{EDIT_MOD_LABEL}9.", font="small", fg=T["fg_dim"], bg=T["bg_panel"],
                     wraplength=460, justify=tk.LEFT).grid(row=1, column=0, columnspan=4, sticky="w", pady=(0, 10))
         entries: Dict[str, tk.StringVar] = {}
         remove_vars: Dict[str, tk.BooleanVar] = {}
         r = 2
         for i, spk in enumerate(roster):
             color = SPEAKER_COLORS[i % len(SPEAKER_COLORS)]
-            self._label(win, f"⌃{i + 1}" if i < 9 else "", font="mono_small", fg=T["fg_dim"], bg=T["bg_panel"]).grid(row=r, column=0, sticky="w", padx=(0, 6))
+            self._label(win, f"{EDIT_MOD_LABEL}{i + 1}" if i < 9 else "", font="mono_small", fg=T["fg_dim"], bg=T["bg_panel"]).grid(row=r, column=0, sticky="w", padx=(0, 6))
             self._label(win, spk, font="mono_small_bold", fg=color, bg=T["bg_panel"]).grid(row=r, column=1, sticky="w", pady=3)
             var = tk.StringVar(value=spk)
             self._entry(win, var, width=22, font="body").grid(row=r, column=2, sticky="ew", pady=3, padx=(10, 6))

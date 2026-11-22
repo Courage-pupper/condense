@@ -329,7 +329,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.bind_all(f"<{MOD}-Shift-Key-z>", self._redo_key)
         self.bind_all(f"<{MOD}-Key-Z>", self._redo_key)
         for _label, text, key in MARKERS:
-            for seq in (f"<Control-Shift-Key-{key}>", f"<Control-Key-{key}>"):  # with Shift, Tk reports the capital letter
+            # With Shift, Tk reports the capital letter. Plain Ctrl+letter only on the Mac (where ⌃ is not ⌘): on Linux and
+            # Windows Ctrl+C is copy and Ctrl+I inserts a segment, so markers are Ctrl+Shift+letter there.
+            for seq in ((f"<Control-Shift-Key-{key}>", f"<Control-Key-{key}>") if IS_MAC else (f"<Control-Shift-Key-{key}>",)):
                 self.bind_all(seq, lambda e, t=text: (self._insert_marker(t), "break")[-1])
         # Shift turns . and , into > and < — bind both spellings so the shortcut works on every keyboard layout
         for seq, d in ((f"<{MOD}-Key-greater>", +1), (f"<{MOD}-Shift-Key-period>", +1), (f"<{MOD}-Key-less>", -1), (f"<{MOD}-Shift-Key-comma>", -1)):

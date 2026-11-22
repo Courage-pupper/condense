@@ -2,6 +2,11 @@
 
 ## 0.11.0 — 2026-11-20
 
+### Fixed
+- **Linux and Windows:** Ctrl+C inserted a [crosstalk] marker as well as copying, Ctrl+I inserted an [inaudible] marker
+  instead of a segment, and Ctrl+1–3 assigned speakers instead of switching tabs. Markers are now Ctrl+Shift+letter there
+  (as the menu already said), and speakers while typing are **Alt+1–9**. The Mac keeps ⌃.
+
 ### Reviewing
 - **Find & replace** (⌘F / Ctrl+F, or *Find…* in the transcript toolbar): matching segments are highlighted, ◀/▶ (Return /
   ⇧Return) step through them, *Replace* and *Replace all* are one undo step each; options for match case and whole words.

@@ -144,8 +144,11 @@ class NavigationMixin:
             f"  {c}Return          save, mark checked, next segment\n"
             f"  {c}S               save the segment\n"
             "  Tab              save and go back to the transcript\n"
-            "  ⌃1 – ⌃9          assign speaker 1–9\n"
-            "  ⌃L ⌃I ⌃U ⌃C ⌃P ⌃G ⌃N   markers (laughs, inaudible, unclear, crosstalk, pause, German, gestures)\n\n"
+            + ("  ⌃1 – ⌃9          assign speaker 1–9\n"
+               "  ⌃L ⌃I ⌃U ⌃C ⌃P ⌃G ⌃N   markers (laughs, inaudible, unclear, crosstalk, pause, German, gestures)\n\n"
+               if IS_MAC else
+               "  Alt+1 – Alt+9    assign speaker 1–9\n"
+               "  Ctrl+Shift+ L I U C P G N   markers (laughs, inaudible, unclear, crosstalk, pause, German, gestures)\n\n") +
             "Anywhere\n"
             "  Esc              play / pause\n"
             f"  {c}[ / {c}]          back / forward 5 s\n"

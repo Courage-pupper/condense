@@ -115,7 +115,7 @@ class EditorMixin:
         for seq in (f"<{MOD}-Return>", f"<{MOD}-KP_Enter>"):  # main and number-pad Enter
             self.edit_text.bind(seq, lambda e: (self._check_and_next(), "break")[-1])
         for d in range(1, 10):
-            self.bind_all(f"<Control-Key-{d}>", lambda e, d=d: (self._assign_speaker_number(d), "break")[-1])
+            self.bind_all(f"<{EDIT_MOD}-Key-{d}>", lambda e, d=d: (self._assign_speaker_number(d), "break")[-1])
         note_row = tk.Frame(ep, bg=T["bg_card"])
         note_row.pack(fill=tk.X, pady=(0, 2))
         self._label(note_row, "✎ Note", font="small", fg="#c4b5fd").pack(side=tk.LEFT, padx=(0, 6))
@@ -168,7 +168,7 @@ class EditorMixin:
         pt.bind("<Shift-ButtonRelease-1>", self._on_shift_click)
         pt.bind("<Double-Button-1>", lambda e: (self._on_text_click(e), self._play_from_current_word(), "break")[-1])
         # A plain <Key-c> binding also fires for ⌘C / Ctrl+C: step aside when a modifier is held, so copy,
-        # ⌘1–3 (tabs), ⌘R (start queue) and ⌃1–9 keep working from the transcript. Shift, Caps Lock and
+        # ⌘1–3 (tabs), ⌘R (start queue) and ⌃1–9 (Alt+1–9) keep working from the transcript. Shift, Caps Lock and
         # Num Lock (Mod2 on Linux) are not modifiers here.
         mods = 0x4 | 0x8 | 0x40 | 0x20000 | (0x10 if IS_MAC else 0)
 

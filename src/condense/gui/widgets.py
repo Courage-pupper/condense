@@ -6,6 +6,10 @@ from typing import List
 
 IS_MAC = sys.platform == "darwin"
 MOD = "Command" if IS_MAC else "Control"
+# Shortcuts used while typing in the segment box (speaker numbers): ⌃ on the Mac, where it is free next to ⌘;
+# Alt elsewhere, because Ctrl+1–3 switch tabs there.
+EDIT_MOD = "Control" if IS_MAC else "Alt"
+EDIT_MOD_LABEL = "⌃" if IS_MAC else "Alt+"
 
 
 class FlowFrame(tk.Frame):
