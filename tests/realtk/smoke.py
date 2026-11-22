@@ -81,13 +81,28 @@ def shot(app, name, win=None):
     print(f"    (screenshot {name}.png)")
 
 
+def to_foreground(app):
+    """Windows only lets a process take the foreground right after an input event; CI starts the app in the background."""
+    if sys.platform != "win32":
+        return
+    import ctypes
+    user32 = ctypes.windll.user32
+    user32.keybd_event(0x87, 0, 0, 0)  # F24 down/up: an input event nobody uses
+    user32.keybd_event(0x87, 0, 2, 0)
+    user32.SetForegroundWindow(int(app.wm_frame(), 16))
+    app.lift()
+    pump(app, 0.2)
+
+
 def key(app, widget, sequence):
-    """A real key press. Key events go to the focused widget, so wait until it really has the focus (Windows can be slow)."""
-    for _ in range(40):
+    """A real key press. Key events go to the focused widget, so wait until it really has the focus."""
+    for attempt in range(40):
         widget.focus_force()
         pump(app, 0.05)
         if app.focus_get() is widget:
             break
+        if attempt % 10 == 9:
+            to_foreground(app)
     assert app.focus_get() is widget, f"{widget} did not get the keyboard focus"
     widget.event_generate(sequence)
     pump(app, 0.15)
@@ -103,6 +118,7 @@ def main():
     app.report_callback_exception = lambda exc, val, tb: errors.append(traceback.format_exception(exc, val, tb))
     app.geometry("1560x960+0+0" if SHOTS is not None else "1280x800+0+0")
     pump(app, 1.0)
+    to_foreground(app)
 
     print("[1] main window, queue, settings")
     tasks = []
