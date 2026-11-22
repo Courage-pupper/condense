@@ -2,6 +2,9 @@
 from condense import __version__, updates
 from condense.gui._common import *  # noqa: F401,F403
 from condense.gui.editor import EditorMixin
+from condense.gui.history import HistoryMixin
+from condense.gui.navigation import NavigationMixin
+from condense.gui.review_marks import ReviewMarksMixin
 from condense.gui.player import PlayerMixin
 from condense.gui.queue_panel import QueueMixin
 from condense.gui.rerun import RerunMixin
@@ -16,7 +19,7 @@ from condense.gui.project import ProjectMixin
 from condense.gui.video import VideoMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")

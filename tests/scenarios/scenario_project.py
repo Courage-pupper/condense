@@ -30,7 +30,7 @@ print("[1] project file, speaker order, overview")
 assert proj.find_project_file(d1.path.parent) is None
 proj.save_project(study, ["Facilitator", "Co-facilitator", "Robin", "Facilitator", "  "])
 f = proj.find_project_file(d1.path.parent)
-assert f == study / proj.PROJECT_FILE and proj.load_project(f)["speakers"] == ["Facilitator", "Co-facilitator", "Robin"]
+assert f == (study / proj.PROJECT_FILE).resolve() and proj.load_project(f)["speakers"] == ["Facilitator", "Co-facilitator", "Robin"]
 assert proj.effective_roster(["SPEAKER_01", "Facilitator"], ["Facilitator", "Robin"]) == ["Facilitator", "Robin", "SPEAKER_01"]
 d = TD.load(d1.path); d.set_checked(0, True); d.set_segment_note(2, "drawing starts"); d.cut_segments([1]); d.save()
 rows = {r["name"]: r for r in proj.overview(study)}

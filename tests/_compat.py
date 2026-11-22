@@ -8,9 +8,9 @@ import importlib
 
 MODULES = [
     "condense.core.util", "condense.core.exports", "condense.core.transcript", "condense.media.losslesscut",
-    "condense.asr.runner", "condense.pipeline.worker", "condense.platform.mac", "condense.settings",
+    "condense.asr.runner", "condense.pipeline.encode", "condense.pipeline.transcribe", "condense.pipeline.worker", "condense.platform.mac", "condense.settings",
     "condense.gui.theme", "condense.gui.widgets", "condense.gui._common", "condense.gui.queue_panel",
-    "condense.gui.settings_tab", "condense.gui.editor", "condense.gui.player", "condense.gui.rerun",
+    "condense.gui.settings_tab", "condense.gui.editor", "condense.gui.navigation", "condense.gui.history", "condense.gui.review_marks", "condense.gui.player", "condense.gui.rerun",
     "condense.gui.video", "condense.gui.updates_ui", "condense.gui.gpu_check", "condense.gui.file_dialogs", "condense.gui.cutting", "condense.gui.trim_dialog", "condense.gui.find", "condense.gui.project", "condense.gui.app", "condense.core.project", "condense.core.cuts", "condense.media.trim", "condense.updates",
 ]
 
