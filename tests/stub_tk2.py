@@ -71,6 +71,9 @@ class Text(W):
 
     def insert(self, index, chars, *tags):
         self.content += chars
+        used = self.__dict__.setdefault("used_tags", set())
+        for t in tags:
+            used.update(t if isinstance(t, (tuple, list)) else (t,))
 
     def mark_set(self, name, index):
         self.marks = self.__dict__.get("marks", {}); self.marks[name] = index

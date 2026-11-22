@@ -9,10 +9,11 @@ from condense.gui.settings_tab import SettingsTabMixin
 from condense.gui.updates_ui import UpdatesMixin
 from condense.gui.gpu_check import GpuCheckMixin
 from condense.gui.file_dialogs import FileDialogsMixin
+from condense.gui.cutting import CuttingMixin
 from condense.gui.video import VideoMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")
@@ -193,6 +194,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         file_menu.add_command(label="Open Transcript…", accelerator=f"{acc}Shift-O" if IS_MAC else "Ctrl+Shift+O", command=self._open_transcript)
         file_menu.add_command(label="Show Output Folder", command=self._open_selected_job_folder)
         file_menu.add_command(label="Re-export Open Transcript", command=self._reexport_open_transcript)
+        file_menu.add_command(label="Export Trimmed Video & Transcript…", command=self._export_trimmed_dialog)
         if not IS_MAC:
             file_menu.add_separator()
             file_menu.add_command(label="Setup & Status…", command=self._show_setup_modal)
@@ -205,6 +207,8 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         em.add_separator()
         em.add_command(label="Mark Segment Checked & Next", accelerator=f"{acc}Return" if IS_MAC else "Ctrl+Enter", command=self._check_and_next)
         em.add_command(label="Toggle Segment Checked  (C)", command=self._toggle_checked)
+        em.add_command(label="Cut / Restore Selected Segments  (X)", command=self._toggle_cut)
+        em.add_command(label="Restore All Cuts…", command=self._restore_all_cuts)
         em.add_command(label="Select All Segments  (⌘A in transcript)" if IS_MAC else "Select All Segments  (Ctrl+A in transcript)", command=self._select_all_segments)
         em.add_separator()
         mm = tk.Menu(em, tearoff=0)

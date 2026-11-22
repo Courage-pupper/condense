@@ -28,6 +28,8 @@ class PlayerMixin:
                 items.append(("check", x0, x1))
         for i in self.low_conf:
             items.append(("tick", self.word_spans[i]["start"] * sx))
+        for s, e in doc.cuts:
+            items.append(("cut", s * sx, max(s * sx + 2, e * sx)))
         return items
 
     def _timeline_redraw(self):
@@ -43,6 +45,9 @@ class PlayerMixin:
             elif item[0] == "check":
                 _, x0, x1 = item
                 tl.create_rectangle(x0, height - 5, x1, height - 2, fill=THEME["ok"], outline="")
+            elif item[0] == "cut":
+                _, x0, x1 = item
+                tl.create_rectangle(x0, 0, x1, height, fill="#000000", stipple="gray50", outline="#f59e0b")
             else:
                 tl.create_line(item[1], 1, item[1], 7, fill="#f87171")
         self._tl_playhead = tl.create_line(0, 0, 0, height, fill="#ffffff", width=2)
@@ -391,6 +396,12 @@ class PlayerMixin:
         if not self.playing:
             return
         pos = self._current_pos()
+        jump = self._cut_skip_target(self.__dict__.get("_last_tick_pos", pos), pos)
+        if jump is not None:
+            self._last_tick_pos = jump
+            self._player_start(jump)
+            return
+        self._last_tick_pos = pos
         ended = self._play_proc is None or self._play_proc.poll() is not None
         if ended or (self._play_until is not None and pos >= self._play_until):
             self._player_pause()

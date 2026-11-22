@@ -738,6 +738,8 @@ class QueueMixin:
                         self._append_log(f"✓ Transcript ready: {', '.join(names) or Path(msg['doc_path']).name} — double-click it in the queue to open.", "SUCCESS")
                 elif mtype in ("rerun_progress", "rerun_done", "rerun_failed"):
                     self._handle_rerun_message(msg)
+                elif mtype == "trim":
+                    self._on_trim_msg(msg)
                 elif mtype == "gpu_test":
                     self._on_gpu_test(msg)
                 elif mtype == "probe":

@@ -17,6 +17,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
+from condense.core import cuts as cutlib
 from condense.core.exports import RTFConfidenceWriter
 from condense.core.util import *  # noqa: F401,F403
 
@@ -359,10 +360,67 @@ class TranscriptDocument:
             seg.pop("checked_at", None)
         return True
 
+    # ----- cuts (parts left out of exports and of a trimmed video; never deleted) -----
+    @property
+    def cuts(self) -> List[Tuple[float, float]]:
+        return cutlib.normalize(self.data.get("cuts") or [])
+
+    def set_cuts(self, ranges) -> None:
+        self.data["cuts"] = [[round(a, 3), round(b, 3)] for a, b in cutlib.normalize(ranges)]
+
+    def is_segment_cut(self, index: int) -> bool:
+        return 0 <= index < len(self.segments) and cutlib.segment_is_cut(self.segments[index], self.cuts)
+
+    def kept_segments(self) -> List[Dict]:
+        cuts = self.cuts
+        return [seg for seg in self.segments if not cutlib.segment_is_cut(seg, cuts)] if cuts else list(self.segments)
+
+    @staticmethod
+    def _runs(indices) -> List[Tuple[int, int]]:
+        """[3, 4, 5, 9] -> [(3, 5), (9, 9)]: consecutive segments are cut as one range (with the pauses between them)."""
+        runs: List[Tuple[int, int]] = []
+        for i in sorted(set(indices)):
+            if runs and i == runs[-1][1] + 1:
+                runs[-1] = (runs[-1][0], i)
+            else:
+                runs.append((i, i))
+        return runs
+
+    def cut_segments(self, indices) -> int:
+        """Cut these segments (consecutive ones together with the pauses between them). Returns how many were newly cut."""
+        segs = self.segments
+        valid = [i for i in indices if 0 <= i < len(segs)]
+        before = sum(1 for i in valid if self.is_segment_cut(i))
+        ranges = list(self.cuts)
+        for a, b in self._runs(valid):
+            ranges.append((float(segs[a].get("start", 0.0)), float(segs[b].get("end", 0.0))))
+        self.set_cuts(ranges)
+        n = sum(1 for i in valid if self.is_segment_cut(i)) - before
+        if n:
+            self.log_edit("cut", segments=[i + 1 for i in valid], cuts=self.data["cuts"])
+        return n
+
+    def restore_segments(self, indices) -> int:
+        segs = self.segments
+        valid = [i for i in indices if 0 <= i < len(segs)]
+        before = sum(1 for i in valid if self.is_segment_cut(i))
+        ranges = self.cuts
+        for a, b in self._runs(valid):
+            ranges = cutlib.subtract(ranges, float(segs[a].get("start", 0.0)), float(segs[b].get("end", 0.0)))
+        self.set_cuts(ranges)
+        n = before - sum(1 for i in valid if self.is_segment_cut(i))
+        if n:
+            self.log_edit("restore_cut", segments=[i + 1 for i in valid], cuts=self.data["cuts"])
+        return n
+
+    def cut_range(self, start: float, end: float) -> None:
+        self.set_cuts(self.cuts + [(start, end)])
+        self.log_edit("cut_range", start=round(start, 3), end=round(end, 3))
+
     def checked_fraction(self) -> float:
-        """Share of speech (by duration) in segments marked as checked."""
+        """Share of speech (by duration) in segments marked as checked; cut parts do not count."""
         total = done = 0.0
-        for seg in self.segments:
+        for seg in self.kept_segments():
             dur = max(0.1, float(seg.get("end", 0.0)) - float(seg.get("start", 0.0)))
             total += dur
             if seg.get("checked"):
@@ -484,31 +542,56 @@ class TranscriptDocument:
         self.data["speakers"] = roster
         return True
 
-    def paragraphs(self) -> List[Dict]:
-        """Speaker turns: consecutive segments by the same speaker joined into one paragraph."""
+    def paragraphs(self, segments: Optional[List[Dict]] = None, cuts=None, include_cut: bool = False) -> List[Dict]:
+        """Speaker turns: consecutive segments by the same speaker joined into one paragraph. A cut always starts a new
+        paragraph (the text around it was not said in one go). Cut segments are left out, or with include_cut (the
+        editor) kept as paragraphs of their own, marked "cut"."""
+        cuts = self.cuts if cuts is None else cuts
+        source = self.segments if segments is None else segments
         out: List[Dict] = []
-        for i, seg in enumerate(self.segments):
+        for i, seg in enumerate(source):
             text = (seg.get("text") or "").strip()
             if is_blank_text(text):
                 continue
+            is_cut = bool(cuts) and cutlib.segment_is_cut(seg, cuts)
+            if is_cut and not include_cut:
+                continue
             spk = seg.get("speaker")
-            if out and out[-1]["speaker"] == spk:
+            start = float(seg.get("start", 0.0))
+            joined = bool(out) and out[-1]["speaker"] == spk and out[-1]["cut"] == is_cut
+            if joined and not is_cut and cuts and cutlib.cut_between(cuts, out[-1]["end"], start):
+                joined = False
+            if joined:
                 out[-1]["text"] += " " + text
                 out[-1]["end"] = float(seg.get("end", out[-1]["end"]))
                 out[-1]["segments"].append(i)
             else:
-                out.append({"speaker": spk, "start": float(seg.get("start", 0.0)), "end": float(seg.get("end", 0.0)), "text": text, "segments": [i]})
+                out.append({"speaker": spk, "start": start, "end": float(seg.get("end", 0.0)), "text": text, "segments": [i],
+                            "cut": is_cut})
         return out
 
     # ----- exports -----
-    def confidence_report(self) -> Dict:
+    def confidence_report(self, all_segments: bool = False) -> Dict:
+        """Word confidence of the kept segments (exports), or of all segments in order (the editor needs the indices)."""
         t = self.thresholds
-        return RTFConfidenceWriter.analyze_confidence(self.result, t["high"], t["medium"], t["poor"])
+        segs = self.segments if all_segments else self.kept_segments()
+        return RTFConfidenceWriter.analyze_confidence(dict(self.result, segments=segs), t["high"], t["medium"], t["poor"])
 
     def export_all(self) -> Dict[str, Path]:
+        """All exports on the original recording's timeline (cut parts left out)."""
+        return self._write_exports(self.kept_segments(), self.export_paths(), self.base_name, self.paragraphs())
+
+    def export_trimmed(self, kept_actual, base_name: str, out_dir: Optional[Path] = None) -> Dict[str, Path]:
+        """Exports for a trimmed recording: cut parts left out and every time moved onto the trimmed timeline.
+        kept_actual: the intervals really written to the trimmed file (lossless cuts start at keyframes)."""
+        tmap = cutlib.TimeMap(kept_actual)
+        retimed = cutlib.retime_segments(self.segments, self.cuts, tmap)
+        d = Path(out_dir) if out_dir else self.out_dir
+        paths = {k: d / p.name.replace(self.base_name, base_name, 1) for k, p in self.export_paths().items()}
+        return self._write_exports(retimed, paths, base_name, self.paragraphs(retimed, cuts=[]))
+
+    def _write_exports(self, segs: List[Dict], paths: Dict[str, Path], title: str, paras: List[Dict]) -> Dict[str, Path]:
         formats = dict(self.DEFAULT_FORMATS, **(self.data.get("export_formats") or {}))
-        paths = self.export_paths()
-        segs = self.segments
         created: Dict[str, Path] = {}
         if formats.get("srt"):
             RTFConfidenceWriter.write_srt(segs, paths["srt"])
@@ -524,13 +607,12 @@ class TranscriptDocument:
             sources = (self.data.get("provenance") or {}).get("inputs") or []
             source_name = Path(sources[0]["path"]).name if sources else self.base_name
             RTFConfidenceWriter.write_rtf_with_confidence(
-                self.result, paths["rtf"], source_name, self.data.get("model", ""), t["high"], t["medium"], t["poor"]
+                dict(self.result, segments=segs), paths["rtf"], source_name, self.data.get("model", ""), t["high"], t["medium"], t["poor"]
             )
             created["rtf"] = paths["rtf"]
         if formats.get("para_rtf") or formats.get("para_txt"):
-            paras = self.paragraphs()
             if formats.get("para_rtf"):
-                RTFConfidenceWriter.write_paragraphs_rtf(paras, paths["para_rtf"], self.base_name)
+                RTFConfidenceWriter.write_paragraphs_rtf(paras, paths["para_rtf"], title)
                 created["para_rtf"] = paths["para_rtf"]
             if formats.get("para_txt"):
                 RTFConfidenceWriter.write_paragraphs_txt(paras, paths["para_txt"])

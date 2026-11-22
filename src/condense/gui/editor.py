@@ -1,4 +1,5 @@
 """Transcript editor: rendering, segment editing, undo, checked marks, markers, speakers."""
+from condense.core import cuts as cutlib
 from condense.gui._common import *  # noqa: F401,F403
 
 
@@ -27,6 +28,8 @@ class EditorMixin:
         bar.add(self._separator(bar))
         bar.add(self._tool(bar, "◀ Uncertain", lambda: self._jump_low_conf(-1)))
         bar.add(self._tool(bar, "Uncertain ▶", lambda: self._jump_low_conf(+1)))
+        bar.add(self._tool(bar, "✂ Cut / restore (X)", self._toggle_cut))
+        bar.add(self._tool(bar, "Export trimmed…", self._export_trimmed_dialog))
         self.var_autoplay = tk.BooleanVar(value=True)
         self._persist["autoplay"] = self.var_autoplay
         bar.add(self._check(bar, "Play snippet on jump", self.var_autoplay, bg=T["bg_panel"], font="small"))
@@ -49,6 +52,9 @@ class EditorMixin:
         self.var_follow = tk.BooleanVar(value=True)
         self._persist["follow"] = self.var_follow
         player.add(self._check(player, "Follow text", self.var_follow, font="small"))
+        self.var_skip_cuts = tk.BooleanVar(value=True)
+        self._persist["skip_cuts"] = self.var_skip_cuts
+        player.add(self._check(player, "Skip cuts", self.var_skip_cuts, font="small"))
         self._persist["show_video"] = self.var_show_video
         player.add(self._check(player, "Video", self.var_show_video, font="small"))
         self.var_show_video.trace_add("write", lambda *a: self.after_idle(self._toggle_video_panel))
@@ -134,6 +140,8 @@ class EditorMixin:
         pt.tag_config("CURRENT", background="#3b4a63")
         pt.tag_config("MARKER", foreground="#8fb3ff", font=self.f["marker"])
         pt.tag_config("CHECKMARK", foreground=T["ok"], font=self.f["small_bold"])
+        pt.tag_config("CUT", overstrike=True, foreground="#5b6475")
+        pt.tag_config("CUT_HDR", foreground="#f59e0b", font=self.f["small_bold"])
         pt.tag_config("MULTISEL", background="#3a2f5c")
         pt.bind("<ButtonRelease-1>", self._on_text_click)
         pt.bind("<Shift-ButtonRelease-1>", self._on_shift_click)
@@ -169,6 +177,8 @@ class EditorMixin:
             pt.bind(f"<Key-{k}>", brk(self._toggle_checked))
         for k in ("r", "R"):
             pt.bind(f"<Key-{k}>", brk(self._replay_segment))
+        for k in ("x", "X"):
+            pt.bind(f"<Key-{k}>", brk(self._toggle_cut))
         pt.bind("<Return>", brk(self._focus_editor))
         pt.bind(f"<{MOD}-Key-a>", lambda e: (self._select_all_segments(), "break")[-1])
         self.edit_text.bind("<Tab>", brk(self._focus_transcript))  # a tab character is never wanted in a transcript
@@ -231,7 +241,8 @@ class EditorMixin:
                     self._append_log(f"{doc.base_name}: {' and '.join(parts)}; exports regenerated, logged in the edit history.", "INFO")
                 except Exception as exc:
                     self._append_log(f"Could not save cleanup: {exc}", "WARN")
-        report = doc.confidence_report()
+        report = doc.confidence_report(all_segments=True)
+        cut_set = {i for i in range(len(doc.segments)) if doc.is_segment_cut(i)} if doc.cuts else set()
         high_t, med_t, poor_t = report["high_thresh"], report["med_thresh"], report["poor_thresh"]
         show_pct = bool(self.var_show_pct.get())
         speakers = doc.speakers()
@@ -239,7 +250,7 @@ class EditorMixin:
         spk_tag = {spk: f"SPK{i % len(SPEAKER_COLORS)}" for i, spk in enumerate(roster)}
         rsegs = report["segments"]
         if self.var_view_mode.get() == "Paragraphs":
-            groups = [p["segments"] for p in doc.paragraphs()]
+            groups = [p["segments"] for p in doc.paragraphs(include_cut=True)]
         else:
             groups = [[i] for i in range(len(rsegs)) if not is_blank_text(rsegs[i].get("text"))]
 
@@ -267,6 +278,9 @@ class EditorMixin:
         for group in groups:
             first, last = rsegs[group[0]], rsegs[group[-1]]
             spk = first.get("speaker")
+            group_cut = group[0] in cut_set
+            if group_cut:
+                put("✂ cut  ", "CUT_HDR")
             if spk:
                 put(f"{spk}  ", spk_tag.get(spk, "SPK0"))
             put(f"{short_ts(first['start'])} – {short_ts(last['end'])}\n", "SEG_HDR")
@@ -292,7 +306,10 @@ class EditorMixin:
                             if token.endswith("]"):
                                 in_marker = False
                         c0 = pos["col"] + (len(w_str) - len(w_str.lstrip()))
-                        put(w_str, tag)
+                        if si in cut_set:
+                            put(w_str, tag, "CUT")
+                        else:
+                            put(w_str, tag)
                         c1 = pos["col"]
                         if show_pct and prob < poor_t:
                             put(f"{int(round(prob * 100))}%", "PCT")
@@ -303,11 +320,11 @@ class EditorMixin:
                         if prob < med_t:
                             low.append(len(spans) - 1)
                 else:
-                    put((" " if pos["col"] > 0 else "") + (seg["text"] or "…"), "HIGH")
+                    put((" " if pos["col"] > 0 else "") + (seg["text"] or "…"), *(("HIGH", "CUT") if si in cut_set else ("HIGH",)))
                 seg_ranges[si] = (seg_start, f"{pos['line']}.{pos['col']}")
             put("\n")
         txt.configure(state=tk.DISABLED)
-        for tag in ("MULTISEL", "EDITSEG", "PLAYING", "CURRENT"):
+        for tag in ("CUT", "MULTISEL", "EDITSEG", "PLAYING", "CURRENT"):
             txt.tag_raise(tag)
 
         self.word_spans, self.line_spans, self.low_conf, self.current_span = spans, line_spans, low, None
@@ -323,6 +340,7 @@ class EditorMixin:
             text=f"{doc.base_name}   ·   {doc.checked_fraction() * 100:.0f}% checked   ·   {len(spans)} words   ·   "
                  f"{len(low)} uncertain ({len(low) * 100 / total:.0f}%)   ·   mean word probability {report['overall_ci'][0] * 100:.0f}%   ·   "
                  f"{len(roster)} speaker(s)" + (f"   ·   {edited} edited" if edited else "")
+                 + (f"   ·   ✂ {cutlib.describe(doc.cuts)}" if doc.cuts else "")
         )
         self.cmb_seg_speaker.configure(values=roster)
         self._refresh_speaker_chips()
@@ -542,6 +560,7 @@ class EditorMixin:
             "  Space            play / pause\n"
             "  R                replay the open segment\n"
             "  C                mark checked / not checked (all selected)\n"
+            "  X                cut / restore the selected segments\n"
             "  Return           edit the open segment's text\n"
             f"  {c}Return          save, mark checked, next segment\n"
             "  double-click     play from that word\n\n"
