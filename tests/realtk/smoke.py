@@ -331,6 +331,15 @@ def main():
     w = new_window(app, before)
     shot(app, "shortcuts", w)
     w.destroy()
+    app._render_doc(TD.load(docs[2].path))  # a session whose speakers have no names yet
+    pump(app, 0.3)
+    assert app._generic_speakers(), app._roster()
+    w_who, ww = app._match_speakers_dialog()
+    pump(app, 0.3)
+    shot(app, "who-is-who", w_who)
+    w_who.destroy()
+    app._render_doc(TD.load(docs[0].path))
+    pump(app, 0.3)
     before = toplevels(app)
     app._show_speakers_dialog()
     w = new_window(app, before)
@@ -363,6 +372,19 @@ def main():
     assert len(st["rows"]) == 3, st["lbl"].cget("text")
     assert [st["tree"].item(i, "text") for i in st["tree"].get_children()] == ["Day 1 2026-03-12", "Day 2 2026-03-13"]
     shot(app, "project-overview", win)
+    # a window opened from another window comes to the front with the focus (it used to appear behind its opener)
+    if sys.platform != "win32":
+        st["tree"].focus_force()
+        pump(app, 0.2)
+        w_spk, _sp = app._project_speakers_dialog(group="Group 1")
+        for _ in range(20):
+            pump(app, 0.1)
+            if app.focus_get() is not None and app.focus_get().winfo_toplevel() is w_spk:
+                break
+        assert app.focus_get() is not None and app.focus_get().winfo_toplevel() is w_spk, app.focus_get()
+        assert str(w_spk.wm_transient()) == str(win), (w_spk.wm_transient(), win)
+        shot(app, "speakers-groups", w_spk)
+        w_spk.destroy()
     w_set, ps = app._project_settings_dialog()
     pump(app)
     shot(app, "project-settings", w_set)

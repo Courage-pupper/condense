@@ -312,3 +312,40 @@ g3 = proj.project_speakers_for(g3 / "Session Recordings" / "final_video" / "x.tr
 assert g3 == ["Facilitator", "Kim"], g3
 assert proj.project_speakers_for(study / "Consent forms" / "x.transcript.json") == ["Facilitator"]
 ok("group lists saved; keys: Facilitator 1, Robin 2, Sam 3 in Group 1 on every day; Group 3 gets Kim; no repeats")
+
+print("[12] who is who: detected speakers take over the saved names, for the whole transcript")
+d = TD.load(doc.path)
+for i in range(len(d.segments)):
+    d.segments[i]["speaker"] = ("SPEAKER_00", "SPEAKER_01", "SPEAKER_02", "Facilitator")[i % 4]
+d.save()
+app._render_doc(TD.load(doc.path))
+assert app._generic_speakers() == ["SPEAKER_00", "SPEAKER_01", "SPEAKER_02"], app._generic_speakers()
+assert app._merge_speaker("SPEAKER_01", "Robin") > 0               # right-click chip ▸ All segments of SPEAKER_01 are… Robin
+d = TD.load(doc.path)
+assert not any(s["speaker"] == "SPEAKER_01" for s in d.segments) and sum(s["speaker"] == "Robin" for s in d.segments) > 0
+win, ww = app._match_speakers_dialog()
+assert set(ww["rows"]) == {"SPEAKER_00", "SPEAKER_02"}
+ww["rows"]["SPEAKER_00"].set("Robin")                               # the same person, split in two by detection
+ww["rows"]["SPEAKER_02"].set("Alex")                                # a name typed in
+before = [s["speaker"] for s in TD.load(doc.path).segments]
+ww["apply"]()
+after = [s["speaker"] for s in TD.load(doc.path).segments]
+assert set(after) == {"Robin", "Alex", "Facilitator"} and app._generic_speakers() == []
+assert app._roster()[:3] == ["Facilitator", "Robin", "Sam"]         # the saved group names keep their keys
+app._undo()
+assert [s["speaker"] for s in TD.load(doc.path).segments] == before  # one undo step
+ok("chip menu merges one label into a saved name; the dialog names all at once (merging two labels); one undo")
+
+print("[13] Delete key deletes the open segment (after asking)")
+app._render_doc(TD.load(doc.path))
+n0 = len(TD.load(doc.path).segments)
+app._goto_segment(5)
+pipe.messagebox.askyesno = lambda *a, **k: False
+app.preview_text._binds["<Delete>"](None)
+assert len(TD.load(doc.path).segments) == n0                       # declined: nothing happens
+pipe.messagebox.askyesno = lambda *a, **k: True
+app.preview_text._binds["<Delete>"](None)
+assert len(TD.load(doc.path).segments) == n0 - 1
+app._undo()
+assert len(TD.load(doc.path).segments) == n0
+ok("Del asks, deletes, undo brings it back")

@@ -22,6 +22,7 @@ class EditorMixin:
             ("Open…", self._open_transcript),
             ("-",),
             ("Speakers…", self._show_speakers_dialog),
+            ("Who is who? (name the detected speakers)…", self._match_speakers_dialog),
             ("Detect speakers…", self._rediarize_dialog),
             ("-",),
             ("Episodes (interviews, phases)…", self._episodes_dialog),
@@ -139,7 +140,7 @@ class EditorMixin:
             ("Split before the selected word", self._split_at_current_word),
             ("Merge with the next segment", self._merge_with_next),
             ("Insert a segment…", self._insert_segment_dialog),
-            ("Delete this segment", self._delete_segment),
+            ("Delete this segment  (Del)", self._delete_segment),
             ("-",),
             ("Re-transcribe this passage…", self._retranscribe_dialog),
             ("Revert my changes", self._revert_segment_edit),
@@ -246,6 +247,8 @@ class EditorMixin:
             pt.bind(f"<Key-{k}>", brk(self._toggle_cut))
         for k in ("e", "E"):
             pt.bind(f"<Key-{k}>", brk(self._mark_episode))
+        for k in ("Delete",) + (("BackSpace",) if IS_MAC else ()):  # the Mac's delete key is BackSpace; asks first
+            pt.bind(f"<{k}>", brk(self._delete_segment))
         pt.bind("<Return>", brk(self._focus_editor))
         # Ctrl/⌘ + mouse wheel over the transcript: its text size (like a browser)
         for widget in (pt, self.edit_text):

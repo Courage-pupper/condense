@@ -170,11 +170,115 @@ class ReviewMarksMixin:
                             bg=color if active else T["bg_input"], fg=T["bg_root"] if active else color,
                             highlightthickness=1, highlightbackground=color)
             chip.bind("<Button-1>", lambda e, n=name: self._assign_speaker(n))
+            for seq in ("<Button-3>",) + (("<Button-2>", "<Control-Button-1>") if IS_MAC else ()):
+                chip.bind(seq, lambda e, n=name: self._speaker_chip_menu(e, n))
             chips.add(chip)
         add = tk.Label(chips, text="0  + Speaker", font=self.f["small"], padx=8, pady=2, cursor="hand2", bg=T["bg_input"], fg=T["fg_secondary"],
                        highlightthickness=1, highlightbackground=T["border"])
         add.bind("<Button-1>", lambda e: self._add_speaker_quick())
         chips.add(add)
+        if self._generic_speakers():  # labels from speaker detection still waiting for a name
+            who = tk.Label(chips, text="Who is who?…", font=self.f["small_bold"], padx=8, pady=2, cursor="hand2", bg=T["bg_input"],
+                           fg="#fbbf24", highlightthickness=1, highlightbackground="#fbbf24")
+            who.bind("<Button-1>", lambda e: self._match_speakers_dialog())
+            chips.add(who)
+
+    # ----- detected speakers (SPEAKER_01 …) → the real names, for the whole transcript -----
+    def _generic_speakers(self) -> List[str]:
+        doc = self.active_doc
+        if doc is None:
+            return []
+        used = {s.get("speaker") for s in doc.segments}
+        return [n for n in doc.roster() if n in used and n.startswith(("SPEAKER_", "Speaker "))]
+
+    def _merge_speaker(self, old: str, new: str) -> int:
+        """Every segment of `old` becomes `new` (also when `new` already has segments: the two are merged)."""
+        doc = self.active_doc
+        new = " ".join((new or "").split())
+        if doc is None or not new or new == old:
+            return 0
+        self._autosave_edit(rerender=False)
+        n = doc.rename_speakers({old: new})
+        if n and self._commit(f"All {n} segment(s) of {old} are now {new}.") is not None:
+            self._rerender()
+            if self.edit_seg_idx is not None:
+                self._load_segment_into_editor(self.edit_seg_idx)
+        return n
+
+    def _speaker_chip_menu(self, event, name: str):
+        m = tk.Menu(self, tearoff=0)
+        others = [n for n in self._roster() if n != name]
+        named = [n for n in others if not n.startswith(("SPEAKER_", "Speaker "))]
+        generic = [n for n in others if n.startswith(("SPEAKER_", "Speaker "))]
+        m.add_command(label=f"All segments of {name} are…", state=tk.DISABLED)
+        for n in named + generic:
+            m.add_command(label=f"   {n}", command=lambda n=n: self._merge_speaker(name, n))
+        m.add_command(label="   another name…", command=lambda: self._merge_speaker(
+            name, simpledialog.askstring("Speaker", f"Who is {name}?", parent=self) or ""))
+        m.add_separator()
+        m.add_command(label="Who is who? (all detected speakers)…", command=self._match_speakers_dialog)
+        try:
+            m.tk_popup(event.x_root, event.y_root)
+        finally:
+            m.grab_release()
+        return m
+
+    def _match_speakers_dialog(self):
+        """One row per detected speaker: how much they speak, a typical line, ▶ to listen, and whom it is."""
+        doc = self.active_doc
+        if doc is None:
+            return None
+        T = THEME
+        generic = self._generic_speakers()
+        names = [n for n in self._roster() if not n.startswith(("SPEAKER_", "Speaker "))]
+        win = tk.Toplevel(self)
+        win.title("Who is who?")
+        win.configure(bg=T["bg_panel"], padx=16, pady=14)
+        win.transient(self)
+        self._label(win, "Speaker detection labels voices SPEAKER_00, SPEAKER_01 … Listen to each and choose who it is: all of "
+                         "its segments get that name. Two labels can get the same name (the same person split in two). "
+                         f"One undo step ({kbd('⌘Z')}).", font="small", fg=T["fg_secondary"], bg=T["bg_panel"], wraplength=620,
+                    justify=tk.LEFT).grid(row=0, column=0, columnspan=4, sticky="w", pady=(0, 10))
+        rows: Dict[str, tk.StringVar] = {}
+        KEEP = "(leave as it is)"
+        for r, g in enumerate(generic, start=1):
+            idx = [i for i, s in enumerate(doc.segments) if s.get("speaker") == g]
+            secs = sum(float(doc.segments[i]["end"]) - float(doc.segments[i]["start"]) for i in idx)
+            sample_i = max(idx, key=lambda i: len((doc.segments[i].get("text") or "").split()))
+            sample = " ".join((doc.segments[sample_i].get("text") or "").split())
+            self._label(win, g, font="small_bold", bg=T["bg_panel"]).grid(row=2 * r - 1, column=0, sticky="w", padx=(0, 10))
+            self._label(win, f"{len(idx)} segment(s), {short_ts(secs)[:-2]}", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]
+                        ).grid(row=2 * r - 1, column=1, sticky="w")
+            self._tool(win, "▶ Listen", lambda i=sample_i: (self._goto_segment(i), self._replay_segment())).grid(row=2 * r - 1, column=2, padx=8)
+            v = tk.StringVar(value=KEEP)
+            ttk.Combobox(win, textvariable=v, values=[KEEP] + names, width=22, font=self.f["small"]).grid(row=2 * r - 1, column=3, sticky="w")
+            rows[g] = v
+            self._label(win, f"“{sample[:110]}{'…' if len(sample) > 110 else ''}”", font="small", fg=T["fg_dim"], bg=T["bg_panel"],
+                        anchor="w", justify=tk.LEFT).grid(row=2 * r, column=0, columnspan=4, sticky="w", pady=(0, 8))
+        if not generic:
+            self._label(win, "All speakers have names.", font="small", bg=T["bg_panel"]).grid(row=1, column=0, sticky="w")
+
+        def apply():
+            mapping = {g: " ".join(v.get().split()) for g, v in rows.items() if v.get().strip() and v.get() != KEEP}
+            mapping = {g: n for g, n in mapping.items() if n and n != g}
+            if not mapping:
+                win.destroy()
+                return 0
+            self._autosave_edit(rerender=False)
+            n = self.active_doc.rename_speakers(mapping)
+            if n and self._commit("Speakers named: " + ", ".join(f"{g} → {v}" for g, v in mapping.items())) is not None:
+                self._rerender()
+                if self.edit_seg_idx is not None:
+                    self._load_segment_into_editor(self.edit_seg_idx)
+            win.destroy()
+            return n
+
+        bar = tk.Frame(win, bg=T["bg_panel"])
+        bar.grid(row=2 * len(generic) + 2, column=0, columnspan=4, sticky="e", pady=(10, 0))
+        self._tool(bar, "Cancel", win.destroy).pack(side=tk.LEFT, padx=(0, 6))
+        self._tool(bar, "Apply", apply, primary=True).pack(side=tk.LEFT)
+        win.bind("<Escape>", lambda e: (win.destroy(), "break")[-1])
+        return win, {"rows": rows, "apply": apply, "KEEP": KEEP}
 
     def _assign_speaker(self, name: str):
         if self.active_doc is None or not self._selected_segments():

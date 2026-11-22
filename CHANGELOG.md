@@ -2,6 +2,20 @@
 
 ## 0.14.0 — 2026-11-22
 
+### Deleting a segment
+- **Delete** (⌫ on the Mac) in the transcript deletes the open segment, after asking. Also in *Edit ▸ Delete Segment*
+  and *Segment ▾*, next to merge and split.
+
+### Windows open in front
+- Every window Condense opens comes to the front with the keyboard focus, and stays above the window it was opened from.
+  Before, e.g. Speakers opened from the Project overview could appear behind it.
+
+### Who is who?
+- Detected speakers (`SPEAKER_01` …) take over a saved name for the **whole transcript**: right-click a speaker chip ▸
+  *All segments of SPEAKER_01 are… Robin*, or the yellow **Who is who?…** chip (also in *Transcript ▾*) to name all
+  of them at once — with each one's speaking time, a typical line and ▶ *Listen*. Two labels can get the same name
+  (merged). One undo step.
+
 ### A tidier transcript tab
 - **Fewer buttons:** *Transcript ▾* holds open, speakers, speaker detection, episodes, finding interview clips, the
   trimmed export, marking a whole transcript checked and restoring cuts. Review tools stay visible: view, *Show*, *Find*,

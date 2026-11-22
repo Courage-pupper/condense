@@ -116,6 +116,7 @@ markers), *Save* and *Save & next*.
 | **Return** | edit the segment's text; **Esc** (or Tab) saves and takes you back to the transcript |
 | **⌘↩ / Ctrl+Enter** | save, mark checked, go to the next segment (also while typing) |
 | **C** | mark checked / not checked |
+| **Delete** (⌫ on the Mac) | delete the open segment (asks first) |
 | **1 – 9** | assign speaker 1–9 |
 | ⌘[ ⌘] / Ctrl+[ Ctrl+] | back / forward 5 seconds |
 | ⌘⇧. ⌘⇧, / Ctrl+Shift+. Ctrl+Shift+, | faster / slower |
@@ -146,6 +147,11 @@ The chips under the editor are the speakers. Their numbers are the keys:
 
   ![Several segments selected](images/multi-select.png)
 
+- **Who is who?** Speaker detection labels voices `SPEAKER_00`, `SPEAKER_01` … While such labels are left, a yellow
+  **Who is who?…** chip appears next to the speakers. It lists each label with how much it speaks, a typical line and
+  ▶ *Listen*; choose the name (one of your saved speakers, or type one) and all of its segments get it. Two labels can
+  get the same name, when detection split one person in two. Quicker for a single label: **right-click its chip ▸ All
+  segments of SPEAKER_01 are… Robin**. One undo step either way.
 - **0** adds a new speaker and assigns it.
 - **Transcript ▾ ▸ Speakers…** renames speakers everywhere in the transcript and its exports, for example
   `SPEAKER_01` → `Robin`. It also adds and removes speakers. Swapping two names works.

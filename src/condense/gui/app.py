@@ -63,6 +63,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self._build_header()
         self._build_footer()  # before the main area, so it is never pushed off-screen
         self._build_main_layout()
+        self._keep_new_windows_in_front()
         self._apply_settings()
         self._set_zoom(float(self.settings.get("ui_scale", 1.0)), save=False)
         self._set_transcript_size(float(self.settings.get("transcript_scale", 1.0)), save=False)
@@ -148,6 +149,44 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         if save:
             self.settings["ui_scale"] = self.ui_scale
             SettingsStore.save(self.settings)
+
+    def _keep_new_windows_in_front(self):
+        """Every window Condense opens comes to the front with the keyboard focus, above the window it was opened from
+        (Speakers from the Project overview used to appear behind it on some desktops)."""
+        self._front = {"last": self, "seen": set()}
+
+        def remember(event):
+            try:
+                top = event.widget.winfo_toplevel()
+            except Exception:
+                return
+            if top is not None and str(top) not in self._front["seen"] | {"new"} and top.winfo_class() in ("Toplevel", "Tk"):
+                self._front["last"] = top
+
+        def raise_new(event):
+            w = event.widget
+            if not isinstance(w, tk.Toplevel) or str(w) in self._front["seen"]:
+                return
+            self._front["seen"].add(str(w))
+            opener = self._front.get("last")
+            try:
+                if opener is not None and opener is not w and opener.winfo_exists():
+                    w.transient(opener)  # stays above the window it was opened from
+            except Exception:
+                pass
+
+            def front():
+                try:
+                    if w.winfo_exists():
+                        w.lift()
+                        w.focus_force()
+                except Exception:
+                    pass
+            self.after_idle(front)
+            self.after(120, front)  # some window managers place the window only after mapping it
+
+        self.bind_all("<FocusIn>", remember, add="+")
+        self.bind_class("Toplevel", "<Map>", raise_new, add="+")
 
     def _dropdown(self, parent, text: str, items: List[Tuple]):
         """A button that opens a menu. items: (label, command) · ("-",) · ("check", label, BooleanVar) ·
@@ -281,6 +320,10 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         em.add_separator()
         em.add_command(label="Cut / Restore Selected Segments  (X)", command=self._toggle_cut)
         em.add_command(label="Restore All Cuts…", command=self._restore_all_cuts)
+        em.add_command(label="Delete Segment  (Del)", command=self._delete_segment)
+        em.add_command(label="Merge Segment with Next", command=self._merge_with_next)
+        em.add_command(label="Split Segment Before Word", command=self._split_at_current_word)
+        em.add_separator()
         em.add_command(label="Episodes (Interviews, Phases)…", command=self._episodes_dialog)
         em.add_command(label="Mark Selection as Episode  (E)", command=self._mark_episode)
         em.add_command(label="Find Interview Clips in Recording…", command=self._link_clips_dialog)
