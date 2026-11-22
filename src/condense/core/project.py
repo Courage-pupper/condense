@@ -95,7 +95,11 @@ def _level_word(names: List[str]) -> Optional[str]:
         return None
     word, count = Counter(w.capitalize() for w in words if w and not w[0].isdigit()).most_common(1)[0] if any(
         w and not w[0].isdigit() for w in words) else (None, 0)
-    return word if word and count >= max(2, round(0.6 * len(words))) else None
+    if not word or count < max(2, round(0.6 * len(words))):
+        return None
+    # levels are numbered folders (Day 1, Group 3, Participant 07); "Session Recordings" in every group is not a level
+    numbered = [n for n in names if n.strip().lower().startswith(word.lower()) and re.search(r"\d", n)]
+    return word if len(numbered) >= max(1, round(0.6 * count)) else None
 
 
 def detect_levels(folder: Path, skip=None, depth: int = 3) -> List[str]:

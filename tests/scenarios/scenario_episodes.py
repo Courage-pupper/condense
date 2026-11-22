@@ -267,4 +267,5 @@ sug = proj.suggest_settings(study)["structure"]["interviews"]
 assert sug.endswith("G{group}D{day}_I{n} | D{day}G{group}_I{n}") or sug.endswith("D{day}G{group}_I{n} | G{group}D{day}_I{n}"), sug
 st2 = stlib.Structure("{Day}/{Group}/Session Recordings", sug)
 assert st2.parse_clip_name("D2G4_I13") == {"day": 2, "group": 4, "n": 13} and st2.parse_clip_name("G1D2_I4")["n"] == 4
+assert proj._level_word(["Session Recordings"] * 3 + ["Leica"]) is None and proj._level_word(["Group 3"]) == "Group"
 ok("untranscribed session listed and queued from the panel; transcripts open; ._ and unsorted ignored; mixed names learned")
