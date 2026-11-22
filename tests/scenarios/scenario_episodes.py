@@ -349,3 +349,12 @@ assert len(TD.load(doc.path).segments) == n0 - 1
 app._undo()
 assert len(TD.load(doc.path).segments) == n0
 ok("Del asks, deletes, undo brings it back")
+n0 = len(TD.load(doc.path).segments)
+app._select_span(app.span_lookup[(6, 3)])                            # a word in the middle of segment 7
+app.preview_text._binds["<Key-s>"](None)
+assert len(TD.load(doc.path).segments) == n0 + 1
+app._goto_segment(6)
+app.preview_text._binds["<Key-m>"](None)
+assert len(TD.load(doc.path).segments) == n0
+assert "<Key-i>" in app.preview_text._binds and "<Key-I>" in app.preview_text._binds
+ok("S splits before the selected word, M merges with the next, I inserts")

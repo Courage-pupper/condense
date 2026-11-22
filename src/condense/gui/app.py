@@ -160,7 +160,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                 top = event.widget.winfo_toplevel()
             except Exception:
                 return
-            if top is not None and str(top) not in self._front["seen"] | {"new"} and top.winfo_class() in ("Toplevel", "Tk"):
+            if top is not None and top.winfo_class() in ("Toplevel", "Tk"):
                 self._front["last"] = top
 
         def raise_new(event):
@@ -320,9 +320,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         em.add_separator()
         em.add_command(label="Cut / Restore Selected Segments  (X)", command=self._toggle_cut)
         em.add_command(label="Restore All Cuts…", command=self._restore_all_cuts)
+        em.add_command(label="Split Segment Before Word  (S)", command=self._split_at_current_word)
+        em.add_command(label="Merge Segment with Next  (M)", command=self._merge_with_next)
         em.add_command(label="Delete Segment  (Del)", command=self._delete_segment)
-        em.add_command(label="Merge Segment with Next", command=self._merge_with_next)
-        em.add_command(label="Split Segment Before Word", command=self._split_at_current_word)
         em.add_separator()
         em.add_command(label="Episodes (Interviews, Phases)…", command=self._episodes_dialog)
         em.add_command(label="Mark Selection as Episode  (E)", command=self._mark_episode)

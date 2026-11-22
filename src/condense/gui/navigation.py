@@ -137,6 +137,7 @@ class NavigationMixin:
             "  C                mark checked / not checked (all selected)\n"
             "  X                cut / restore the selected segments\n"
             "  E                mark the selected segments as an episode (interview, phase)\n"
+            "  S / M / I        split before the selected word / merge with the next / insert a segment\n"
             + ("  ⌫ (delete)       delete the open segment (asks first)\n" if IS_MAC else "  Del              delete the open segment (asks first)\n") +
             "  Return           edit the open segment's text\n"
             f"  {c}Return          save, mark checked, next segment\n"

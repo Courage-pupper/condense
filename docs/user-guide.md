@@ -102,7 +102,7 @@ tab opens:
 **The controls, from top to bottom:** *Transcript ▾* (open, speakers, episodes, exports, mark all checked), the view
 (*Paragraphs*/*Segments*), the *Show* filter, *Find…*, ◀ *Uncertain* ▶, *✂ Cut* and *Episodes…*; then the player with
 *Playback ▾* for its options (follow the text, play a snippet when jumping, skip cuts, show the video, open in a video
-player); in the segment editor *Mark checked*, *Segment ▾* (split, merge, insert, delete, re-transcribe, revert,
+player); in the segment editor *Mark checked*, *Split*, *Merge*, *+ Insert*, *Delete*, *More ▾* (re-transcribe, revert,
 markers), *Save* and *Save & next*.
 
 **A fast review loop:** click into the transcript, then
@@ -116,6 +116,7 @@ markers), *Save* and *Save & next*.
 | **Return** | edit the segment's text; **Esc** (or Tab) saves and takes you back to the transcript |
 | **⌘↩ / Ctrl+Enter** | save, mark checked, go to the next segment (also while typing) |
 | **C** | mark checked / not checked |
+| **S** / **M** / **I** | split before the selected word / merge with the next segment / insert a segment |
 | **Delete** (⌫ on the Mac) | delete the open segment (asks first) |
 | **1 – 9** | assign speaker 1–9 |
 | ⌘[ ⌘] / Ctrl+[ Ctrl+] | back / forward 5 seconds |
@@ -126,13 +127,13 @@ markers), *Save* and *Save & next*.
 The line above the transcript shows how much is **checked**. Checked segments get a ✓, and the queue shows the
 percentage for each task. Condense remembers where you stopped in each transcript. If you reviewed a transcript elsewhere, right-click it in the Project tab or the task list and choose *Mark All Checked (100 %)* (or use the Edit menu); ⌘Z / Ctrl+Z undoes it.
 
-**Markers** for things Whisper can't write: *Segment ▾ ▸ Insert marker* in the editor, or while typing ⌃L ⌃I ⌃U ⌃C ⌃P ⌃G ⌃N on the Mac
+**Markers** for things Whisper can't write: *More ▾ ▸ Insert marker* in the editor, or while typing ⌃L ⌃I ⌃U ⌃C ⌃P ⌃G ⌃N on the Mac
 and Ctrl+Shift+L, I, U, C, P, G, N on Linux and Windows. They insert `[laughs]`, `[inaudible 0:12:31]`, `[unclear: ]`,
 `[crosstalk]`, `[pause]`, `[German]` and `[gestures]`.
 
 **When Whisper got a passage badly wrong** (mumbling, a switch of language): select it and use *Edit ▸ Re-transcribe
-Passage…* (⌘⇧R / Ctrl+Shift+R) with a bigger model or a forced language. *Segment ▾* in the editor splits, merges, inserts and deletes
-segments, and reverts your changes.
+Passage…* (⌘⇧R / Ctrl+Shift+R) with a bigger model or a forced language. *Split (S)*, *Merge (M)*, *+ Insert (I)* and *Delete* in the editor fix
+the segmentation; *More ▾* reverts your changes.
 
 ![All keyboard shortcuts](images/shortcuts.png)
 

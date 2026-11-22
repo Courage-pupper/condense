@@ -473,9 +473,9 @@ def main():
             collect(c)
     collect(app.tab_preview)
     labels = lambda m: [m.entrycget(i, "label") for i in range(m.index("end") + 1) if m.type(i) != "separator"]
-    assert {"Transcript ▾", "Playback ▾", "Segment ▾"} <= set(dropdowns), sorted(dropdowns)
+    assert {"Transcript ▾", "Playback ▾", "More ▾"} <= set(dropdowns), sorted(dropdowns)
     assert "Speakers…" in labels(dropdowns["Transcript ▾"]) and "Skip cut parts" in labels(dropdowns["Playback ▾"])
-    assert "Merge with the next segment" in labels(dropdowns["Segment ▾"])
+    assert "Re-transcribe this passage…" in labels(dropdowns["More ▾"])
     app._set_transcript_size(1.0, save=False)
     ok("shortcuts, speakers, project overview + speakers, trim (with frames from ffmpeg), zoom")
 

@@ -136,12 +136,12 @@ class EditorMixin:
         self.btn_checked = self._tool(row, "Mark checked", self._toggle_checked)
         self.btn_checked.configure(width=13)  # "✓ Checked" and "Mark checked" take the same room
         row.add(self.btn_checked)
-        row.add(self._dropdown(row, "Segment ▾", [
-            ("Split before the selected word", self._split_at_current_word),
-            ("Merge with the next segment", self._merge_with_next),
-            ("Insert a segment…", self._insert_segment_dialog),
-            ("Delete this segment  (Del)", self._delete_segment),
-            ("-",),
+        # the segmentation tools are used all the time while reviewing: one click, and one key in the transcript
+        row.add(self._tool(row, "Split (S)", self._split_at_current_word))
+        row.add(self._tool(row, "Merge (M)", self._merge_with_next))
+        row.add(self._tool(row, "+ Insert (I)", self._insert_segment_dialog))
+        row.add(self._tool(row, "Delete (⌫)" if IS_MAC else "Delete (Del)", self._delete_segment))
+        row.add(self._dropdown(row, "More ▾", [
             ("Re-transcribe this passage…", self._retranscribe_dialog),
             ("Revert my changes", self._revert_segment_edit),
             ("-",),
@@ -249,6 +249,10 @@ class EditorMixin:
             pt.bind(f"<Key-{k}>", brk(self._mark_episode))
         for k in ("Delete",) + (("BackSpace",) if IS_MAC else ()):  # the Mac's delete key is BackSpace; asks first
             pt.bind(f"<{k}>", brk(self._delete_segment))
+        for keys, fn in ((("s", "S"), self._split_at_current_word), (("m", "M"), self._merge_with_next),
+                         (("i", "I"), self._insert_segment_dialog)):
+            for k in keys:
+                pt.bind(f"<Key-{k}>", brk(fn))
         pt.bind("<Return>", brk(self._focus_editor))
         # Ctrl/⌘ + mouse wheel over the transcript: its text size (like a browser)
         for widget in (pt, self.edit_text):
