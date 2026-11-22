@@ -67,7 +67,7 @@ class EditorMixin:
         player.add(self._check(player, "Video", self.var_show_video, font="small"))
         self.var_show_video.trace_add("write", lambda *a: self.after_idle(self._toggle_video_panel))
         player.add(self._tool(player, "QuickTime ↗" if IS_MAC_PLATFORM else "Video player ↗", self._open_in_quicktime))
-        player.add(self._label(player, "Esc play/pause · ⌘[ ⌘] ±5 s · ⌘⇧. ⌘⇧, speed", font="small", fg=T["fg_dim"]))
+        player.add(self._label(player, kbd("Esc play/pause · ⌘[ ⌘] ±5 s · ⌘⇧. ⌘⇧, speed"), font="small", fg=T["fg_dim"]))
 
         self.timeline = tk.Canvas(tab, height=30, bg=T["bg_input"], highlightthickness=0, bd=0, cursor="hand2")
         self.timeline.pack(fill=tk.X, pady=(4, 0))
@@ -78,7 +78,7 @@ class EditorMixin:
 
         info = tk.Frame(tab, bg=T["bg_panel"])
         info.pack(fill=tk.X, pady=(6, 4))
-        self.lbl_ci_summary = self._wrapping_label(info, "No transcript open. Select a finished job or use Open… (⇧⌘O).", font="small_bold", bg=T["bg_panel"])
+        self.lbl_ci_summary = self._wrapping_label(info, kbd("No transcript open. Select a finished job or use Open… (⇧⌘O)."), font="small_bold", bg=T["bg_panel"])
         self.lbl_ci_summary.pack(fill=tk.X)
         self.lbl_word = self._wrapping_label(info, "", font="mono_small", fg=T["fg_secondary"], bg=T["bg_panel"])
         self.lbl_word.pack(fill=tk.X)
@@ -104,8 +104,8 @@ class EditorMixin:
         row.add(self._tool(row, "Re-transcribe…", self._retranscribe_dialog))
         row.add(self._tool(row, "Delete", self._delete_segment))
         row.add(self._tool(row, "Revert", self._revert_segment_edit))
-        row.add(self._tool(row, "Save  ⌘S", self._save_segment_edit))
-        row.add(self._tool(row, "✓ Save & next  ⌘↩", self._check_and_next, primary=True))
+        row.add(self._tool(row, kbd("Save  ⌘S"), self._save_segment_edit))
+        row.add(self._tool(row, kbd("✓ Save & next  ⌘↩"), self._check_and_next, primary=True))
         self.edit_text = tk.Text(ep, height=3, wrap=tk.WORD, font=self.f["transcript"], bg=T["bg_input"], fg=T["fg_primary"],
                                  insertbackground=T["fg_primary"], relief=tk.FLAT, highlightthickness=1, highlightbackground=T["border"],
                                  highlightcolor=T["accent"], padx=8, pady=6, undo=True)
@@ -512,8 +512,8 @@ class EditorMixin:
         rt = seg.get("retranscribed") or {}
         if rt and not seg.get("edited"):
             what = "translated to English" if rt.get("task") == "translate" else "re-transcribed"
-            self.lbl_edit_hint.config(text=f"This segment was {what} with Whisper {rt.get('model')} (language: {rt.get('language')}). "
-                                           "Undo (⌘Z) brings back the previous version.", fg="#8fb3ff")
+            self.lbl_edit_hint.config(text=kbd(f"This segment was {what} with Whisper {rt.get('model')} (language: {rt.get('language')}). "
+                                               "Undo (⌘Z) brings back the previous version."), fg="#8fb3ff")
         elif orig and " ".join(str(orig).split()) != " ".join(text.split()) and not seg.get("edited"):
             self.lbl_edit_hint.config(text=f"Whisper's own text for this segment differed: “{str(orig).strip()[:200]}” — listen and correct if needed.",
                                       fg=THEME["warn"])

@@ -125,8 +125,8 @@ class RerunMixin:
         win.configure(bg=T["bg_panel"], padx=16, pady=14)
         win.transient(self)
         self._label(win, "Run Whisper again on part of this recording", font="body_bold", bg=T["bg_panel"]).grid(row=0, column=0, columnspan=3, sticky="w")
-        self._label(win, "The segments in this time range are replaced by the new result. Your other edits stay untouched, and ⌘Z undoes it. "
-                         "Useful for mumbled speech (bigger model), a language switch (force the language) or an English version (translate).",
+        self._label(win, kbd("The segments in this time range are replaced by the new result. Your other edits stay untouched, and ⌘Z undoes it. "
+                             "Useful for mumbled speech (bigger model), a language switch (force the language) or an English version (translate)."),
                     font="small", fg=T["fg_dim"], bg=T["bg_panel"], wraplength=460, justify=tk.LEFT).grid(row=1, column=0, columnspan=3, sticky="w", pady=(0, 10))
         v_start, v_end = tk.StringVar(value=short_ts(start)), tk.StringVar(value=short_ts(end))
         r = 2
@@ -250,7 +250,7 @@ class RerunMixin:
             idx = self.span_lookup.get((first, 0))
             if idx is not None:
                 self._select_span(idx, load_editor=False)
-        self._append_log(f"Re-transcribed {short_ts(start)}–{short_ts(end)} with {p['model']} ({p['task']}): {n_old} → {n_new} segment(s). ⌘Z undoes it.", "SUCCESS")
+        self._append_log(kbd(f"Re-transcribed {short_ts(start)}–{short_ts(end)} with {p['model']} ({p['task']}): {n_old} → {n_new} segment(s). ⌘Z undoes it."), "SUCCESS")
 
     # --- re-run speaker detection
     def _rediarize_dialog(self):
@@ -268,8 +268,8 @@ class RerunMixin:
         win.transient(self)
         manual = sum(1 for sg in doc.segments if sg.get("speaker_manual"))
         self._label(win, "Detect speakers again for this transcript", font="body_bold", bg=T["bg_panel"]).grid(row=0, column=0, columnspan=2, sticky="w")
-        self._label(win, "Your text stays as it is; only speaker labels change. New labels are matched to the names you already use "
-                         "wherever they overlap most. ⌘Z undoes the whole re-run.", font="small", fg=T["fg_dim"], bg=T["bg_panel"],
+        self._label(win, kbd("Your text stays as it is; only speaker labels change. New labels are matched to the names you already use "
+                             "wherever they overlap most. ⌘Z undoes the whole re-run."), font="small", fg=T["fg_dim"], bg=T["bg_panel"],
                     wraplength=440, justify=tk.LEFT).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 10))
         v_method = tk.StringVar(value=self.var_diarize_mode.get() if not self.var_diarize_mode.get().startswith("Disabled")
                                 else GPU_DIARIZATION)
@@ -331,5 +331,5 @@ class RerunMixin:
         self._rerender()
         if self.edit_seg_idx is not None:
             self._load_segment_into_editor(min(self.edit_seg_idx, len(doc.segments) - 1))
-        self._append_log(f"Speaker detection ({result.get('diarization_method')}): {stats['changed']} segment(s) relabelled, "
-                         f"{stats['kept']} hand-assigned kept, {stats['speakers']} speaker(s). Rename new ones under Speakers…; ⌘Z undoes it.", "SUCCESS")
+        self._append_log(kbd(f"Speaker detection ({result.get('diarization_method')}): {stats['changed']} segment(s) relabelled, "
+                             f"{stats['kept']} hand-assigned kept, {stats['speakers']} speaker(s). Rename new ones under Speakers…; ⌘Z undoes it."), "SUCCESS")

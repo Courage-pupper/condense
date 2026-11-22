@@ -425,7 +425,7 @@ class QueueMixin:
         ind = self._get_selected_indices()
         chosen = [self.jobs[i] for i in ind if self.jobs[i]["status"] == "Pending"]
         if len(chosen) < 2:
-            self.lbl_status.config(text="Select two or more pending tasks to combine (⌘-click or ⇧-click).")
+            self.lbl_status.config(text=kbd("Select two or more pending tasks to combine (⌘-click or ⇧-click)."))
             return
         inputs = [p for t in chosen for p in t["inputs"]]
         task = self._new_task(inputs)
@@ -689,7 +689,7 @@ class QueueMixin:
             return
         pending = [j for j in self.jobs if j["status"] == "Pending"]
         if not pending:
-            self.lbl_status.config(text="No pending tasks. Add videos (⌘O) or a merge task first.")
+            self.lbl_status.config(text=kbd("No pending tasks. Add videos (⌘O) or a merge task first."))
             return
         empty = [t["name"] for t in pending if len(t["inputs"]) < 2 and not any((t.get("steps") or {}).values())]
         if empty:

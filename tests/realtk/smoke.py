@@ -90,9 +90,13 @@ def key(app, widget, sequence):
 
 def main():
     study, video, docs = demo_data.build(WORK)
+    if SHOTS is not None:  # the guide shows a working GPU set-up, not the CI runner's missing PyTorch
+        from condense.platform import SystemProbe
+        SystemProbe.detect_gpu = staticmethod(lambda: {"gpu_name": "AMD Radeon RX 7900 XTX", "torch_gpu": True, "gpu_api": "ROCm",
+                                                       "vaapi_ok": True, "gpu_test": {"vram_gb": 24}})
     app = CondenseApp()
     app.report_callback_exception = lambda exc, val, tb: errors.append(traceback.format_exception(exc, val, tb))
-    app.geometry("1280x800+0+0")
+    app.geometry("1560x960+0+0" if SHOTS is not None else "1280x800+0+0")
     pump(app, 1.0)
 
     print("[1] main window, queue, settings")
@@ -106,9 +110,8 @@ def main():
     app.queue_tree.selection_set(tasks[0]["id"])
     app._on_job_selected()
     pump(app, 1.0)
-    shot(app, "queue")
     app.notebook.select(app.tab_settings)
-    shot(app, "settings")
+    shot(app, "main-window")
     app.notebook.select(app.tab_console)
     pump(app)
     ok("queue with tasks, task details, settings and console tabs")

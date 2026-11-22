@@ -378,7 +378,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.btn_stop.pack(side=tk.RIGHT, padx=(6, 0))
         self.btn_run = self._tool(row, "▶  Run Pending Tasks", self._start_pipeline, primary=True)
         self.btn_run.pack(side=tk.RIGHT)
-        self.lbl_status = self._wrapping_label(row, "Ready. Add videos (⌘O) or a merge task, check the task details, then Run (⌘R).",
+        self.lbl_status = self._wrapping_label(row, kbd("Ready. Add videos (⌘O) or a merge task, check the task details, then Run (⌘R)."),
                                                font="small", fg=THEME["fg_secondary"], bg=THEME["bg_panel"])
         self.lbl_status.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 12))
         self.progress_var = tk.DoubleVar(value=0.0)

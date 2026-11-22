@@ -12,6 +12,16 @@ EDIT_MOD = "Control" if IS_MAC else "Alt"
 EDIT_MOD_LABEL = "⌃" if IS_MAC else "Alt+"
 
 
+def kbd(text: str) -> str:
+    """Shortcut labels are written with Mac symbols; on Linux and Windows they read Ctrl+S, Ctrl+Shift+O, Ctrl+Enter."""
+    if IS_MAC:
+        return text
+    for a, b in (("⌘-click", "Ctrl+click"), ("⇧-click", "Shift+click"), ("⇧⌘", "Ctrl+Shift+"), ("⌘⇧", "Ctrl+Shift+"),
+                 ("⌘↩", "Ctrl+Enter"), ("⌘", "Ctrl+"), ("⇧", "Shift+"), ("⌃", "Ctrl+"), ("↩", "Enter")):
+        text = text.replace(a, b)
+    return text
+
+
 class FlowFrame(tk.Frame):
     """Lays its children out left-to-right and wraps them onto new rows when space runs out."""
 

@@ -159,7 +159,7 @@ class PlayerMixin:
             return "break"
 
         self._tool(btns, "Cancel", win.destroy).pack(side=tk.RIGHT, padx=(6, 0))
-        self._tool(btns, "Insert  ⌘↩", do_insert, primary=True).pack(side=tk.RIGHT)
+        self._tool(btns, kbd("Insert  ⌘↩"), do_insert, primary=True).pack(side=tk.RIGHT)
         for seq in (f"<{MOD}-Return>", f"<{MOD}-KP_Enter>"):
             text_box.bind(seq, lambda e: (do_insert(), "break")[-1])  # break: must not also reach the window-wide Ctrl+Enter
         text_box.focus_set()
