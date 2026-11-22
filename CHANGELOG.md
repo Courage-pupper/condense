@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.0 — unreleased
+
+### Under the hood: ready for coding
+- Every word now has a permanent id. Corrections, splits, merges, deleted or inserted segments and re-transcribed
+  passages keep the ids of the words they don't change, so anything attached to words — codes, coming next — stays on
+  the right words. Older transcripts get ids when opened. Tested with thousands of random edits.
+
 ## 0.15.0 — 2026-11-22
 
 ### Who is who?

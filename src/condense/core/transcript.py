@@ -36,6 +36,8 @@ class TranscriptDocument:
     def __init__(self, path: Path, data: Dict):
         self.path = Path(path)
         self.data = data
+        if isinstance(data.get("whisper_result"), dict):
+            self.ensure_word_ids()
 
     # ----- construction / IO -----
     @classmethod
@@ -116,10 +118,54 @@ class TranscriptDocument:
                 self._maybe_backup()
             except Exception:
                 pass  # a failed backup must never block saving the work itself
+        self.ensure_word_ids()
         self.data["updated"] = now_iso()
         tmp = self.path.with_name(self.path.name + ".tmp")
         tmp.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), encoding="utf-8")
         os.replace(tmp, self.path)  # atomic: a crash never leaves a half-written master file
+
+    # ----- word IDs -----
+    # Every word has a permanent id ("wid"). Codings and anything else that points into the text refer to word ids
+    # (plus times, as a fallback), so they stay on the right words when the text is corrected, segments are split or
+    # merged, or other passages are re-transcribed. Unchanged words keep their id through every edit; new or retyped
+    # words get new ones. Ids are handed out from a counter stored in the file, so they are never reused.
+    def ensure_word_ids(self) -> int:
+        """Give every word without an id (or with a duplicate) a new one. Deterministic for a given file."""
+        n = int(self.data.get("next_wid") or 0)
+        seen, added = set(), 0
+        for seg in self.segments:
+            for w in seg.get("words") or []:
+                wid = w.get("wid")
+                if not wid or wid in seen:
+                    w["wid"] = f"w{n:x}"
+                    n += 1
+                    added += 1
+                seen.add(w["wid"])
+        if added or "next_wid" not in self.data:
+            self.data["next_wid"] = n
+        return added
+
+    def word_positions(self) -> Dict[str, Tuple[int, int]]:
+        """wid -> (segment index, word index)."""
+        self.ensure_word_ids()
+        return {w["wid"]: (i, k) for i, seg in enumerate(self.segments) for k, w in enumerate(seg.get("words") or [])}
+
+    def resolve_span(self, start_wid: Optional[str], end_wid: Optional[str], start: float, end: float,
+                     positions: Optional[Dict[str, Tuple[int, int]]] = None) -> Optional[Tuple[Tuple[int, int], Tuple[int, int]]]:
+        """Where a stretch of words is now: by its first and last word ids; if one of them was deleted or retyped, the
+        nearest surviving word by time. None if no word is left in [start, end]."""
+        pos = positions if positions is not None else self.word_positions()
+        a, b = pos.get(start_wid or ""), pos.get(end_wid or "")
+        if a is not None and b is not None and a <= b:
+            return a, b
+        flat = [((i, k), float(w.get("start", 0)), float(w.get("end", 0)))
+                for i, seg in enumerate(self.segments) for k, w in enumerate(seg.get("words") or [])]
+        inside = [f for f in flat if start - 1e-3 <= (f[1] + f[2]) / 2 <= end + 1e-3]  # words whose middle lies in the stretch
+        if not inside:
+            return None
+        first = a if a is not None and a <= inside[-1][0] else inside[0][0]
+        last = b if b is not None and b >= first else inside[-1][0]
+        return (first, last) if first <= last else None
 
     # ----- accessors -----
     @property
