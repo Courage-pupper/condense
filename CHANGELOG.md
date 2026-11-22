@@ -1,15 +1,6 @@
 # Changelog
 
-## 0.14.0 — 2026-11-22
-
-### Split, merge, insert, delete: one click, one key
-- The segment editor has buttons again for **Split (S)**, **Merge (M)**, **+ Insert (I)** and **Delete (Del / ⌫)**, and
-  the letters work as shortcuts in the transcript (Delete asks first). Re-transcribe, revert and the markers are under
-  *More ▾*.
-
-### Windows open in front
-- Every window Condense opens comes to the front with the keyboard focus, and stays above the window it was opened from.
-  Before, e.g. Speakers opened from the Project overview could appear behind it.
+## 0.15.0 — 2026-11-22
 
 ### Who is who?
 - Detected speakers (`SPEAKER_01` …) take over a saved name for the **whole transcript**: right-click a speaker chip ▸
@@ -17,13 +8,25 @@
   of them at once — with each one's speaking time, a typical line and ▶ *Listen*. Two labels can get the same name
   (merged). One undo step.
 
+### Windows open in front
+- Every window Condense opens comes to the front with the keyboard focus, and stays above the window it was opened from.
+  Before, e.g. Speakers opened from the Project overview could appear behind it.
+
+### Split, merge, insert, delete: one click, one key
+- The segment editor has buttons again for **Split (S)**, **Merge (M)**, **+ Insert (I)** and **Delete (Del / ⌫)**, and
+  the letters work as shortcuts in the transcript (Delete asks first). Re-transcribe, revert and the markers are under
+  *More ▾*.
+
+## 0.14.0 — 2026-11-22
+
 ### A tidier transcript tab
 - **Fewer buttons:** *Transcript ▾* holds open, speakers, speaker detection, episodes, finding interview clips, the
   trimmed export, marking a whole transcript checked and restoring cuts. Review tools stay visible: view, *Show*, *Find*,
   ◀ *Uncertain* ▶, *✂ Cut*, *Episodes*.
 - **Playback ▾** holds the player's options (follow the text, snippet on jump, skip cuts, video, open in a video player)
   instead of a row of checkboxes and a hint line.
-- **More ▾** in the editor holds re-transcribe, revert and the markers.
+- **Segment ▾** in the editor holds split, merge, insert, delete, re-transcribe, revert and the markers; *Mark checked*,
+  *Save* and *Save & next* stay as buttons.
 - **Text size is a slider** (Aa) next to the transcript's summary line; double-click it for 100 %.
 
 ### Project tab
