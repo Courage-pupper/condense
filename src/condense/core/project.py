@@ -78,7 +78,7 @@ def transcripts_under(folder: Path, stop=None, max_dirs: int = 20000) -> List[Pa
         if seen > max_dirs or (stop is not None and stop.is_set()):
             break
         dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d not in SKIP_DIRS)
-        found += [Path(root) / f for f in files if f.endswith(TranscriptDocument.SUFFIX)]
+        found += [Path(root) / f for f in files if f.endswith(TranscriptDocument.SUFFIX) and not f.startswith(".")]
     return sorted(found)
 
 

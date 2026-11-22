@@ -25,6 +25,12 @@ def now_iso() -> str:
 _BLANK_CHARS = re.compile(r"[\s.…,;:!?\-–—♪♫*\"'()\[\]]+")
 
 
+def is_system_junk(name: str) -> bool:
+    """macOS bookkeeping files: '._name' (AppleDouble, written next to every file on exFAT/FAT drives such as a T7)
+    and .DS_Store. They look like videos or transcripts by name but are not."""
+    return name.startswith("._") or name in (".DS_Store", "Thumbs.db", "desktop.ini")
+
+
 def is_blank_text(text: Optional[str]) -> bool:
     """True for '', whitespace, or only dots/dashes/music notes ('...', '…', '♪') — what Whisper emits in silence."""
     return not _BLANK_CHARS.sub("", text or "")

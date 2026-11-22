@@ -273,7 +273,7 @@ class QueueMixin:
 
     def _enqueue_video_paths(self, paths: List[str]):
         queued = {p for t in self.jobs if t["status"] in ("Pending", "Running") for p in t["inputs"]}
-        files = [str(Path(f)) for f in paths if Path(f).is_file() and str(Path(f)) not in queued]
+        files = [str(Path(f)) for f in paths if Path(f).is_file() and str(Path(f)) not in queued and not is_system_junk(Path(f).name)]
         tasks = [self._new_task([f]) for f in files]
         self._add_tasks(tasks)
         if tasks:
@@ -304,7 +304,7 @@ class QueueMixin:
         folder = self._ask_directory("Add every video in a folder (one task per video)", self.settings.get("last_add_dir"))
         if folder:
             self.settings["last_add_dir"] = folder
-            found = sorted(str(p) for p in Path(folder).iterdir() if p.is_file() and p.suffix.lower() in VIDEO_EXTS)
+            found = sorted(str(p) for p in Path(folder).iterdir() if p.is_file() and p.suffix.lower() in VIDEO_EXTS and not is_system_junk(p.name))
             if found:
                 self._enqueue_video_paths(found)
             else:

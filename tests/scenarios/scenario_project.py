@@ -57,7 +57,9 @@ assert "recent" in st and not scanned, "the overview must not scan without a pro
 # a folder scan never goes into hidden folders or backups, and stops on huge trees
 (study / ".hidden").mkdir(); (study / ".hidden" / "x.transcript.json").write_text("{}")
 (study / "_backups").mkdir(); (study / "_backups" / "y.transcript.json").write_text("{}")
+(study / "day2" / "._B1.transcript.json").write_bytes(b"\x00\x05\x16\x07 AppleDouble")  # macOS file on an exFAT drive
 assert len(proj.transcripts_under(study)) == 2
+assert pipe.is_system_junk("._G1D1_I1.mp4") and not pipe.is_system_junk("G1D1_I1.mp4")
 assert proj.transcripts_under(study, max_dirs=1) == []  # gives up after one folder (the top one has no transcripts)
 ok("start dialog instead of a scan; hidden folders, backups skipped; bounded scan")
 

@@ -7,6 +7,8 @@
   external drives included, before showing anything. It now never searches without a project, searches in the
   background, skips hidden folders and backups, and stops on very large drives. *Search All Transcripts* uses the same
   safe search.
+- **macOS `._` files on external drives** (a Mac writes one next to every file on exFAT drives such as a T7) are no
+  longer added as videos by *+ Folder* or listed as broken transcripts.
 
 ### Projects are now something you open
 - A new **Project** menu: *New Project…*, *Open Project…*, *Open Recent*, *Close Project*, *Project Overview…* and
