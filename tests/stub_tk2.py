@@ -121,7 +121,13 @@ tk.Listbox = Listbox
 
 
 class PhotoImage:
-    def __init__(self, data=None, format=None, **k):
+    def __init__(self, data=None, format=None, file=None, **k):
+        if file is not None:  # PNG from disk (trim dialog strip / waveform): check it really is one
+            raw = open(file, "rb").read()
+            assert raw[:8] == b"\x89PNG\r\n\x1a\n", file
+            import struct
+            self.data, (self.w, self.h) = raw, struct.unpack(">II", raw[16:24])
+            return
         assert data[:2] == b"P6"
         self.data = data
         hdr = data.split(b"\n", 3)

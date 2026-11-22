@@ -1,5 +1,6 @@
 """Task queue: adding, merging, details panel, running."""
 from condense.gui._common import *  # noqa: F401,F403
+from condense.gui.trim_dialog import describe_trim
 
 
 class QueueMixin:
@@ -134,6 +135,15 @@ class QueueMixin:
         self.lbl_task_output.grid(row=0, column=0, sticky="ew")
         self.btn_task_output = self._tool(orow, "Change…", self._task_change_output)
         self.btn_task_output.grid(row=0, column=1, sticky="ne", padx=(6, 0))
+
+        lab(5, "Trim")
+        trow = tk.Frame(form, bg=T["bg_card"])
+        trow.grid(row=5, column=1, sticky="ew", pady=2)
+        trow.columnconfigure(0, weight=1)
+        self.lbl_task_trim = self._wrapping_label(trow, "", font="small", fg=T["fg_secondary"])
+        self.lbl_task_trim.grid(row=0, column=0, sticky="ew")
+        self.btn_task_trim = self._tool(trow, "Trim…", self._trim_task_video)
+        self.btn_task_trim.grid(row=0, column=1, sticky="ne", padx=(6, 0))
 
         self.lbl_task_note = self._wrapping_label(card, "", font="small", fg=T["fg_dim"])
         self.lbl_task_note.pack(fill=tk.X, pady=(4, 0))
@@ -463,6 +473,7 @@ class QueueMixin:
                 self.lbl_task_merge.config(text="")
                 self.lbl_task_settings.config(text="")
                 self.lbl_task_output.config(text="")
+                self.lbl_task_trim.config(text="")
                 self.lbl_task_note.config(text="")
             else:
                 merge = len(task["inputs"]) > 1
@@ -477,6 +488,13 @@ class QueueMixin:
                 self.lbl_task_merge.config(text=f"Merge {len(task['inputs'])} videos  →" if merge else "")
                 self.lbl_task_settings.config(text=self._settings_summary(task))
                 self.lbl_task_output.config(text=task["output_dir"])
+                if merge:
+                    trims = [describe_trim(Path(p)) for p in task["inputs"]]
+                    n = sum(1 for t in trims if t != "none")
+                    self.lbl_task_trim.config(text=(f"{n} of {len(trims)} videos trimmed" if n else "none")
+                                              + " — select a video above, then Trim…")
+                else:
+                    self.lbl_task_trim.config(text=describe_trim(Path(task["inputs"][0])) + " — parts left out before transcribing")
                 if task["status"] == "Failed":
                     self.lbl_task_note.config(text=task["stage"], fg=THEME["err"])
                 elif not editable:
@@ -487,7 +505,7 @@ class QueueMixin:
                     self.lbl_task_note.config(text="+ adds another video and turns this into a merge task.", fg=THEME["fg_dim"])
             self.ent_task_name.configure(state=state if (task and len(task["inputs"]) > 1) else tk.DISABLED)
             self.lst_inputs.configure(state=tk.NORMAL)
-            for w in (*self._task_buttons, *self._task_checks, self.btn_task_settings, self.btn_task_output):
+            for w in (*self._task_buttons, *self._task_checks, self.btn_task_settings, self.btn_task_output, self.btn_task_trim):
                 w.configure(state=state)
         finally:
             self._loading_details = False
@@ -738,6 +756,8 @@ class QueueMixin:
                         self._append_log(f"✓ Transcript ready: {', '.join(names) or Path(msg['doc_path']).name} — double-click it in the queue to open.", "SUCCESS")
                 elif mtype in ("rerun_progress", "rerun_done", "rerun_failed"):
                     self._handle_rerun_message(msg)
+                elif mtype == "trim_ui":
+                    self._on_trim_ui_msg(msg)
                 elif mtype == "trim":
                     self._on_trim_msg(msg)
                 elif mtype == "gpu_test":

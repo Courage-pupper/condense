@@ -131,3 +131,37 @@ app._render_doc(TD.load(d2.path))
 n = len(infos)
 assert app._export_trimmed_dialog() is None and "Nothing is cut yet" in infos[-1][1]
 ok("explains instead of exporting when nothing is cut")
+
+print("[7] trim before transcribing: mark cuts on the strip, saved as a LosslessCut project")
+from condense.gui.trim_dialog import describe_trim, llc_cuts
+saved = []
+win, st = app._trim_dialog(video, on_saved=lambda: saved.append(True))
+deadline = time.time() + 60
+got_images = False
+while time.time() < deadline and not got_images:
+    try:
+        msg = app.msg_queue.get(timeout=0.2)
+    except queue.Empty:
+        continue
+    if msg.get("type") == "trim_ui":
+        app._on_trim_ui_msg(msg)
+        got_images = msg["kind"] == "images"
+assert got_images and "strip" in st["imgs"] and "wave" in st["imgs"], st["imgs"].keys()
+st["set_pos"](2.0); st["mark_start"](); st["set_pos"](4.0); st["mark_end"]()
+st["set_pos"](18.0); st["mark_start"](); st["set_pos"](15.0); st["mark_end"]()     # backwards works too
+assert st["cuts"] == [(2.0, 4.0), (15.0, 18.0)]
+st["save"]()
+llc = video.parent / "Workshop demo-proj.llc"
+assert saved and llc.read_text().startswith(cutlib.LLC_MARKER)
+assert LosslessCutHelper.parse_llc_segments(llc) == [(0.0, 2.0), (4.0, 15.0), (18.0, 20.0)]
+assert describe_trim(video).startswith("3 part(s) kept, 0:00:15"), describe_trim(video)
+win, st = app._trim_dialog(video)
+assert st["cuts"] == [(2.0, 4.0), (15.0, 18.0)]                                     # reopened with the saved cuts
+st["cuts"] = []; st["save"]()
+assert not llc.exists() and describe_trim(video) == "none"                         # our own file: removed
+llc.write_text("{ version: 1, mediaFileName: 'x.mp4', cutSegments: [ { start: 1, end: 10 } ] }")  # made in LosslessCut
+win, st = app._trim_dialog(video)
+assert st["cuts"] == [(0.0, 1.0), (10.0, 20.0)]
+st["cuts"] = []; st["save"]()
+assert llc.exists() and "made in LosslessCut" in infos[-1][1]                       # never deleted silently
+ok("filmstrip + waveform drawn; I/O marks cuts; saved as -proj.llc; reopens; removes only its own file")

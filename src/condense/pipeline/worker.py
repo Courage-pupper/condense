@@ -910,6 +910,14 @@ class PipelineWorker(threading.Thread):
                         if self.config.get("respect_llc", True):
                             active_vid, llc_rec = LosslessCutHelper.apply_llc_cuts_if_present(orig_vid, temp_dir, self.log, self.run_checked)
                             processing["losslesscut"] = llc_rec
+                            if llc_rec and not steps["compress"] and is_within(active_vid, temp_dir):
+                                # the transcript is timed to the trimmed video: keep it, so it can be watched in the
+                                # editor and imported into MAXQDA together with the transcript
+                                kept_vid = out_dir / f"{base}_trimmed{Path(active_vid).suffix}"
+                                shutil.move(str(active_vid), str(kept_vid))
+                                active_vid = kept_vid
+                                llc_rec["kept_video"] = kept_vid.name
+                                self.log(f"Kept the trimmed video the transcript is timed to: {kept_vid.name}", "INFO")
                         if steps["compress"]:
                             container_ext = ".mkv" if self.config.get("hb_container", "MKV") == "MKV" else ".mp4"
                             out_vid = out_dir / f"{base}_compressed{container_ext}"

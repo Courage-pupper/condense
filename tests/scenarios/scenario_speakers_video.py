@@ -40,8 +40,13 @@ tasks = [{"id": "t1", "name": "P02", "inputs": [str(media / "P02.mp4")], "steps"
 q = queue.Queue(); pipe.PipelineWorker({"tasks": tasks}, q, threading.Event()).run()
 m1 = TD.load(media / "P02" / "P02.transcript.json").data["media"]
 m2 = TD.load(media / "P04_trimmed" / "P04_trimmed.transcript.json").data["media"]
-assert m1["video"] == str((media / "P02.mp4").resolve()) and m2["video"] is None and "video" in m2
-ok(f"original video recorded; LosslessCut-trimmed task records no video (timeline differs)")
+assert m1["video"] == str((media / "P02.mp4").resolve())
+kept = media / "P04_trimmed" / "P04_trimmed_trimmed.mp4"
+d2 = TD.load(media / "P04_trimmed" / "P04_trimmed.transcript.json")
+assert d2.media_path("video") == kept.resolve() and kept.exists(), m2
+llc_rec = TD.load(media / "P04_trimmed" / "P04_trimmed.transcript.json").data["provenance"]["processing"]["losslesscut"]
+assert llc_rec["kept_video"] == kept.name
+ok("original video recorded; a LosslessCut-trimmed task keeps the trimmed video it is timed to and records it")
 
 print("[3] ffmpeg frame stream (real decode)")
 cmd = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", "1.0", "-i", str(media / "Interview O'Brien.mp4"), "-an", "-vf", "fps=10,scale=200:-2", "-f", "image2pipe", "-vcodec", "ppm", "-"]

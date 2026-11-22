@@ -2,6 +2,20 @@
 
 ## 0.11.0 — 2026-11-20
 
+### Cutting
+- **Cut while reviewing:** select segments and press **X** (or ✂ Cut / restore). Cut segments are struck through, left out of
+  every export (TXT, SRT, VTT, RTF, paragraphs), skipped while playing ("Skip cuts") and don't count towards % checked.
+  Nothing is deleted: X again restores them, and ⌘Z / Ctrl+Z undoes.
+- **Export trimmed video & transcript** (File menu or the transcript toolbar): writes the video without the cut parts and
+  a transcript re-timed to it, so MAXQDA links them correctly. *Exact* re-encodes and cuts precisely; *Lossless* copies
+  the streams (fast) but can only start on keyframes — the transcript is timed to what was really written, and cuts too
+  short to apply are reported. A `.cuts.json` record documents what was cut. Optionally saves the cuts as a LosslessCut project.
+- **Trim before transcribing** (Task Details ▸ Trim…): mark parts to leave out (setup, breaks) on a filmstrip and waveform
+  with a frame preview and 5-second playback; saved as `<video>-proj.llc`, which Condense applies before transcribing and
+  LosslessCut opens too. Condense never deletes a LosslessCut project it did not write.
+- When LosslessCut cuts are applied before transcribing, the trimmed video the transcript is timed to is now kept
+  (`<name>_trimmed.<ext>`) instead of being discarded with the temporary files.
+
 ### Windows (preview)
 - New Windows platform layer (Windows 10/11, 64-bit). Whisper and speaker detection run on the GPU through PyTorch: CUDA on NVIDIA, AMD's ROCm build of PyTorch for Windows on the Radeon RX 7900 / RX 9000 series (Windows 11, AMD Software 26.2.2+), otherwise the CPU.
 - Video compression on the GPU with ffmpeg: NVENC (NVIDIA), AMF (AMD) and Quick Sync (Intel). The default `auto_h265` tests which encoder really works on the PC (an encoder listed by ffmpeg is not necessarily usable) and falls back to the CPU.

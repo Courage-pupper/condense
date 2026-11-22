@@ -104,9 +104,12 @@ def retime_segments(segments: Sequence[Dict], cuts: Sequence[Range], tmap: TimeM
     return out
 
 
+LLC_MARKER = "// Written by Condense (cut list). LosslessCut reads this file; Condense applies it before transcribing."
+
+
 def llc_text(media_name: str, kept: Sequence[Range]) -> str:
     """A LosslessCut project listing the parts to keep (LosslessCut exports the listed segments)."""
-    lines = ["{", "  version: 1,", f"  mediaFileName: '{media_name.replace(chr(39), chr(92) + chr(39))}',", "  cutSegments: ["]
+    lines = [LLC_MARKER, "{", "  version: 1,", f"  mediaFileName: '{media_name.replace(chr(39), chr(92) + chr(39))}',", "  cutSegments: ["]
     for a, b in kept:
         lines.append(f"    {{ start: {a:.3f}, end: {b:.3f}, name: '' }},")
     lines += ["  ],", "}", ""]
