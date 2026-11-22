@@ -2,6 +2,16 @@
 
 ## 0.14.0 — 2026-11-22
 
+### A tidier transcript tab
+- **Fewer buttons:** *Transcript ▾* holds open, speakers, speaker detection, episodes, finding interview clips, the
+  trimmed export, marking a whole transcript checked and restoring cuts. Review tools stay visible: view, *Show*, *Find*,
+  ◀ *Uncertain* ▶, *✂ Cut*, *Episodes*.
+- **Playback ▾** holds the player's options (follow the text, snippet on jump, skip cuts, video, open in a video player)
+  instead of a row of checkboxes and a hint line.
+- **Segment ▾** in the editor holds split, merge, insert, delete, re-transcribe, revert and the markers; *Mark checked*,
+  *Save* and *Save & next* stay as buttons.
+- **Text size is a slider** (Aa) next to the transcript's summary line; double-click it for 100 %.
+
 ### Project tab
 - Shows each recording's **length** (measured once with ffprobe and remembered) and each episode's length and start.
 - Recordings sort naturally: I4 before I10. More space at the edges of the Tasks and Project tabs.

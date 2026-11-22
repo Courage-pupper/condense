@@ -441,6 +441,19 @@ def main():
     app._transcript_size_step(+1)
     pump(app, 0.1)
     assert int(app.f["transcript"].cget("size")) > size0, "transcript text size did not change"
+    assert abs(app.var_text_size.get() - app.transcript_scale * 100) < 3, "the slider did not follow the size"
+    # every action that moved into a menu is still there
+    dropdowns = {}
+    def collect(w):
+        for c in w.winfo_children():
+            if hasattr(c, "menu"):
+                dropdowns[c.cget("text")] = c.menu
+            collect(c)
+    collect(app.tab_preview)
+    labels = lambda m: [m.entrycget(i, "label") for i in range(m.index("end") + 1) if m.type(i) != "separator"]
+    assert {"Transcript ▾", "Playback ▾", "Segment ▾"} <= set(dropdowns), sorted(dropdowns)
+    assert "Speakers…" in labels(dropdowns["Transcript ▾"]) and "Skip cut parts" in labels(dropdowns["Playback ▾"])
+    assert "Merge with the next segment" in labels(dropdowns["Segment ▾"])
     app._set_transcript_size(1.0, save=False)
     ok("shortcuts, speakers, project overview + speakers, trim (with frames from ffmpeg), zoom")
 

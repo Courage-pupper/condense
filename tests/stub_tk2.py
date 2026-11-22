@@ -164,7 +164,7 @@ for n in ["X", "Y", "BOTH", "LEFT", "RIGHT", "TOP", "BOTTOM", "WORD", "FLAT", "R
     setattr(tk, n, n.lower())
 tk.END = "end"
 ttk = types.ModuleType("tkinter.ttk")
-for n in ["Style", "Button", "Combobox", "Treeview", "Scrollbar", "Notebook", "Progressbar", "Checkbutton"]:
+for n in ["Style", "Button", "Combobox", "Treeview", "Scrollbar", "Notebook", "Progressbar", "Checkbutton", "Scale"]:
     setattr(ttk, n, type(n, (W,), {}))
 
 

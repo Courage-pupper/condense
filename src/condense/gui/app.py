@@ -149,6 +149,28 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             self.settings["ui_scale"] = self.ui_scale
             SettingsStore.save(self.settings)
 
+    def _dropdown(self, parent, text: str, items: List[Tuple]):
+        """A button that opens a menu. items: (label, command) · ("-",) · ("check", label, BooleanVar) ·
+        ("cascade", label, [items])."""
+        def build(menu, entries):
+            for it in entries:
+                if it[0] == "-":
+                    menu.add_separator()
+                elif it[0] == "check":
+                    menu.add_checkbutton(label=it[1], variable=it[2])
+                elif it[0] == "cascade":
+                    sub = tk.Menu(menu, tearoff=0)
+                    build(sub, it[2])
+                    menu.add_cascade(label=it[1], menu=sub)
+                else:
+                    menu.add_command(label=it[0], command=it[1])
+        menu = tk.Menu(self, tearoff=0)
+        build(menu, items)
+        btn = self._tool(parent, text, lambda: None)
+        btn.configure(command=lambda: menu.tk_popup(btn.winfo_rootx(), btn.winfo_rooty() + btn.winfo_height()))
+        btn.menu = menu
+        return btn
+
     TRANSCRIPT_SIZES = [0.8, 0.9, 1.0, 1.15, 1.3, 1.5, 1.75, 2.0, 2.5]
 
     @property
@@ -163,6 +185,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         lbl = self.__dict__.get("lbl_text_size")
         if lbl is not None:
             lbl.config(text=f"{self._transcript_scale * 100:.0f}%")
+        var = self.__dict__.get("var_text_size")
+        if var is not None and abs(var.get() - self._transcript_scale * 100) > 2.6:
+            var.set(self._transcript_scale * 100)  # buttons, keys, wheel move the slider too (not while dragging it)
         if save:
             self.settings["transcript_scale"] = self._transcript_scale
             SettingsStore.save(self.settings)

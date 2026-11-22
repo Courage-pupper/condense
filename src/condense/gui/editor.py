@@ -15,11 +15,23 @@ class EditorMixin:
         T = THEME
         tab = self.tab_preview
 
+        # ---- toolbar: what you use while reviewing stays visible; the rest is one click away in a menu ----
         bar = self._flow(tab, padx=5, pady=5, bg=T["bg_panel"])
         bar.pack(fill=tk.X)
-        bar.add(self._tool(bar, "Open…", self._open_transcript))
-        bar.add(self._tool(bar, "Speakers…", self._show_speakers_dialog))
-        bar.add(self._tool(bar, "Detect speakers…", self._rediarize_dialog))
+        bar.add(self._dropdown(bar, "Transcript ▾", [
+            ("Open…", self._open_transcript),
+            ("-",),
+            ("Speakers…", self._show_speakers_dialog),
+            ("Detect speakers…", self._rediarize_dialog),
+            ("-",),
+            ("Episodes (interviews, phases)…", self._episodes_dialog),
+            ("Find interview clips in this recording…", self._link_clips_dialog),
+            ("Export trimmed video & transcript…", self._export_trimmed_dialog),
+            ("-",),
+            ("Mark whole transcript checked (100 %)", lambda: self.active_doc is not None and self._mark_transcripts_checked([self.active_doc.path], True)),
+            ("Mark whole transcript not checked", lambda: self.active_doc is not None and self._mark_transcripts_checked([self.active_doc.path], False)),
+            ("Restore all cuts…", self._restore_all_cuts),
+        ]))
         bar.add(self._separator(bar))
         self.var_view_mode = tk.StringVar(value="Paragraphs")
         self._persist["view_mode"] = self.var_view_mode
@@ -27,12 +39,6 @@ class EditorMixin:
         cb = ttk.Combobox(bar, textvariable=self.var_view_mode, values=["Paragraphs", "Segments"], state="readonly", width=10, font=self.f["small"])
         cb.bind("<<ComboboxSelected>>", lambda e: self._rerender())
         bar.add(cb)
-        bar.add(self._separator(bar))
-        bar.add(self._tool(bar, "◀ Uncertain", lambda: self._jump_low_conf(-1)))
-        bar.add(self._tool(bar, "Uncertain ▶", lambda: self._jump_low_conf(+1)))
-        bar.add(self._tool(bar, "✂ Cut / restore (X)", self._toggle_cut))
-        bar.add(self._tool(bar, "Export trimmed…", self._export_trimmed_dialog))
-        bar.add(self._tool(bar, "Episodes…", self._episodes_dialog))
         bar.add(self._label(bar, "Show", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]))
         self.var_show_filter = tk.StringVar(value="All segments")
         cmb_show = ttk.Combobox(bar, textvariable=self.var_show_filter, state="readonly", width=15, font=self.f["small"],
@@ -40,18 +46,19 @@ class EditorMixin:
         self.cmb_show = cmb_show
         cmb_show.bind("<<ComboboxSelected>>", lambda e: (self._autosave_edit(rerender=False), self._rerender()))
         bar.add(cmb_show)
-        bar.add(self._tool(bar, "Find…", self._toggle_find))
         bar.add(self._separator(bar))
-        bar.add(self._label(bar, "Text", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]))
-        bar.add(self._tool(bar, "A−", lambda: self._transcript_size_step(-1)))
-        self.lbl_text_size = self._label(bar, f"{self.transcript_scale * 100:.0f}%", font="small", fg=T["fg_secondary"], bg=T["bg_panel"])
-        bar.add(self.lbl_text_size)
-        bar.add(self._tool(bar, "A+", lambda: self._transcript_size_step(+1)))
+        bar.add(self._tool(bar, "Find…", self._toggle_find))
+        bar.add(self._tool(bar, "◀", lambda: self._jump_low_conf(-1)))
+        bar.add(self._label(bar, "Uncertain", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]))
+        bar.add(self._tool(bar, "▶", lambda: self._jump_low_conf(+1)))
+        bar.add(self._separator(bar))
+        bar.add(self._tool(bar, "✂ Cut (X)", self._toggle_cut))
+        bar.add(self._tool(bar, "Episodes…", self._episodes_dialog))
         self.var_autoplay = tk.BooleanVar(value=True)
         self._persist["autoplay"] = self.var_autoplay
-        bar.add(self._check(bar, "Play snippet on jump", self.var_autoplay, bg=T["bg_panel"], font="small"))
         self._persist["show_pct"] = self.var_show_pct
 
+        # ---- player: the controls; its options in one menu ----
         player = self._flow(tab, padx=5, pady=5, bg=T["bg_card"])
         player.pack(fill=tk.X, pady=(4, 0), ipady=3)
         player.add(self._tool(player, "⟲ 5 s", lambda: self._seek_rel(-5)))
@@ -68,15 +75,19 @@ class EditorMixin:
         player.add(self.lbl_time)
         self.var_follow = tk.BooleanVar(value=True)
         self._persist["follow"] = self.var_follow
-        player.add(self._check(player, "Follow text", self.var_follow, font="small"))
         self.var_skip_cuts = tk.BooleanVar(value=True)
         self._persist["skip_cuts"] = self.var_skip_cuts
-        player.add(self._check(player, "Skip cuts", self.var_skip_cuts, font="small"))
         self._persist["show_video"] = self.var_show_video
-        player.add(self._check(player, "Video", self.var_show_video, font="small"))
         self.var_show_video.trace_add("write", lambda *a: self.after_idle(self._toggle_video_panel))
-        player.add(self._tool(player, "QuickTime ↗" if IS_MAC_PLATFORM else "Video player ↗", self._open_in_quicktime))
-        player.add(self._label(player, kbd("Esc play/pause · ⌘[ ⌘] ±5 s · ⌘⇧. ⌘⇧, speed"), font="small", fg=T["fg_dim"]))
+        player.add(self._dropdown(player, "Playback ▾", [
+            ("check", "Follow the text while playing", self.var_follow),
+            ("check", "Play a snippet when jumping to a segment", self.var_autoplay),
+            ("check", "Skip cut parts", self.var_skip_cuts),
+            ("check", "Show the video", self.var_show_video),
+            ("-",),
+            ("Open in QuickTime ↗" if IS_MAC_PLATFORM else "Open in a video player ↗", self._open_in_quicktime),
+            ("Keyboard shortcuts…", self._show_shortcuts),
+        ]))
 
         self.timeline = tk.Canvas(tab, height=30, bg=T["bg_input"], highlightthickness=0, bd=0, cursor="hand2")
         self.timeline.pack(fill=tk.X, pady=(4, 0))
@@ -88,9 +99,24 @@ class EditorMixin:
         info = tk.Frame(tab, bg=T["bg_panel"])
         info.pack(fill=tk.X, pady=(6, 4))
         # Fixed heights for the lines that change on every ↑/↓: if they grew or shrank, the transcript would jump.
-        self.lbl_ci_summary = self._label(info, kbd("No transcript open. Select a finished job or use Open… (⇧⌘O)."), font="small_bold",
+        top = tk.Frame(info, bg=T["bg_panel"])
+        top.pack(fill=tk.X)
+        # text size of the transcript (and the segment box): a slider by the transcript it changes
+        size = tk.Frame(top, bg=T["bg_panel"])
+        size.pack(side=tk.RIGHT)
+        self._label(size, "Aa", font="small_bold", fg=T["fg_secondary"], bg=T["bg_panel"]).pack(side=tk.LEFT, padx=(8, 4))
+        self.var_text_size = tk.DoubleVar(value=self.transcript_scale * 100)
+        self.scl_text_size = ttk.Scale(size, from_=self.TRANSCRIPT_SIZES[0] * 100, to=self.TRANSCRIPT_SIZES[-1] * 100, orient=tk.HORIZONTAL,
+                                       length=110, variable=self.var_text_size,
+                                       command=lambda v: self._set_transcript_size(round(float(v) / 5) * 5 / 100, save=False))
+        self.scl_text_size.pack(side=tk.LEFT)
+        self.scl_text_size.bind("<ButtonRelease-1>", lambda e: self._set_transcript_size(self.transcript_scale))
+        self.scl_text_size.bind("<Double-Button-1>", lambda e: self._set_transcript_size(1.0))
+        self.lbl_text_size = self._label(size, f"{self.transcript_scale * 100:.0f}%", font="small", fg=T["fg_secondary"], bg=T["bg_panel"], width=5)
+        self.lbl_text_size.pack(side=tk.LEFT)
+        self.lbl_ci_summary = self._label(top, kbd("No transcript open. Select a finished job or use Open… (⇧⌘O)."), font="small_bold",
                                           bg=T["bg_panel"], height=1, anchor="w", justify=tk.LEFT)
-        self.lbl_ci_summary.pack(fill=tk.X)
+        self.lbl_ci_summary.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.lbl_word = self._label(info, "", font="mono_small", fg=T["fg_secondary"], bg=T["bg_panel"], anchor="w", justify=tk.LEFT, height=1)
         self.lbl_word.pack(fill=tk.X)
 
@@ -106,16 +132,20 @@ class EditorMixin:
         self.var_seg_speaker = tk.StringVar(value="")
         self.cmb_seg_speaker = ttk.Combobox(row, textvariable=self.var_seg_speaker, values=[], width=16, font=self.f["small"])
         row.add(self.cmb_seg_speaker)
-        row.add(self._tool(row, "Split before word", self._split_at_current_word))
-        row.add(self._tool(row, "Merge with next", self._merge_with_next))
         self.btn_checked = self._tool(row, "Mark checked", self._toggle_checked)
         self.btn_checked.configure(width=13)  # "✓ Checked" and "Mark checked" take the same room
         row.add(self.btn_checked)
-        row.add(self._tool(row, "Markers ▾", self._show_marker_menu))
-        row.add(self._tool(row, "+ Segment", self._insert_segment_dialog))
-        row.add(self._tool(row, "Re-transcribe…", self._retranscribe_dialog))
-        row.add(self._tool(row, "Delete", self._delete_segment))
-        row.add(self._tool(row, "Revert", self._revert_segment_edit))
+        row.add(self._dropdown(row, "Segment ▾", [
+            ("Split before the selected word", self._split_at_current_word),
+            ("Merge with the next segment", self._merge_with_next),
+            ("Insert a segment…", self._insert_segment_dialog),
+            ("Delete this segment", self._delete_segment),
+            ("-",),
+            ("Re-transcribe this passage…", self._retranscribe_dialog),
+            ("Revert my changes", self._revert_segment_edit),
+            ("-",),
+            ("cascade", "Insert marker", [(label, lambda t=text: self._insert_marker(t)) for label, text, _k in MARKERS]),
+        ]))
         row.add(self._tool(row, kbd("Save  ⌘S"), self._save_segment_edit))
         row.add(self._tool(row, kbd("✓ Save & next  ⌘↩"), self._check_and_next, primary=True))
         self.edit_text = tk.Text(ep, height=3, wrap=tk.WORD, font=self.f["transcript"], bg=T["bg_input"], fg=T["fg_primary"],

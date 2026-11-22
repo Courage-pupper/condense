@@ -99,6 +99,12 @@ tab opens:
 - **Bottom:** the segment editor. It shows exactly the highlighted segment. Correct the text while listening.
   Unchanged words keep their exact timing. Every change is saved, logged and can be undone (⌘Z / Ctrl+Z).
 
+**The controls, from top to bottom:** *Transcript ▾* (open, speakers, episodes, exports, mark all checked), the view
+(*Paragraphs*/*Segments*), the *Show* filter, *Find…*, ◀ *Uncertain* ▶, *✂ Cut* and *Episodes…*; then the player with
+*Playback ▾* for its options (follow the text, play a snippet when jumping, skip cuts, show the video, open in a video
+player); in the segment editor *Mark checked*, *Segment ▾* (split, merge, insert, delete, re-transcribe, revert,
+markers), *Save* and *Save & next*.
+
 **A fast review loop:** click into the transcript, then
 
 | Key | |
@@ -114,18 +120,18 @@ tab opens:
 | ⌘[ ⌘] / Ctrl+[ Ctrl+] | back / forward 5 seconds |
 | ⌘⇧. ⌘⇧, / Ctrl+Shift+. Ctrl+Shift+, | faster / slower |
 
-**Text size:** *A−* / *A+* in the transcript toolbar make the transcript and the segment box larger or smaller (80–250 %), also with Ctrl/⌘ + scroll wheel over the transcript or *View ▸ Larger / Smaller Transcript Text*. It is remembered. *View ▸ Larger / Smaller Text* (⌘+ / Ctrl++) sizes the whole window.
+**Text size:** the **Aa** slider to the right, above the transcript, makes the transcript and the segment box larger or smaller (80–250 %; double-click it for 100 %), as do Ctrl/⌘ + scroll wheel over the transcript and *View ▸ Larger / Smaller Transcript Text*. It is remembered. *View ▸ Larger / Smaller Text* (⌘+ / Ctrl++) sizes the whole window.
 
 The line above the transcript shows how much is **checked**. Checked segments get a ✓, and the queue shows the
 percentage for each task. Condense remembers where you stopped in each transcript. If you reviewed a transcript elsewhere, right-click it in the Project tab or the task list and choose *Mark All Checked (100 %)* (or use the Edit menu); ⌘Z / Ctrl+Z undoes it.
 
-**Markers** for things Whisper can't write: *Markers ▾* in the editor, or while typing ⌃L ⌃I ⌃U ⌃C ⌃P ⌃G ⌃N on the Mac
+**Markers** for things Whisper can't write: *Segment ▾ ▸ Insert marker* in the editor, or while typing ⌃L ⌃I ⌃U ⌃C ⌃P ⌃G ⌃N on the Mac
 and Ctrl+Shift+L, I, U, C, P, G, N on Linux and Windows. They insert `[laughs]`, `[inaudible 0:12:31]`, `[unclear: ]`,
 `[crosstalk]`, `[pause]`, `[German]` and `[gestures]`.
 
 **When Whisper got a passage badly wrong** (mumbling, a switch of language): select it and use *Edit ▸ Re-transcribe
-Passage…* (⌘⇧R / Ctrl+Shift+R) with a bigger model or a forced language. *+ Segment*, *Split before word*, *Merge with
-next* and *Delete* fix the segmentation.
+Passage…* (⌘⇧R / Ctrl+Shift+R) with a bigger model or a forced language. *Segment ▾* in the editor splits, merges, inserts and deletes
+segments, and reverts your changes.
 
 ![All keyboard shortcuts](images/shortcuts.png)
 
@@ -141,12 +147,12 @@ The chips under the editor are the speakers. Their numbers are the keys:
   ![Several segments selected](images/multi-select.png)
 
 - **0** adds a new speaker and assigns it.
-- **Speakers…** (transcript toolbar) renames speakers everywhere in the transcript and its exports, for example
+- **Transcript ▾ ▸ Speakers…** renames speakers everywhere in the transcript and its exports, for example
   `SPEAKER_01` → `Robin`. It also adds and removes speakers. Swapping two names works.
 
   ![Speakers dialog](images/speakers.png)
 
-- **Detect speakers…** runs speaker detection again (for example with a different number of speakers). It keeps the
+- **Transcript ▾ ▸ Detect speakers…** runs speaker detection again (for example with a different number of speakers). It keeps the
   speakers you assigned by hand.
 
 Use pseudonyms here, not children's real names: the names end up in every export.
@@ -173,10 +179,10 @@ Use pseudonyms here, not children's real names: the names end up in every export
 Not everything recorded belongs in the analysis: setting up, a toilet break, a conversation with a parent. To cut a
 segment, select it (or a stretch) and press **X**. It is struck through and left out of every export. X again restores
 it, and *Edit ▸ Restore All Cuts…* restores everything. Nothing is deleted: cut segments stay in the master file. With
-*Skip cuts* on, the player jumps over them.
+*Playback ▾ ▸ Skip cut parts* on, the player jumps over them.
 
 The exports keep the **original timeline**: their timestamps match the original video. To get a **shortened video**
-with a transcript timed to it, use *Export trimmed…* (or *File ▸ Export Trimmed Video & Transcript…*):
+with a transcript timed to it, use *Transcript ▾ ▸ Export trimmed video & transcript…* (or the File menu):
 
 - **Exact:** cuts exactly where you cut. Re-encodes the video, which takes a while for long sessions.
 - **Lossless:** fast and without quality loss, but each kept part starts at the nearest keyframe before it. Condense
@@ -298,7 +304,7 @@ Condense's paragraph exports.
 2. Choose `<name>_paragraphs.rtf` (or `.txt`).
 3. When MAXQDA asks for the media file, choose **the video that matches the transcript**:
    - the original video, for the normal exports;
-   - the **trimmed** video, for a trimmed transcript (from *Export trimmed…*, or from a run with `.llc` trims).
+   - the **trimmed** video, for a trimmed transcript (from *Export trimmed video & transcript…*, or from a run with `.llc` trims).
 
    MAXQDA only links the media file chosen during import; you can't add it later. If you pick the wrong video, the
    timestamps will point to the wrong moments.
@@ -327,7 +333,7 @@ MAXQDA can also import the `.srt` subtitles together with the video.
   it again.
 - **Whisper invents text in silence** (repeated phrases, "Thank you for watching"): trim the silent parts before
   transcribing, or cut those segments.
-- **Speakers are mixed up:** enter the right number of speakers and use *Detect speakers…*, or fix stretches with
+- **Speakers are mixed up:** enter the right number of speakers and use *Transcript ▾ ▸ Detect speakers…*, or fix stretches with
   multi-select and the number keys.
 - **Report a problem:** [GitHub issues](https://github.com/Courage-pupper/condense/issues). Never attach recordings or
   transcripts of participants. Describe the problem, or reproduce it with a test video.
