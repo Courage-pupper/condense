@@ -17,7 +17,9 @@ class ProjectPanelMixin:
         top.pack(fill=tk.X)
         self.lbl_pp_name = self._label(top, "", font="body_bold", bg=T["bg_panel"])
         self.lbl_pp_name.pack(side=tk.LEFT)
-        self._tool(top, "↻", lambda: self._refresh_project_panel()).pack(side=tk.RIGHT)
+        btn = self._tool(top, "↻", lambda: self._refresh_project_panel())
+        btn.configure(width=3)
+        btn.pack(side=tk.RIGHT)
         self._tool(top, "Overview…", self._project_button).pack(side=tk.RIGHT, padx=(0, 4))
         self.lbl_pp_info = self._wrapping_label(panel, "", font="small", fg=T["fg_secondary"], bg=T["bg_panel"])
         self.lbl_pp_info.pack(fill=tk.X, pady=(2, 6))
@@ -31,9 +33,10 @@ class ProjectPanelMixin:
         self._tool(row, "Open Project…", self._open_project_dialog).pack(side=tk.LEFT, padx=(6, 0))
         frame = tk.Frame(panel, bg=T["bg_panel"])
         self.pp_frame = frame
-        tree = ttk.Treeview(frame, columns=("status",), show="tree", style="Queue.Treeview", selectmode="extended")
-        tree.column("#0", width=210, stretch=True)
-        tree.column("status", width=130, anchor="e", stretch=False)
+        tree = ttk.Treeview(frame, columns=("length", "status"), show="tree", style="Queue.Treeview", selectmode="extended")
+        tree.column("#0", width=200, stretch=True)
+        tree.column("length", width=62, anchor="e", stretch=False)
+        tree.column("status", width=124, anchor="e", stretch=False)
         sb = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=tree.yview)
         tree.configure(yscrollcommand=sb.set)
         tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -111,8 +114,8 @@ class ProjectPanelMixin:
         nodes: Dict[str, List[Dict]] = {}
         sections: Dict[str, str] = {}
         order = {"session": 0, "interview": 1, "other": 2}
-        items = sorted(items, key=lambda it: ([n for _, n in it["levels"]], order[it["role"]],
-                                              (it["media"] or it["transcript"]).name.lower()))
+        items = sorted(items, key=lambda it: ([proj.natural_key(n) for _, n in it["levels"]], order[it["role"]],
+                                              proj.natural_key((it["media"] or it["transcript"]).name)))
         for k, it in enumerate(items):
             parent = ""
             for depth in range(len(it["levels"])):
@@ -131,23 +134,67 @@ class ProjectPanelMixin:
             name = it["media"].name if it.get("media") else f"{it['row'].get('name', it['transcript'].name)} (recording not found)"
             status, tag = self._pp_status(it)
             iid = f"I:{k}"
-            tree.insert(sec, tk.END, iid=iid, text=name, values=(status,), tags=(tag,) if tag else ())
+            dur = self._pp_durations.get(it["media"]) if it.get("media") else None
+            length = short_ts(dur)[:-2] if dur else ("…" if it.get("media") else "")
+            tree.insert(sec, tk.END, iid=iid, text=name, values=(length, status), tags=(tag,) if tag else ())
             self.pp_items[iid] = it
             for j, ep in enumerate((it.get("row") or {}).get("episodes") or []):
                 eid = f"E:{k}:{j}"
                 tree.insert(iid, tk.END, iid=eid, text=f"▸ {ep['type']} {ep.get('label') or ''}",
-                            values=(f"{short_ts(ep['start'])[:-2]}",))
+                            values=(short_ts(ep["end"] - ep["start"])[:-2], f"at {short_ts(ep['start'])[:-2]}"))
                 self.pp_items[eid] = dict(it, episode=ep)
         for iid, below in nodes.items():
             n_rec = sum(1 for it in below if it.get("media"))
             n_tr = sum(1 for it in below if it.get("row"))
-            tree.item(iid, values=(f"{n_tr}/{n_rec} transcribed" if n_rec else f"{n_tr} transcript(s)",))
+            tree.item(iid, values=("", f"{n_tr}/{n_rec} transcribed" if n_rec else f"{n_tr} transcript(s)"))
             self.pp_items[iid] = {"node": True}
         n_rec = sum(1 for it in items if it.get("media"))
         todo = [it for it in items if it.get("media") and it.get("row") is None and it["role"] != "other"]
         self.lbl_pp_info.config(text=f"{n_rec} recording(s), {sum(1 for it in items if it.get('row'))} transcribed"
                                      + (f" · {len(todo)} session/interview recording(s) not yet transcribed" if todo else ""))
         self._pp_mark_open()
+        self._pp_measure_lengths()
+
+    @property
+    def _pp_durations(self) -> "proj.DurationCache":
+        cache = self.__dict__.get("_pp_duration_cache")
+        if cache is None:
+            cache = self.__dict__["_pp_duration_cache"] = proj.DurationCache(APP_SUPPORT_DIR / "cache" / "durations.json")
+        return cache
+
+    def _pp_measure_lengths(self):
+        """Lengths not measured yet are filled in afterwards, in the background (ffprobe, once per file)."""
+        todo = [(iid, it["media"]) for iid, it in self.pp_items.items()
+                if iid.startswith("I:") and it.get("media") and self._pp_durations.get(it["media"]) is None]
+        if not todo:
+            return
+        stop = self._pp_state["stop"]
+        results: "_queue.Queue" = _queue.Queue()
+
+        def work():
+            for iid, path in todo:
+                if stop.is_set():
+                    break
+                results.put((iid, self._pp_durations.measure(path)))
+            self._pp_durations.save()
+            results.put(None)
+
+        def poll():
+            tree = self.pp_tree
+            while True:
+                try:
+                    item = results.get_nowait()
+                except _queue.Empty:
+                    if not stop.is_set():
+                        self.after(200, poll)
+                    return
+                if item is None:
+                    return
+                iid, dur = item
+                if not stop.is_set() and iid in self.pp_items:
+                    tree.set(iid, "length", short_ts(dur)[:-2] if dur else "?")
+        threading.Thread(target=work, daemon=True).start()
+        self.after(200, poll)
 
     def _pp_mark_open(self):
         tree = self.__dict__.get("pp_tree")
@@ -177,7 +224,8 @@ class ProjectPanelMixin:
                 if it.get("row"):
                     it["row"]["checked_pct"] = pct
                 status, tag = self._pp_status(it)
-                tree.item(iid, values=(status,), tags=tuple(t for t in (tag, "open") if t))
+                tree.set(iid, "status", status)
+                tree.item(iid, tags=tuple(t for t in (tag, "open") if t))
 
     # ----- acting -----
     def _pp_selected(self) -> List[Dict]:

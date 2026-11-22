@@ -385,3 +385,58 @@ def inventory(folder: Path, stop=None, max_dirs: int = 20000) -> List[Dict]:
             outer = t.parent.parent if t.parent in output_dirs else t.parent
             items.append({"role": role_of(outer), "media": None, "transcript": t, "row": row, "levels": group_of(t)})
     return items
+
+
+def natural_key(name: str):
+    """'I4' before 'I10'."""
+    return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", name)]
+
+
+class DurationCache:
+    """Recording lengths, measured once with ffprobe and remembered (by path, size and modification time), so the
+    Project tab can show them without reading every file again."""
+
+    def __init__(self, path: Optional[Path]):
+        self.path = Path(path) if path else None
+        self.data: Dict[str, List] = {}
+        if self.path and self.path.exists():
+            try:
+                self.data = json.loads(self.path.read_text(encoding="utf-8"))
+            except Exception:
+                self.data = {}
+
+    @staticmethod
+    def _key(p: Path) -> Tuple[str, int, int]:
+        st = p.stat()
+        return str(p.resolve()), st.st_size, int(st.st_mtime)
+
+    def get(self, p: Path) -> Optional[float]:
+        try:
+            key, size, mtime = self._key(p)
+        except OSError:
+            return None
+        hit = self.data.get(key)
+        return float(hit[2]) if hit and hit[0] == size and hit[1] == mtime else None
+
+    def measure(self, p: Path) -> Optional[float]:
+        import subprocess
+        try:
+            out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", str(p)],
+                                 capture_output=True, text=True, timeout=60)
+            dur = float(out.stdout.strip())
+        except Exception:
+            return None
+        try:
+            key, size, mtime = self._key(p)
+            self.data[key] = [size, mtime, round(dur, 2)]
+        except OSError:
+            pass
+        return dur
+
+    def save(self):
+        if self.path:
+            try:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                self.path.write_text(json.dumps(self.data), encoding="utf-8")
+            except OSError:
+                pass

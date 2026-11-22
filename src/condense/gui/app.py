@@ -447,8 +447,8 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         # Tasks and the project's recordings share the left side; the project tab is shown when a project is open
         self.left_tabs = ttk.Notebook(left)
         self.left_tabs.pack(fill=tk.BOTH, expand=True)
-        self.tab_tasks = tk.Frame(self.left_tabs, bg=THEME["bg_panel"], pady=6)
-        self.tab_project = tk.Frame(self.left_tabs, bg=THEME["bg_panel"], pady=6)
+        self.tab_tasks = tk.Frame(self.left_tabs, bg=THEME["bg_panel"], padx=8, pady=8)
+        self.tab_project = tk.Frame(self.left_tabs, bg=THEME["bg_panel"], padx=8, pady=8)
         self.left_tabs.add(self.tab_tasks, text="Tasks")
         self.left_tabs.add(self.tab_project, text="Project")
         self._build_queue_panel(self.tab_tasks)

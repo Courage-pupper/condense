@@ -257,7 +257,10 @@ gs = by_name["G1D1_session.mp4"]; assert gs["row"] and gs["row"].get("name") == 
 assert by_name["G1D1_I1.mp4"]["role"] == "interview" and "stray.mp4" not in by_name and "._final_video.mp4" not in by_name
 assert not any(n.startswith("G1D1_I1_new") and by_name[n]["role"] == "other" for n in by_name if n.endswith(".mp4")) or True
 iid = next(i for i, it in app.pp_items.items() if it.get("media") and it["media"].name == "final_video.mp4")
-assert app.pp_tree.item(iid, "values") == ("not transcribed",) if isinstance(app.pp_tree.item(iid, "values"), tuple) else True
+dc = proj.DurationCache(tmp / "durations.json")
+assert dc.get(fv["media"]) is None and abs(dc.measure(fv["media"]) - 3.0) < 0.2
+dc.save(); assert abs(proj.DurationCache(tmp / "durations.json").get(fv["media"]) - 3.0) < 0.2  # remembered
+assert sorted(["D2G1_I10.mp4", "D2G1_I4.mp4", "D2G1_I13.mp4"], key=proj.natural_key) == ["D2G1_I4.mp4", "D2G1_I10.mp4", "D2G1_I13.mp4"]
 n_jobs = len(app.jobs)
 assert app._pp_activate(fv) == "queued" and [Path(p).resolve() for p in app.jobs[-1]["inputs"]] == [(g3 / "Session Recordings" / "final_video.mp4").resolve()]
 assert app._pp_status(fv) == ("in Tasks", "queued")

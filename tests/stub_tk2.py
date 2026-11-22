@@ -41,8 +41,14 @@ class W:
     def get(self):
         return self._val
 
-    def set(self, v):
-        self._val = v
+    def set(self, *args):
+        if len(args) == 1:  # a Tk variable
+            self._val = args[0]
+            return None
+        if len(args) == 3:  # Treeview.set(item, column, value)
+            self.__dict__.setdefault("_cells", {})[(args[0], args[1])] = args[2]
+            return None
+        return self.__dict__.get("_cells", {}).get(tuple(args), "")
 
     def __str__(self):
         return f".!{type(self).__name__.lower()}{id(self)}"

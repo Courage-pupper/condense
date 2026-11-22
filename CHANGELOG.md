@@ -2,6 +2,10 @@
 
 ## 0.14.0 — 2026-11-22
 
+### Project tab
+- Shows each recording's **length** (measured once with ffprobe and remembered) and each episode's length and start.
+- Recordings sort naturally: I4 before I10. More space at the edges of the Tasks and Project tabs.
+
 ### Speakers per group
 - Each group is its own case: *Project ▸ Speakers (Project and Groups)…* keeps a speaker list for the **whole project**
   (people in every group, e.g. facilitators) and one **per group** (its children). A transcript gets the project's

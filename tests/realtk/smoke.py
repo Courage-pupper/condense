@@ -374,6 +374,12 @@ def main():
             break
     names = {it["media"].name: it for it in app.pp_items.values() if it.get("media") and not it.get("episode")}
     assert names["final_video.mp4"]["row"] is None and names["demo_G1D1.mp4"]["row"] is not None, sorted(names)
+    fv_iid = next(i for i, it in app.pp_items.items() if it.get("media") and it["media"].name == "final_video.mp4" and not it.get("episode"))
+    for _ in range(100):  # lengths are measured in the background
+        pump(app, 0.1)
+        if app.pp_tree.set(fv_iid, "length") not in ("…", ""):
+            break
+    assert app.pp_tree.set(fv_iid, "length") == "0:02:00", app.pp_tree.set(fv_iid, "length")
     shot(app, "project-panel")
     app.left_tabs.select(app.tab_tasks)
     w_tidy, td = app._tidy_dialog()
