@@ -17,7 +17,7 @@ class PlayerMixin:
         if doc is None or dur <= 0 or width <= 2:
             return []
         sx = width / dur
-        roster = doc.roster()
+        roster = self._roster()
         items: List[Tuple] = []
         for seg in doc.segments:
             x0, x1 = float(seg.get("start", 0.0)) * sx, max(float(seg.get("start", 0.0)) * sx + 1, float(seg.get("end", 0.0)) * sx)
@@ -137,7 +137,7 @@ class PlayerMixin:
             self._entry(win, var, width=12, font="mono_small").grid(row=r, column=1, sticky="w", pady=3, padx=(10, 6))
             self._tool(win, f"{label} = now", lambda v=var: v.set(short_ts(self._current_pos()))).grid(row=r, column=2, sticky="w")
         self._label(win, "Speaker", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=4, column=0, sticky="w", pady=3)
-        ttk.Combobox(win, textvariable=var_spk, values=doc.roster(), width=20, font=self.f["small"]).grid(row=4, column=1, columnspan=2, sticky="w", pady=3, padx=(10, 0))
+        ttk.Combobox(win, textvariable=var_spk, values=self._roster(), width=20, font=self.f["small"]).grid(row=4, column=1, columnspan=2, sticky="w", pady=3, padx=(10, 0))
         self._label(win, "Text", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=5, column=0, sticky="nw", pady=3)
         text_box = tk.Text(win, height=4, width=48, wrap=tk.WORD, font=self.f["transcript"], bg=T["bg_input"], fg=T["fg_primary"],
                            insertbackground=T["fg_primary"], relief=tk.FLAT, highlightthickness=1, highlightbackground=T["border"],

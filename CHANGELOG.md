@@ -13,6 +13,16 @@
   exports as `[Note: …]`.
 - **Show filter** in the transcript toolbar: All segments / Uncertain / Not checked / With notes / Cut. ↑/↓ move within the
   filtered segments, so you can work through only the uncertain or unchecked ones.
+- **Project overview** (File ▸ Project Overview…): every transcript in a study folder with its length, % checked,
+  % uncertain words, speakers (and how many are still unnamed), cut time, notes and last change. Double-click opens one;
+  *Save as CSV* writes `condense-overview.csv` for your records.
+- **Project speakers:** a `condense-project.json` in the study folder lists the people of the study (facilitators, the
+  children's pseudonyms). They come first in every transcript under that folder, so they keep the same number key and
+  colour in every session. Edit the list from the overview (*Project speakers…*); *Add names from transcripts* collects the
+  names you already used (not `SPEAKER_xx`).
+- **Clean up for Whisper** (Settings ▸ Audio & Whisper): *Level quiet voices* or *Reduce noise + level voices* is applied to
+  the audio Whisper hears — useful for quiet children and noisy rooms. The kept audio and video are unchanged; the setting is
+  recorded in the transcript's provenance.
 
 ### Cutting
 - **Cut while reviewing:** select segments and press **X** (or ✂ Cut / restore). Cut segments are struck through, left out of

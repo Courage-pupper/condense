@@ -104,6 +104,9 @@ class SettingsTabMixin:
         self.var_speech_filter = tk.BooleanVar(value=False)
         self._persist["speech_filter"] = self.var_speech_filter
         self._row_full(aw, self._check(aw.form, "Voice bandpass filter (80 Hz – 8 kHz)", self.var_speech_filter))
+        self.var_audio_cleanup = tk.StringVar(value="Off")
+        self._row_combo(aw, "Clean up for Whisper", self.var_audio_cleanup, ["Off", "Level quiet voices", "Reduce noise + level voices"],
+                        "audio_cleanup")
         self.var_whisper_backend = tk.StringVar(value=DEFAULT_BACKEND)
         self._row_combo(aw, "Backend", self.var_whisper_backend, list(WHISPER_BACKENDS), "whisper_backend")
         self.var_whisper_model = tk.StringVar(value="large-v3-turbo")

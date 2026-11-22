@@ -12,10 +12,11 @@ from condense.gui.file_dialogs import FileDialogsMixin
 from condense.gui.cutting import CuttingMixin
 from condense.gui.trim_dialog import TrimDialogMixin
 from condense.gui.find import FindMixin
+from condense.gui.project import ProjectMixin
 from condense.gui.video import VideoMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")
@@ -197,6 +198,8 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         file_menu.add_command(label="Show Output Folder", command=self._open_selected_job_folder)
         file_menu.add_command(label="Re-export Open Transcript", command=self._reexport_open_transcript)
         file_menu.add_command(label="Export Trimmed Video & Transcript…", command=self._export_trimmed_dialog)
+        file_menu.add_separator()
+        file_menu.add_command(label="Project Overview…", command=self._project_overview)
         if not IS_MAC:
             file_menu.add_separator()
             file_menu.add_command(label="Setup & Status…", command=self._show_setup_modal)

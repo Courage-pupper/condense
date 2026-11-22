@@ -266,7 +266,9 @@ class EditorMixin:
         high_t, med_t, poor_t = report["high_thresh"], report["med_thresh"], report["poor_thresh"]
         show_pct = bool(self.var_show_pct.get())
         speakers = doc.speakers()
-        roster = doc.roster()
+        if new_doc:
+            self._forget_project_cache()
+        roster = self._roster()
         spk_tag = {spk: f"SPK{i % len(SPEAKER_COLORS)}" for i, spk in enumerate(roster)}
         rsegs = report["segments"]
         show = self.var_show_filter.get() if self.__dict__.get("var_show_filter") is not None else "All segments"
@@ -965,7 +967,7 @@ class EditorMixin:
         else:
             current = self.var_seg_speaker.get().strip()
             chips.add(self._label(chips, "Assign:", font="small", fg=T["fg_secondary"]))
-        for i, name in enumerate(doc.roster()):
+        for i, name in enumerate(self._roster()):
             color = SPEAKER_COLORS[i % len(SPEAKER_COLORS)]
             active = name == current
             chip = tk.Label(chips, text=(f"{i + 1}  " if i < 9 else "") + name, font=self.f["small_bold"], padx=8, pady=2, cursor="hand2",
@@ -1017,7 +1019,7 @@ class EditorMixin:
         doc = self.active_doc
         if doc is None:
             return
-        roster = doc.roster()
+        roster = self._roster()
         if 1 <= number <= len(roster):
             self._assign_speaker(roster[number - 1])
 

@@ -440,11 +440,19 @@ class PipelineWorker(threading.Thread):
             tail = [l for l in (err or "").splitlines() if l.strip()][-6:]
             raise RuntimeError(f"{what} failed (exit code {proc.returncode}):\n" + "\n".join(tail))
 
-    def to_wav16k(self, src: Path, dst: Path) -> Path:
-        self.run_checked(
-            ["ffmpeg", "-hide_banner", "-y", "-i", str(src), "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", str(dst)],
-            f"Converting {src.name} to 16 kHz WAV",
-        )
+    # What Whisper hears can be cleaned up; the kept audio/video files are not changed by this.
+    AUDIO_CLEANUP = {
+        "Off": None,
+        "Level quiet voices": "dynaudnorm=f=150:g=15:p=0.9",
+        "Reduce noise + level voices": "highpass=f=80,lowpass=f=8000,afftdn=nf=-25:tn=1,dynaudnorm=f=150:g=15:p=0.9",
+    }
+
+    def to_wav16k(self, src: Path, dst: Path, audio_filter: Optional[str] = None) -> Path:
+        cmd = ["ffmpeg", "-hide_banner", "-y", "-i", str(src), "-vn"]
+        if audio_filter:
+            cmd += ["-af", audio_filter]
+        self.run_checked(cmd + ["-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", str(dst)],
+                         f"Converting {src.name} to 16 kHz WAV" + (" (with audio cleanup)" if audio_filter else ""))
         return dst
 
     def probe_media_signature(self, path: Path) -> Optional[Tuple]:
@@ -836,7 +844,14 @@ class PipelineWorker(threading.Thread):
             }
         if not do_whisper:
             return
-        if extracted is not None:
+        cleanup = self.config.get("audio_cleanup") or "Off"
+        audio_filter = self.AUDIO_CLEANUP.get(cleanup)
+        if audio_filter:
+            src = extracted if extracted is not None else active_vid
+            self.log(f"Audio cleanup for Whisper: {cleanup}.", "INFO")
+            whisper_input = self.to_wav16k(src, temp_dir / f"{base}_{job_ids[0]}_whisper_input.wav", audio_filter)
+            processing["whisper_audio_cleanup"] = {"setting": cleanup, "ffmpeg_filter": audio_filter}
+        elif extracted is not None:
             whisper_input = extracted
         else:
             whisper_input = self.to_wav16k(active_vid, temp_dir / f"{base}_{job_ids[0]}_whisper_input.wav")

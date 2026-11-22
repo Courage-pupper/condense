@@ -201,6 +201,7 @@ class QueueMixin:
             "hb_encoder": self.var_hb_encoder.get(), "hb_quality": self.var_hb_quality.get(), "hb_resolution": self.var_hb_res.get(),
             "hb_fps": self.var_hb_fps.get(), "hb_container": self.var_hb_container.get(), "hb_audio_bitrate": self.var_hb_abitrate.get(),
             "audio_format": self.var_audio_format.get(), "speech_filter": self.var_speech_filter.get(),
+            "audio_cleanup": self.var_audio_cleanup.get(),
             "whisper_backend": self.var_whisper_backend.get(), "whisper_model": self.var_whisper_model.get(),
             "whisper_lang": self.var_whisper_lang.get(), "diarize_mode": self.var_diarize_mode.get(), "num_speakers": num_speakers,
             "whisper_prompt": self.var_whisper_prompt.get().strip(),
@@ -334,6 +335,7 @@ class QueueMixin:
             vocab = [v for v in str(s.get("whisper_prompt") or "").split(",") if v.strip()]
             parts.append(f"Whisper {s.get('whisper_model')} ({backend}), language {lang}, speakers {diar}"
                          + (f", vocabulary {len(vocab)} term{'s' if len(vocab) != 1 else ''}" if vocab else "")
+                         + (f", audio cleanup: {s['audio_cleanup'].lower()}" if s.get("audio_cleanup") not in (None, "", "Off") else "")
                          + f"; exports {', '.join(fmts) or 'none'}")
         return "  ·  ".join(parts) or "—"
 

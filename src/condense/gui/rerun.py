@@ -164,7 +164,7 @@ class RerunMixin:
             ("Model", v_model, ["large-v3", "large-v3-turbo", "medium", "small"]),
             ("Language", v_lang, WHISPER_LANGUAGES),
             ("Output", v_task, ["Transcribe (keep the spoken language)", "Translate to English"]),
-            ("Speaker", v_spk, ["(keep the speakers of the replaced segments)"] + doc.roster()),
+            ("Speaker", v_spk, ["(keep the speakers of the replaced segments)"] + self._roster()),
         ):
             self._label(win, label, font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=r, column=0, sticky="w", pady=3)
             ttk.Combobox(win, textvariable=var, values=values, state="readonly", width=36, font=self.f["small"]).grid(row=r, column=1, columnspan=2, sticky="w", padx=(10, 0), pady=3)
