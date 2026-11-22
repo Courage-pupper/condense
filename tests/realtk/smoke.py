@@ -178,12 +178,12 @@ def main():
     app.var_seg_note.set("Robin shows the drawing to the group")
     app._save_segment_edit()
     assert TD.load(docs[0].path).segments[7].get("note")
-    app._goto_segment(1)
+    app._goto_segment(8)
     app._toggle_cut()
     pump(app)
     assert TD.load(docs[0].path).cuts, "cut not saved"
     assert pt.tag_ranges("CUT"), "cut not shown"
-    app._goto_segment(8)
+    app._goto_segment(7)
     pump(app, 0.5)
     shot(app, "notes-and-cuts")
     for flt in ("Uncertain", "Not checked", "With notes", "Cut", "All segments"):
