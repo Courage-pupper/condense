@@ -268,6 +268,7 @@ class EditorMixin:
         show_pct = bool(self.var_show_pct.get())
         speakers = doc.speakers()
         if new_doc:
+            self._project_follow_doc(doc)
             self._forget_project_cache()
         roster = self._roster()
         spk_tag = {spk: f"SPK{i % len(SPEAKER_COLORS)}" for i, spk in enumerate(roster)}

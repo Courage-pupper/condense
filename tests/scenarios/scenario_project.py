@@ -47,8 +47,23 @@ stub_tk2.tk.Tk.mainloop = lambda self: holder.setdefault("app", self)
 pipe.launch_gui(); app = holder["app"]
 pipe.messagebox.askyesno = lambda *a, **k: True
 
-print("[2] the project's speakers in the editor: same number keys in every session")
+print("[2] no project open: the overview offers New / Open instead of scanning the home folder")
+assert app._project_dir() is None and app.btn_project.cget("text") == "No project open"
+scanned = []
+real_overview = proj.overview
+proj.overview = lambda *a, **k: scanned.append(a) or real_overview(*a, **k)
+win, st = app._project_overview()
+assert "recent" in st and not scanned, "the overview must not scan without a project"
+# a folder scan never goes into hidden folders or backups, and stops on huge trees
+(study / ".hidden").mkdir(); (study / ".hidden" / "x.transcript.json").write_text("{}")
+(study / "_backups").mkdir(); (study / "_backups" / "y.transcript.json").write_text("{}")
+assert len(proj.transcripts_under(study)) == 2
+assert proj.transcripts_under(study, max_dirs=1) == []  # gives up after one folder (the top one has no transcripts)
+ok("start dialog instead of a scan; hidden folders, backups skipped; bounded scan")
+
+print("[2b] the project's speakers in the editor: same number keys in every session")
 app._render_doc(TD.load(d2.path))
+assert app._project_dir() == study.resolve() and app.btn_project.cget("text") == f"Project: {study.name}", app.btn_project.cget("text")
 assert app._roster()[:3] == ["Facilitator", "Co-facilitator", "Robin"] and app._roster()[3:] == ["SPEAKER_00", "SPEAKER_01"]
 chips = [w.cget("text") for w in app.spk_chips._items]
 assert chips[1:4] == ["1  Facilitator", "2  Co-facilitator", "3  Robin"], chips
@@ -62,7 +77,7 @@ ok("project speakers first in chips and number keys, also when not yet used in t
 
 print("[3] project overview window and speaker list editor")
 win, st = app._project_overview()
-st["v_dir"].set(str(study)); rows_ui = st["refresh"]()
+rows_ui = st["refresh"](background=False)
 assert len(rows_ui) == 2 and "2 transcript(s)" in st["lbl"].cget("text") and "Facilitator, Co-facilitator, Robin" in st["lbl"].cget("text")
 st["export"]()
 assert (study / "condense-overview.csv").exists()
@@ -75,6 +90,29 @@ sp["save"]()
 assert proj.load_project(study / proj.PROJECT_FILE)["speakers"][:4] == ["Facilitator", "Co-facilitator", "Sam", "Robin"]
 assert app._roster()[2] == "Sam"
 ok("overview totals + CSV; speaker list: add, reorder, import names (not SPEAKER_xx), save → editor follows")
+
+print("[3b] new / open / close / recent projects")
+app._set_project(None)
+assert app._project_dir() is None
+other = Path(tempfile.mkdtemp(prefix="other_")) / "Study B"
+win, nd = app._new_project_dialog()
+nd["create"](); assert "Choose" in nd["error"].cget("text")              # no folder yet
+nd["folder"].set(str(study / "day1")); nd["create"]()
+assert "inside the project" in nd["error"].cget("text")                  # nested projects are refused
+pipe.FileDialogsMixin._ask_directory = lambda self, title, start: str(other)
+nd["choose"](); assert nd["name"].get() == "Study B"
+nd["speakers"].set("Facilitator, Alex"); nd["create"]()
+assert other.is_dir() and proj.load_project(other / proj.PROJECT_FILE)["speakers"] == ["Facilitator", "Alex"]
+assert app._project_dir() == other.resolve() and app.settings["recent_projects"][:2] == [str(other.resolve()), str(study.resolve())]
+plain = Path(tempfile.mkdtemp(prefix="plain_"))
+app._open_project_folder(plain)                                          # asks, then makes it a project
+assert (plain / proj.PROJECT_FILE).exists() and app._project_dir() == plain.resolve()
+app._open_project_folder(study / "day1" / "group A")                     # a subfolder opens its project
+assert app._project_dir() == study.resolve()
+app._render_doc(TD.load(d1.path))
+assert app._start_dir_in_project(str(HOME)) == str(study.resolve())      # file choosers start in the project
+assert app._start_dir_in_project(str(d1.path.parent)) == str(d1.path.parent)
+ok("create (with checks), open a plain folder or a subfolder, recent list, choosers start in the project")
 
 print("[4] audio cleanup for Whisper (real ffmpeg filters)")
 for cleanup in ("Level quiet voices", "Reduce noise + level voices"):

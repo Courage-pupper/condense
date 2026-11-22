@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.11.1 — 2026-11-22
+
+### Fixed
+- **Opening the project overview could freeze Condense.** With no transcript open, it searched your whole home folder,
+  external drives included, before showing anything. It now never searches without a project, searches in the
+  background, skips hidden folders and backups, and stops on very large drives. *Search All Transcripts* uses the same
+  safe search.
+
+### Projects are now something you open
+- A new **Project** menu: *New Project…*, *Open Project…*, *Open Recent*, *Close Project*, *Project Overview…* and
+  *Project Speakers…*. A project is still just the study's folder; nothing is moved.
+- The button at the top right shows the open project (click it for the overview), or **No project open** (click it to
+  start or open one).
+- Opening a transcript of a study opens its project. *Open Transcript* and *Search All Transcripts* start in the project's
+  folder.
+- The user guide's project section explains the workflow.
+
 ## 0.11.0 — 2026-11-22
 
 Cut recordings down to what matters, review faster, keep a whole study in view — and Condense now runs on Windows.

@@ -184,18 +184,36 @@ Use the trimmed video and the trimmed transcript **together** in MAXQDA (see bel
 
 ## 8. Projects: many sessions of one study
 
-Put the sessions of a study under one folder, for example `Study/Session 1/…`, `Study/Session 2/…`.
+A **project** is the folder of one study. Every transcript in that folder or its subfolders belongs to it, for example
+`Study/Session 1/…` and `Study/Session 2/…`. Nothing is moved or copied; Condense only puts a small
+`condense-project.json` in the folder.
 
-**Project overview** (*File ▸ Project Overview…*) lists every transcript in the folder with its length, how much is
-checked, the share of uncertain words, speakers (and how many still have no name), cut time, notes and the last
-change. Double-click opens one. *Save as CSV* writes `condense-overview.csv`, for your records or your supervisor.
+![No project open: start or open one](images/project-start.png)
+
+- **Start one:** *Project ▸ New Project…*, or the **No project open** button at the top right. Choose the study's
+  folder: an existing one with sessions in it, or a new one you create in the folder chooser. Give the project a name
+  and, if you like, its speakers.
+
+  ![New project](images/project-new.png)
+
+- **Open one:** *Project ▸ Open Project…* (choose the study's folder) or *Project ▸ Open Recent*. Opening any transcript
+  of a study also opens its project.
+- **While a project is open,** its name is shown at the top right. *Open Transcript* and *Search All Transcripts* start
+  in its folder. *Project ▸ Close Project* closes it; the transcripts stay where they are.
+- **Getting sessions into it:** set a task's output folder (*Task Details ▸ Output*) to a folder inside the project, or
+  keep your videos in the study folder (results are saved next to them). You can also move finished session folders
+  into it.
+
+**Project overview** (click the project's name, or *Project ▸ Project Overview…*) lists every transcript with its
+length, how much is checked, the share of uncertain words, speakers (and how many still have no name), cut time,
+notes and the last change. Double-click opens one. *Save as CSV* writes `condense-overview.csv`, for your records or
+your supervisor.
 
 ![Project overview](images/project-overview.png)
 
-**Project speakers** (*Project speakers…* in the overview): the people of the study, in a fixed order. They come first
-in every transcript under the folder, so **Facilitator is always 1, Robin always 2**, with the same colours, in every
-session. *Add names from transcripts* collects the names you have already used. The list is saved as
-`condense-project.json` in the study folder.
+**Project speakers** (*Project speakers…* in the overview, or *Project ▸ Project Speakers…*): the people of the study,
+in a fixed order. They come first in every transcript of the project, so **Facilitator is always 1, Robin always 2**,
+with the same colours, in every session. *Add names from transcripts* collects the names you have already used.
 
 ![Project speakers](images/project-speakers.png)
 

@@ -167,12 +167,8 @@ class FindMixin:
     # ----- across transcripts -----
     @staticmethod
     def _transcripts_under(folder: Path) -> List[Path]:
-        out = []
-        for p in sorted(Path(folder).rglob(f"*{TranscriptDocument.SUFFIX}")):
-            if "_backups" in p.parts:
-                continue
-            out.append(p)
-        return out
+        from condense.core.project import transcripts_under
+        return transcripts_under(folder)  # skips hidden folders, backups and links; bounded on huge drives
 
     def _search_all(self, folder: Path, rx) -> List[Dict]:
         results = []
@@ -218,7 +214,9 @@ class FindMixin:
     def _search_all_dialog(self):
         T = THEME
         doc = self.active_doc
-        start = self.settings.get("search_dir") or (str(doc.out_dir.parent) if doc is not None else str(Path.home()))
+        project = self._project_dir()
+        start = (str(project) if project else None) or self.settings.get("search_dir") or (
+            str(doc.out_dir.parent) if doc is not None else str(Path.home()))
         win = tk.Toplevel(self)
         win.title("Search all transcripts")
         win.configure(bg=T["bg_panel"], padx=14, pady=12)

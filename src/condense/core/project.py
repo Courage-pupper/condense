@@ -5,6 +5,7 @@ number keys and colours in every session. The overview summarises every transcri
 """
 import csv
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -63,9 +64,36 @@ def effective_roster(doc_roster: List[str], project: List[str]) -> List[str]:
     return list(project) + [s for s in doc_roster if s not in project]
 
 
-def transcripts_under(folder: Path) -> List[Path]:
+SKIP_DIRS = {"_backups", "node_modules", "__pycache__", "$RECYCLE.BIN", "System Volume Information", "lost+found"}
+
+
+def transcripts_under(folder: Path, stop=None, max_dirs: int = 20000) -> List[Path]:
+    """Transcripts in folder and its subfolders. Skips hidden folders, backups and symbolic links, and gives up after
+    max_dirs folders, so pointing it at a home folder or a whole drive cannot hang the app."""
     from condense.core.transcript import TranscriptDocument
-    return [p for p in sorted(Path(folder).rglob(f"*{TranscriptDocument.SUFFIX}")) if "_backups" not in p.parts]
+    found: List[Path] = []
+    seen = 0
+    for root, dirs, files in os.walk(folder, followlinks=False, onerror=lambda e: None):
+        seen += 1
+        if seen > max_dirs or (stop is not None and stop.is_set()):
+            break
+        dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d not in SKIP_DIRS)
+        found += [Path(root) / f for f in files if f.endswith(TranscriptDocument.SUFFIX)]
+    return sorted(found)
+
+
+def create_project(folder: Path, name: Optional[str] = None, speakers: Optional[List[str]] = None) -> Path:
+    """Make folder a project (created if needed). An existing project file keeps its speakers unless new ones are given."""
+    folder = Path(folder).expanduser()
+    folder.mkdir(parents=True, exist_ok=True)
+    existing = folder / PROJECT_FILE
+    keep = load_project(existing)["speakers"] if existing.exists() else []
+    return save_project(folder, speakers if speakers else keep, name=name or folder.name)
+
+
+def project_name(project_folder: Path) -> str:
+    f = Path(project_folder) / PROJECT_FILE
+    return str(load_project(f).get("name") or Path(project_folder).name) if f.exists() else Path(project_folder).name
 
 
 def overview_row(path: Path) -> Dict:
@@ -94,9 +122,11 @@ def overview_row(path: Path) -> Dict:
     }
 
 
-def overview(folder: Path) -> List[Dict]:
+def overview(folder: Path, stop=None) -> List[Dict]:
     rows = []
-    for p in transcripts_under(folder):
+    for p in transcripts_under(folder, stop=stop):
+        if stop is not None and stop.is_set():
+            break
         try:
             rows.append(overview_row(p))
         except Exception as exc:

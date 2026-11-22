@@ -201,13 +201,12 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         file_menu.add_command(label="Show Output Folder", command=self._open_selected_job_folder)
         file_menu.add_command(label="Re-export Open Transcript", command=self._reexport_open_transcript)
         file_menu.add_command(label="Export Trimmed Video & Transcript…", command=self._export_trimmed_dialog)
-        file_menu.add_separator()
-        file_menu.add_command(label="Project Overview…", command=self._project_overview)
         if not IS_MAC:
             file_menu.add_separator()
             file_menu.add_command(label="Setup & Status…", command=self._show_setup_modal)
             file_menu.add_command(label=self._install_label(), command=self._install_desktop_shortcut)
         mb.add_cascade(label="File", menu=file_menu)
+        self._build_project_menu(mb)
 
         em = tk.Menu(mb, tearoff=0)
         em.add_command(label="Undo Transcript Change", accelerator=f"{acc}Z", command=self._undo)
@@ -343,6 +342,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         header = tk.Frame(self, bg=THEME["bg_panel"], padx=14, pady=7)
         header.pack(fill=tk.X, side=tk.TOP)
         self._tool(header, "Setup & Status", self._show_setup_modal).pack(side=tk.RIGHT)
+        self._build_project_button(header)
         self._label(header, "Condense", font="title", bg=THEME["bg_panel"]).pack(side=tk.LEFT)
         self.sub_lbl = self._wrapping_label(header, "", font="mono_small", fg=THEME["fg_secondary"], bg=THEME["bg_panel"])
         self.sub_lbl.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(14, 10))

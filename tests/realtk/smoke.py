@@ -218,10 +218,30 @@ def main():
     pump(app)
     shot(app, "speakers", w)
     w.destroy()
+    # projects: opening a transcript of the study opened its project; the overview scans in the background
+    assert app._project_dir() == study.resolve(), app._project_dir()
+    assert app.btn_project.cget("text") == "Project: Demo study"
+    app._set_project(None)
+    win0, _ = app._project_start_dialog()
+    pump(app)
+    shot(app, "project-start", win0)
+    win0.destroy()
+    win0, nd = app._new_project_dialog()
+    nd["folder"].set(str(study))
+    nd["name"].set("Demo study")
+    pump(app)
+    shot(app, "project-new", win0)
+    nd["create"]()  # the folder is already a project: keeps its speakers, opens the overview
+    for w in toplevels(app):
+        if w.title().startswith("Project —"):
+            w.destroy()
+    assert app._project_dir() == study.resolve()
     win, st = app._project_overview()
-    st["v_dir"].set(str(study))
-    st["refresh"]()
-    pump(app, 0.5)
+    for _ in range(100):
+        pump(app, 0.1)
+        if st["tree"].get_children():
+            break
+    assert len(st["tree"].get_children()) == 3, st["lbl"].cget("text")
     shot(app, "project-overview", win)
     win2, sp = app._project_speakers_dialog(study)
     pump(app)

@@ -432,7 +432,7 @@ class PlayerMixin:
         self._timeline_playhead()
 
     def _open_transcript(self):
-        initial = self.settings.get("last_transcript_dir") or str(Path.home())
+        initial = self._start_dir_in_project(self.settings.get("last_transcript_dir"))
         path = self._ask_open_file("Open transcript", initial, [("Condense transcript", "*.transcript.json"), ("JSON", "*.json")])
         if not path:
             return
