@@ -103,11 +103,11 @@ tab opens:
 
 | Key | |
 |---|---|
-| **Space** / **Esc** | play / pause (Esc also works while typing) |
+| **Space** / **Esc** | play / pause |
 | **R** | replay the segment |
 | **↑ / ↓** | previous / next segment |
 | **← / →** | previous / next uncertain word |
-| **Return** | edit the segment's text |
+| **Return** | edit the segment's text; **Esc** (or Tab) saves and takes you back to the transcript |
 | **⌘↩ / Ctrl+Enter** | save, mark checked, go to the next segment (also while typing) |
 | **C** | mark checked / not checked |
 | **1 – 9** | assign speaker 1–9 |

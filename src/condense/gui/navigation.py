@@ -144,14 +144,14 @@ class NavigationMixin:
             "While typing in the segment box\n"
             f"  {c}Return          save, mark checked, next segment\n"
             f"  {c}S               save the segment\n"
-            "  Tab              save and go back to the transcript\n"
+            "  Esc or Tab       save and go back to the transcript (then ↑/↓, Return)\n"
             + ("  ⌃1 – ⌃9          assign speaker 1–9\n"
                "  ⌃L ⌃I ⌃U ⌃C ⌃P ⌃G ⌃N   markers (laughs, inaudible, unclear, crosstalk, pause, German, gestures)\n\n"
                if IS_MAC else
                "  Alt+1 – Alt+9    assign speaker 1–9\n"
                "  Ctrl+Shift+ L I U C P G N   markers (laughs, inaudible, unclear, crosstalk, pause, German, gestures)\n\n") +
             "Anywhere\n"
-            "  Esc              play / pause\n"
+            "  Esc              play / pause (outside the text boxes)\n"
             f"  {c}[ / {c}]          back / forward 5 s\n"
             f"  {c}⇧. / {c}⇧,        faster / slower\n"
             f"  {c}Z / {c}⇧Z         undo / redo a transcript change\n"

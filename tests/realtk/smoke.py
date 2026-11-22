@@ -112,6 +112,10 @@ def _direct(app, sequence):
         app._insert_marker("[laughs]")
     elif sequence in ("<Down>", "<Up>"):
         app._move_segment(+1 if sequence == "<Down>" else -1)
+    elif sequence == "<Escape>":
+        app._focus_transcript()
+    elif sequence == "<Return>":
+        app._focus_editor()
     pump(app, 0.1)
 
 
@@ -202,7 +206,9 @@ def main():
     k = next(i for i in range(10, len(d0.segments) - 2) if d0.segments[i]["speaker"] != d0.segments[i - 1]["speaker"])
     app._goto_segment(k)
     pump(app, 0.4)
-    pt.yview_scroll(-2, "units")  # not at the top of the view: a jump would show
+    sp0 = app.word_spans[app.current_span]
+    pt.yview(f"{sp0['line']}.{sp0['c0']}")  # the open segment a few lines below the top: a jump would show
+    pt.yview_scroll(-3, "units")
     pump(app, 0.2)
     y_before = screen_y()
     assert y_before is not None and y_before > 20, y_before
@@ -223,6 +229,23 @@ def main():
     app.var_autoplay.set(True)
     ok(f"14 × ↓: layout unchanged; scrolled only when needed; speaker change and merge keep the segment in place "
        f"(y {y_before} → {y_after} → {y_merged})")
+
+    # Esc while typing in the segment box: back to the transcript, no play/pause; then ↓ moves on, Return edits again
+    app._goto_segment(3)
+    pump(app, 0.2)
+    app._focus_editor()
+    pump(app, 0.2)
+    was_playing = app.playing
+    if sys.platform != "win32" or app.focus_get() is app.edit_text:
+        key(app, app.edit_text, "<Escape>")
+        assert app.focus_get() is pt, f"Esc left the focus on {app.focus_get()}"
+        assert app.playing == was_playing, "Esc in the segment box must not start or stop playback"
+        key(app, pt, "<Down>")
+        assert app.edit_seg_idx == 4, app.edit_seg_idx
+        key(app, pt, "<Return>")
+        assert app.focus_get() is app.edit_text
+        key(app, app.edit_text, "<Escape>")
+        ok("Esc in the segment box → back to the transcript; ↓ moves on; Return edits again")
 
     print("[2] transcript editor with real key events")
     app._render_doc(TD.load(docs[0].path))

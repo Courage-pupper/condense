@@ -226,6 +226,10 @@ class EditorMixin:
                 widget.bind("<Control-Button-5>", lambda e: (self._transcript_size_step(-1), "break")[-1])
         pt.bind(f"<{MOD}-Key-a>", lambda e: (self._select_all_segments(), "break")[-1])
         self.edit_text.bind("<Tab>", brk(self._focus_transcript))  # a tab character is never wanted in a transcript
+        # Esc while typing: save and go back to the transcript (↑/↓ move on, Return edits again). Outside the text
+        # boxes Esc still plays and pauses; "break" keeps it from doing both.
+        for w in (self.edit_text, self.ent_seg_note):
+            w.bind("<Escape>", lambda e: (self._focus_transcript(), "break")[-1])
         self.cmb_seg_speaker.bind("<<ComboboxSelected>>", lambda e: self._on_speaker_combo())
         self.sel_segs: List[int] = []
         self.sel_anchor: Optional[int] = None

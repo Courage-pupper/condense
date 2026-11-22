@@ -18,6 +18,10 @@
 - The lines above and below the transcript (summary, word info, the segment editor's hint, its buttons and the speaker
   chips) keep a fixed height, so moving with ↑/↓ no longer shifts the layout.
 
+### Editing
+- **Esc while typing** in the segment box (or the note field) saves and takes you back to the transcript, where ↑/↓ move
+  on and Return edits again. Outside the text boxes Esc still plays and pauses.
+
 ### Clip names in more than one pattern
 - Interview clips named in different ways (`G1D1_I1`, `D1G4_I1`) are all recognised: the patterns are learned from the
   clips already in the interview folders, and the template accepts alternatives (`G{group}D{day}_I{n} | D{day}G{group}_I{n}`).
