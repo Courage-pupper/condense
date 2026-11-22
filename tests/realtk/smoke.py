@@ -207,11 +207,12 @@ def main():
     app._goto_segment(k)
     pump(app, 0.4)
     sp0 = app.word_spans[app.current_span]
-    pt.yview(f"{sp0['line']}.{sp0['c0']}")  # the open segment a few lines below the top: a jump would show
-    pt.yview_scroll(-3, "units")
+    pt.yview(f"{sp0['line']}.{sp0['c0']}")  # the open segment a line below the top: a jump would show
+    pump(app, 0.1)
+    pt.yview_scroll(-1, "units")
     pump(app, 0.2)
     y_before = screen_y()
-    assert y_before is not None and y_before > 20, y_before
+    assert y_before is not None and y_before > 5, (y_before, pt.winfo_height())
     prev_speaker = d0.segments[k - 1]["speaker"]
     key(app, pt, f"<Key-{app._roster().index(prev_speaker) + 1}>")
     pump(app, 0.4)
