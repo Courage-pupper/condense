@@ -1,75 +1,101 @@
 # Changelog
 
-## 0.11.0 — 2026-11-20
+## 0.11.0 — 2026-11-22
 
-### Fixed
-- **Linux and Windows:** Ctrl+C inserted a [crosstalk] marker as well as copying, Ctrl+I inserted an [inaudible] marker
-  instead of a segment, and Ctrl+1–3 assigned speakers instead of switching tabs. Markers are now Ctrl+Shift+letter there
-  (as the menu already said), and speakers while typing are **Alt+1–9**. The Mac keeps ⌃.
-- Linux and Windows: buttons and hints showed Mac key symbols (⌘S, ⌘↩); they now read Ctrl+S, Ctrl+Enter.
+Cut recordings down to what matters, review faster, keep a whole study in view — and Condense now runs on Windows.
+New here? The [user guide](https://github.com/Courage-pupper/condense/blob/main/docs/user-guide.md) walks through a
+whole study, from recordings to a checked transcript in MAXQDA (also under *Help ▸ User Guide*).
+
+### Highlights
+- **Cutting:** press **X** to leave segments out of the transcript, then export a trimmed video with a transcript timed to
+  it, ready for MAXQDA.
+- **Trim before transcribing:** mark setup time and breaks on a filmstrip; they are skipped before Whisper runs.
+- **Find & replace**, in one transcript or across every transcript of a study.
+- **Notes on segments** and a **Show filter** (uncertain / not checked / with notes / cut).
+- **Project overview** and **project speakers**: progress of every session at a glance, and the same number keys and
+  colours for the same people in every session.
+- **Clean up for Whisper:** levelling and noise reduction for quiet children and noisy rooms.
+- **GPU check:** Condense tests the GPU before you transcribe, and *Help ▸ Test GPU…* shows the details.
+- **Windows** (preview), with NVIDIA and AMD GPUs.
+
+### ⚠ Changed shortcuts on Linux and Windows
+- Assigning a speaker **while typing** in the segment box is now **Alt+1–9** (was Ctrl+1–9). Ctrl+1–3 switch tabs again.
+- **Markers** are **Ctrl+Shift+letter** (as the menu always said). Before, Ctrl+C inserted `[crosstalk]` as well as
+  copying, and Ctrl+I inserted `[inaudible]` instead of a segment.
+- In the transcript itself nothing changes: **1–9** assign speakers as before. The Mac keeps ⌃1–9 and ⌃letter.
+
+### Cutting and trimming
+- **Cut while reviewing:** select segments and press **X** (or *✂ Cut / restore*). Cut segments are struck through, left
+  out of every export (TXT, SRT, VTT, RTF, paragraphs), skipped while playing (*Skip cuts*) and don't count towards
+  % checked. Nothing is deleted: X again restores them, *Edit ▸ Restore All Cuts…* restores everything, and ⌘Z / Ctrl+Z
+  undoes.
+- **Export trimmed video & transcript** (File menu or the transcript toolbar): the video without the cut parts, and a
+  transcript re-timed to it, so MAXQDA links them correctly.
+  - *Exact* re-encodes and cuts exactly where you cut.
+  - *Lossless* is fast and keeps full quality but can only start on keyframes. The transcript is timed to what was
+    really written, and cuts too short to apply are reported.
+  - A `.cuts.json` record documents what was cut; the cuts can also be saved as a LosslessCut project.
+- **Trim before transcribing** (*Task Details ▸ Trim…*): mark parts to leave out on a filmstrip and waveform, with a frame
+  preview and 5-second playback (I / O mark a cut's start and end). Saved as `<video>-proj.llc`, which Condense applies
+  before transcribing and LosslessCut opens too. Condense never deletes a LosslessCut project it did not write.
+- When LosslessCut cuts are applied before transcribing, the trimmed video the transcript is timed to is now kept
+  (`<name>_trimmed.<ext>`) instead of being discarded.
 
 ### Reviewing
-- **Find & replace** (⌘F / Ctrl+F, or *Find…* in the transcript toolbar): matching segments are highlighted, ◀/▶ (Return /
-  ⇧Return) step through them, *Replace* and *Replace all* are one undo step each; options for match case and whole words.
-  Word timings are kept; only changed words are marked as edited.
-- **Search all transcripts** (Edit menu or *All transcripts…* in the find bar): searches every transcript in a folder
-  (and its subfolders), opens a hit at its segment, and can replace everywhere — each transcript gets a backup, new
-  exports and an entry in its edit history.
-- **Notes on segments:** a ✎ Note field under the segment text. Notes appear in the transcript and in the TXT and paragraph
-  exports as `[Note: …]`.
-- **Show filter** in the transcript toolbar: All segments / Uncertain / Not checked / With notes / Cut. ↑/↓ move within the
-  filtered segments, so you can work through only the uncertain or unchecked ones.
-- **Project overview** (File ▸ Project Overview…): every transcript in a study folder with its length, % checked,
+- **Find & replace** (⌘F / Ctrl+F, or *Find…*): matches are highlighted; Return / ⇧Return step through them. *Replace* and
+  *Replace all* are one undo step each, with options for match case and whole words. Word timings are kept.
+- **Search all transcripts** (*Edit ▸ Search All Transcripts…*): searches every transcript in a folder and its subfolders,
+  opens a hit at its segment, and can replace everywhere — for a name Whisper always gets wrong, or to swap a name for a
+  pseudonym. Each changed transcript gets a backup, new exports and an entry in its edit history.
+- **Notes on segments:** a ✎ Note field under the segment text. Notes show in the transcript and appear as `[Note: …]` in
+  the TXT and paragraph exports.
+- **Show filter:** All segments / Uncertain / Not checked / With notes / Cut. ↑/↓ then move only through those segments.
+- **Clean up for Whisper** (*Settings ▸ Audio & Whisper*): *Level quiet voices* or *Reduce noise + level voices*. Only
+  the audio Whisper hears is cleaned; your video and audio files are unchanged. The setting is recorded in the
+  transcript's provenance.
+
+### Projects
+- **Project overview** (*File ▸ Project Overview…*): every transcript in a study folder with its length, % checked,
   % uncertain words, speakers (and how many are still unnamed), cut time, notes and last change. Double-click opens one;
-  *Save as CSV* writes `condense-overview.csv` for your records.
-- **Project speakers:** a `condense-project.json` in the study folder lists the people of the study (facilitators, the
-  children's pseudonyms). They come first in every transcript under that folder, so they keep the same number key and
-  colour in every session. Edit the list from the overview (*Project speakers…*); *Add names from transcripts* collects the
-  names you already used (not `SPEAKER_xx`).
-- **Clean up for Whisper** (Settings ▸ Audio & Whisper): *Level quiet voices* or *Reduce noise + level voices* is applied to
-  the audio Whisper hears — useful for quiet children and noisy rooms. The kept audio and video are unchanged; the setting is
-  recorded in the transcript's provenance.
-
-### For colleagues
-- **User guide** ([docs/user-guide.md](docs/user-guide.md), also *Help ▸ User Guide*): the whole workflow with
-  screenshots — queue and settings, trimming, the review loop, speakers, notes and find, cutting, projects, MAXQDA
-  import, data handling and troubleshooting. The screenshots are taken from the real app in CI with invented demo data.
-
-### Reliability
-- The real app is tested on a real Tk on macOS, Linux (virtual display) and Windows in every CI run, including real key
-  events for the shortcuts; a 3-hour session is tested through every core path and both trim modes.
-- Large modules split up (editor, pipeline worker); faster re-timing for sessions with many cuts.
-- Project overview: readable table colours.
-
-### Cutting
-- **Cut while reviewing:** select segments and press **X** (or ✂ Cut / restore). Cut segments are struck through, left out of
-  every export (TXT, SRT, VTT, RTF, paragraphs), skipped while playing ("Skip cuts") and don't count towards % checked.
-  Nothing is deleted: X again restores them, and ⌘Z / Ctrl+Z undoes.
-- **Export trimmed video & transcript** (File menu or the transcript toolbar): writes the video without the cut parts and
-  a transcript re-timed to it, so MAXQDA links them correctly. *Exact* re-encodes and cuts precisely; *Lossless* copies
-  the streams (fast) but can only start on keyframes — the transcript is timed to what was really written, and cuts too
-  short to apply are reported. A `.cuts.json` record documents what was cut. Optionally saves the cuts as a LosslessCut project.
-- **Trim before transcribing** (Task Details ▸ Trim…): mark parts to leave out (setup, breaks) on a filmstrip and waveform
-  with a frame preview and 5-second playback; saved as `<video>-proj.llc`, which Condense applies before transcribing and
-  LosslessCut opens too. Condense never deletes a LosslessCut project it did not write.
-- When LosslessCut cuts are applied before transcribing, the trimmed video the transcript is timed to is now kept
-  (`<name>_trimmed.<ext>`) instead of being discarded with the temporary files.
+  *Save as CSV* writes `condense-overview.csv`.
+- **Project speakers:** the people of a study (facilitators, the children's pseudonyms) in a fixed order, saved as
+  `condense-project.json` in the study folder. They come first in every transcript below it, so they have the same
+  number key and colour in every session. *Add names from transcripts* collects the names you already used.
 
 ### Windows (preview)
-- New Windows platform layer (Windows 10/11, 64-bit). Whisper and speaker detection run on the GPU through PyTorch: CUDA on NVIDIA, AMD's ROCm build of PyTorch for Windows on the Radeon RX 7900 / RX 9000 series (Windows 11, AMD Software 26.2.2+), otherwise the CPU.
-- Video compression on the GPU with ffmpeg: NVENC (NVIDIA), AMF (AMD) and Quick Sync (Intel). The default `auto_h265` tests which encoder really works on the PC (an encoder listed by ffmpeg is not necessarily usable) and falls back to the CPU.
-- One-line install from PowerShell: `irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1 | iex` — winget installs Python 3.12, FFmpeg and HandBrake CLI; options (`-Gpu`, `-Venv`, `-WithPyannote`, …) are remembered; in-app updates work as on macOS and Linux.
-- Hugging Face token in the Windows Credential Manager, Start-menu and Desktop shortcuts with an icon, no console windows, sharp text on high-DPI screens, `%APPDATA%` / `%LOCALAPPDATA%` locations.
+- Windows 10/11, 64-bit. Whisper and speaker detection run on the GPU through PyTorch: CUDA on NVIDIA; AMD's ROCm for
+  Windows on the Radeon RX 7900 / RX 9000 series (Windows 11, AMD Software 26.2.2 or later); otherwise the CPU.
+- Video compression on the GPU: NVENC (NVIDIA), AMF (AMD) or Quick Sync (Intel). The default tests which encoder really
+  works on the PC and falls back to the CPU.
+- One-line install from PowerShell (see below); winget installs Python 3.12, FFmpeg and HandBrake CLI. In-app updates
+  work as on macOS and Linux.
+- Hugging Face token in the Windows Credential Manager; Start-menu and Desktop shortcuts; no console windows; sharp text
+  on high-resolution screens.
 
 ### Linux
-- **Ctrl+Enter** (save, mark checked, next segment) now works when the transcript has the focus, not only in the text box — on Linux and Windows menu shortcuts are not active by themselves as they are on macOS. The number-pad Enter works too. It acts only on the Transcript tab.
-- The harmless message `amdgpu.ids: No such file or directory` (from the libdrm inside ROCm builds of PyTorch, which looks for AMD's GPU name table under /opt/amdgpu) no longer appears in the Console.
-- **Native file chooser:** opening videos, folders and transcripts now uses the desktop's own dialog — GNOME/GTK through `zenity`, KDE through `kdialog` — with external drives, bookmarks, recent places and search, instead of Tk's old Motif-style dialog. It starts in the last folder used (or the home folder if that drive is no longer connected) and also matches upper-case extensions such as `.MP4`. The installer adds `zenity`; `CONDENSE_FILE_DIALOG=tk|zenity|kdialog` chooses explicitly.
+- **Native file chooser:** the desktop's own dialog (GNOME/GTK via `zenity`, KDE via `kdialog`) with external drives,
+  bookmarks and search, instead of Tk's old dialog. It starts in the last folder used and also finds upper-case
+  extensions such as `.MP4`. The installer adds `zenity`.
+- **Ctrl+Enter** (save, mark checked, next segment) now also works when the transcript has the focus, and with the
+  number-pad Enter.
+- The harmless `amdgpu.ids: No such file or directory` message from ROCm builds of PyTorch no longer appears in the
+  Console.
 
 ### All platforms
-- **GPU check before transcribing:** at start-up Condense now runs a short calculation on the GPU instead of only asking whether one is visible (with ROCm a card can be visible yet unusable). The header shows the result with the GPU's memory; **Help ▸ Test GPU…** shows the details (PyTorch, ROCm/CUDA version, GPU architecture, test result, video encoder). If a task would transcribe on the CPU although a GPU backend is chosen, **Run** asks first. The Linux and Windows installers run the same test at the end.
-- Without HandBrake, the x265/x264 encoders now use ffmpeg's own x265/x264 instead of failing.
+- **GPU check:** at start-up Condense runs a short calculation on the GPU instead of only asking whether one is visible
+  (with ROCm a card can be visible yet unusable). The header shows the result; *Help ▸ Test GPU…* shows the details. If a
+  task would transcribe on the CPU although a GPU backend is chosen, *Run* asks first. The Linux and Windows installers
+  run the same test.
+- **User guide** with screenshots: *Help ▸ User Guide*.
+- Buttons and hints show Ctrl+S, Ctrl+Enter … on Linux and Windows instead of Mac symbols.
+- Without HandBrake, the x265/x264 encoders use ffmpeg's own instead of failing.
 - Whisper's output is read as UTF-8.
+- Faster re-timing for long sessions with many cuts; the project overview table is readable on Linux.
+
+### Under the hood
+- Every CI run now tests the real app on macOS, Linux and Windows, including real key presses for the shortcuts, and a
+  3-hour session through every core path and both trim modes.
+- The largest modules (editor, pipeline worker) are split into smaller ones.
 
 ## 0.10.0 — 2026-11-20
 
