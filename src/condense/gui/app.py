@@ -186,7 +186,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         return tk.Label(parent, text=text, bg=bg or THEME["bg_card"], fg=fg or THEME["fg_primary"], font=self.f[font], **kw)
 
     def _wrapping_label(self, parent, text: str, **kw):
-        lbl = self._label(parent, text, justify=tk.LEFT, anchor="w", **kw)
+        kw.setdefault("justify", tk.LEFT)
+        kw.setdefault("anchor", "w")
+        lbl = self._label(parent, text, **kw)
         lbl.bind("<Configure>", lambda e: lbl.configure(wraplength=max(120, e.width - 4)))
         return lbl
 

@@ -11,6 +11,13 @@
 - New transcripts appear when a run finishes. Condense's own copies (compressed videos in result folders) and macOS `._`
   files are not listed.
 
+### Fixed
+- **The transcript no longer jumps** when you give a segment another speaker, merge or split segments, cut, or undo.
+  The paragraphs regroup after such a change, and the view used to be restored as a fraction of the whole text, which
+  then pointed somewhere else. The segment you are working on now stays at the same place on screen.
+- The lines above and below the transcript (summary, word info, the segment editor's hint, its buttons and the speaker
+  chips) keep a fixed height, so moving with ↑/↓ no longer shifts the layout.
+
 ### Clip names in more than one pattern
 - Interview clips named in different ways (`G1D1_I1`, `D1G4_I1`) are all recognised: the patterns are learned from the
   clips already in the interview folders, and the template accepts alternatives (`G{group}D{day}_I{n} | D{day}G{group}_I{n}`).

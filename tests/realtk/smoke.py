@@ -110,6 +110,8 @@ def _direct(app, sequence):
         app.notebook.select((app.tab_settings, app.tab_console, app.tab_preview)[int(m.group(2)) - 1])
     elif sequence == "<Control-Shift-Key-L>":
         app._insert_marker("[laughs]")
+    elif sequence in ("<Down>", "<Up>"):
+        app._move_segment(+1 if sequence == "<Down>" else -1)
     pump(app, 0.1)
 
 
@@ -167,6 +169,60 @@ def main():
     app.notebook.select(app.tab_console)
     pump(app)
     ok("queue with tasks, task details, settings and console tabs")
+
+    print("[1b] ↑/↓ keep the layout still and scroll only when needed")
+    app._render_doc(TD.load(docs[0].path))
+    app.notebook.select(app.tab_preview)
+    pump(app, 0.8)
+    pt = app.preview_text
+    app.var_autoplay.set(False)
+    app._goto_segment(0)
+    pump(app, 0.5)
+    layout = []
+    moves = []
+    for i in range(14):
+        nxt = app.seg_ranges.get(app.edit_seg_idx + 1) if app.edit_seg_idx is not None else None
+        visible = bool(nxt and pt.bbox(nxt[0]) and pt.bbox(f"{nxt[0]} lineend") is not None)
+        y0 = pt.yview()[0]
+        key(app, pt, "<Down>")
+        pump(app, 0.2)
+        layout.append((pt.winfo_height(), pt.winfo_rooty(), app.edit_text.winfo_rooty()))
+        moves.append((visible, y0, pt.yview()[0]))
+    assert len(set(layout)) == 1, f"the layout moved while pressing ↓: {layout}"
+    jumped = [(i, y0, y1) for i, (vis, y0, y1) in enumerate(moves) if vis and abs(y1 - y0) > 1e-6]
+    assert not jumped, f"the transcript scrolled although the next segment was visible: {jumped}"
+    assert any(abs(y1 - y0) > 1e-6 for _, y0, y1 in moves) or all(v for v, _, _ in moves)
+    # assigning another speaker regroups the paragraphs; merging joins two segments: the open segment stays put
+    def screen_y():
+        sp = app.word_spans[app.current_span]
+        bb = pt.bbox(f"{sp['line']}.{sp['c0']}")
+        return bb[1] if bb else None
+
+    d0 = TD.load(docs[0].path)
+    k = next(i for i in range(10, len(d0.segments) - 2) if d0.segments[i]["speaker"] != d0.segments[i - 1]["speaker"])
+    app._goto_segment(k)
+    pump(app, 0.4)
+    pt.yview_scroll(-2, "units")  # not at the top of the view: a jump would show
+    pump(app, 0.2)
+    y_before = screen_y()
+    assert y_before is not None and y_before > 20, y_before
+    prev_speaker = d0.segments[k - 1]["speaker"]
+    key(app, pt, f"<Key-{app._roster().index(prev_speaker) + 1}>")
+    pump(app, 0.4)
+    assert TD.load(docs[0].path).segments[k]["speaker"] == prev_speaker
+    y_after = screen_y()
+    line_h = app.f["transcript"].metrics("linespace")
+    assert y_after is not None and abs(y_after - y_before) <= line_h * 1.5, f"the transcript jumped: {y_before} → {y_after}"
+    app._merge_with_next()
+    pump(app, 0.4)
+    y_merged = screen_y()
+    assert y_merged is not None and abs(y_merged - y_before) <= line_h * 2.5, f"merging made the transcript jump: {y_before} → {y_merged}"
+    app._undo()
+    app._undo()
+    pump(app, 0.3)
+    app.var_autoplay.set(True)
+    ok(f"14 × ↓: layout unchanged; scrolled only when needed; speaker change and merge keep the segment in place "
+       f"(y {y_before} → {y_after} → {y_merged})")
 
     print("[2] transcript editor with real key events")
     app._render_doc(TD.load(docs[0].path))

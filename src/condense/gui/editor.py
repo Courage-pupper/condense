@@ -88,9 +88,11 @@ class EditorMixin:
 
         info = tk.Frame(tab, bg=T["bg_panel"])
         info.pack(fill=tk.X, pady=(6, 4))
-        self.lbl_ci_summary = self._wrapping_label(info, kbd("No transcript open. Select a finished job or use Open… (⇧⌘O)."), font="small_bold", bg=T["bg_panel"])
+        # Fixed heights for the lines that change on every ↑/↓: if they grew or shrank, the transcript would jump.
+        self.lbl_ci_summary = self._wrapping_label(info, kbd("No transcript open. Select a finished job or use Open… (⇧⌘O)."), font="small_bold",
+                                                   bg=T["bg_panel"], height=2, anchor="nw")
         self.lbl_ci_summary.pack(fill=tk.X)
-        self.lbl_word = self._wrapping_label(info, "", font="mono_small", fg=T["fg_secondary"], bg=T["bg_panel"])
+        self.lbl_word = self._label(info, "", font="mono_small", fg=T["fg_secondary"], bg=T["bg_panel"], anchor="w", justify=tk.LEFT, height=1)
         self.lbl_word.pack(fill=tk.X)
 
         # --- segment editor (bottom) ---
@@ -99,7 +101,7 @@ class EditorMixin:
         row = self._flow(ep, padx=6, pady=4, bg=T["bg_card"])
         row.pack(fill=tk.X)
         self.edit_row = row
-        self.lbl_edit_title = self._label(row, "Click a word to edit its segment", font="small_bold")
+        self.lbl_edit_title = self._label(row, "Click a word to edit its segment", font="small_bold", width=46, anchor="w")
         row.add(self.lbl_edit_title)
         row.add(self._label(row, "Speaker", font="small", fg=T["fg_secondary"]))
         self.var_seg_speaker = tk.StringVar(value="")
@@ -108,6 +110,7 @@ class EditorMixin:
         row.add(self._tool(row, "Split before word", self._split_at_current_word))
         row.add(self._tool(row, "Merge with next", self._merge_with_next))
         self.btn_checked = self._tool(row, "Mark checked", self._toggle_checked)
+        self.btn_checked.configure(width=13)  # "✓ Checked" and "Mark checked" take the same room
         row.add(self.btn_checked)
         row.add(self._tool(row, "Markers ▾", self._show_marker_menu))
         row.add(self._tool(row, "+ Segment", self._insert_segment_dialog))
@@ -136,7 +139,7 @@ class EditorMixin:
         for seq in (f"<{MOD}-Return>", f"<{MOD}-KP_Enter>"):
             self.ent_seg_note.bind(seq, lambda e: (self._check_and_next(), "break")[-1])
         self.edit_note_original = ""
-        self.lbl_edit_hint = self._wrapping_label(ep, self.EDIT_HINT, font="small", fg=T["fg_dim"])
+        self.lbl_edit_hint = self._wrapping_label(ep, self.EDIT_HINT, font="small", fg=T["fg_dim"], height=2, anchor="nw")
         self.lbl_edit_hint.pack(fill=tk.X)
         self.edit_seg_idx: Optional[int] = None
         self.edit_original = ("", "")
@@ -247,18 +250,68 @@ class EditorMixin:
         keep = None
         if self.current_span is not None and self.current_span < len(self.word_spans):
             sp = self.word_spans[self.current_span]
-            keep = (sp["seg"], sp["w"])
+            keep = (sp["seg"], sp["w"], sp["start"])
+        anchor = self._view_anchor() if keep_view else None
         top = self.preview_text.yview()[0] if keep_view else 0.0
         self._render_doc(self.active_doc, reset_editor=False)
-        try:
-            self.preview_text.yview_moveto(top)
-        except Exception:
-            pass
+        if not (anchor and self._restore_view_anchor(anchor)):
+            try:
+                self.preview_text.yview_moveto(top)
+            except Exception:
+                pass
         if keep is not None:
-            idx = self.span_lookup.get(keep) or self.span_lookup.get((keep[0], 0))
+            idx = self.span_lookup.get(keep[:2])
+            if idx is None or abs(self.word_spans[idx]["start"] - keep[2]) > 0.01:  # segments merged/split: by time
+                idx = self._span_near(keep[2])
             if idx is not None:
                 self._select_span(idx, scroll=False, load_editor=False)
         self._highlight_edit_segment()
+
+    # A redraw can regroup paragraphs (a segment joins another speaker's turn, two segments merge, a cut header
+    # appears). Keeping the same *fraction* of the text in view then lands somewhere else, so the view is anchored to
+    # a word instead: the open segment's (or the first word on screen) stays at the same height on screen.
+    def _span_near(self, t: float) -> Optional[int]:
+        import bisect
+        if not self.span_starts:
+            return None
+        i = bisect.bisect_left(self.span_starts, t - 1e-6)
+        cands = [j for j in (i - 1, i) if 0 <= j < len(self.span_starts)]
+        return min(cands, key=lambda j: abs(self.span_starts[j] - t)) if cands else None
+
+    def _view_anchor(self) -> Optional[Tuple[float, int]]:
+        pt = self.preview_text
+        try:
+            idx = self.current_span
+            if idx is not None and idx < len(self.word_spans):
+                sp = self.word_spans[idx]
+                bb = pt.bbox(f"{sp['line']}.{sp['c0']}")
+                if isinstance(bb, tuple) and len(bb) == 4:
+                    return sp["start"], int(bb[1])
+            top_line = int(str(pt.index("@0,0")).split(".")[0])
+            for line in range(top_line, top_line + 60):
+                for i in self.line_spans.get(line, []):
+                    sp = self.word_spans[i]
+                    bb = pt.bbox(f"{sp['line']}.{sp['c0']}")
+                    if isinstance(bb, tuple) and len(bb) == 4:
+                        return sp["start"], int(bb[1])
+        except Exception:
+            return None
+        return None
+
+    def _restore_view_anchor(self, anchor: Tuple[float, int]) -> bool:
+        t, y = anchor
+        i = self._span_near(t)
+        if i is None:
+            return False
+        sp = self.word_spans[i]
+        pt = self.preview_text
+        try:
+            pt.yview(f"{sp['line']}.{sp['c0']}")  # that word's display line at the top …
+            if y > 0:
+                pt.yview_scroll(-int(y), "pixels")  # … then back down to where it was on screen
+        except Exception:
+            return False
+        return True
 
     def _render_doc(self, doc: TranscriptDocument, reset_editor: bool = True):
         if reset_editor and self.active_doc is not None and doc is not self.active_doc:
@@ -562,7 +615,7 @@ class EditorMixin:
             self.lbl_edit_hint.config(text=kbd(f"This segment was {what} with Whisper {rt.get('model')} (language: {rt.get('language')}). "
                                                "Undo (⌘Z) brings back the previous version."), fg="#8fb3ff")
         elif orig and " ".join(str(orig).split()) != " ".join(text.split()) and not seg.get("edited"):
-            self.lbl_edit_hint.config(text=f"Whisper's own text for this segment differed: “{str(orig).strip()[:200]}” — listen and correct if needed.",
+            self.lbl_edit_hint.config(text=f"Whisper's own text for this segment differed: “{str(orig).strip()[:110]}” — listen and correct if needed.",
                                       fg=THEME["warn"])
         else:
             self.lbl_edit_hint.config(text=self.EDIT_HINT, fg=THEME["fg_dim"])

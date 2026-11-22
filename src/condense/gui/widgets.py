@@ -38,10 +38,12 @@ class FlowFrame(tk.Frame):
         return widget
 
     def clear(self):
+        """Remove the children but keep the current height until the new ones are laid out: shrinking to nothing and
+        growing back would make everything below jump on each refresh (e.g. the speaker chips on every ↑/↓)."""
         for w in self._items:
             w.destroy()
         self._items = []
-        self.relayout()
+        self.after_idle(self.relayout)
 
     def _on_configure(self, event):
         if event.width != self._last_width:
