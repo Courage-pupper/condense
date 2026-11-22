@@ -116,6 +116,22 @@ assert app._start_dir_in_project(str(HOME)) == str(study.resolve())      # file 
 assert app._start_dir_in_project(str(d1.path.parent)) == str(d1.path.parent)
 ok("create (with checks), open a plain folder or a subfolder, recent list, choosers start in the project")
 
+print("[3c] transcript text size, separate from the window zoom, remembered")
+base = pipe.FONT_SPECS["transcript"][1]
+app._set_transcript_size(1.0)
+app._transcript_size_step(+1); app._transcript_size_step(+1)
+assert app.transcript_scale == 1.3 and app.settings["transcript_scale"] == 1.3
+assert app.lbl_text_size.cget("text") == "130%"
+for _ in range(20):
+    app._transcript_size_step(+1)
+assert app.transcript_scale == 2.5
+app._set_zoom(1.2, save=False)  # the window zoom keeps the transcript's own factor
+app._set_transcript_size(0.5)
+assert app.transcript_scale == 0.8
+assert pipe.SettingsStore.load()["transcript_scale"] == 0.8
+app._set_zoom(1.0, save=False); app._set_transcript_size(1.0)
+ok("A−/A+ steps 80–250 %, saved in the settings, combined with the window zoom")
+
 print("[4] audio cleanup for Whisper (real ffmpeg filters)")
 for cleanup in ("Level quiet voices", "Reduce noise + level voices"):
     out = media / f"clean_{cleanup.split()[0]}"

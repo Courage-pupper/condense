@@ -64,6 +64,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self._build_main_layout()
         self._apply_settings()
         self._set_zoom(float(self.settings.get("ui_scale", 1.0)), save=False)
+        self._set_transcript_size(float(self.settings.get("transcript_scale", 1.0)), save=False)
         self._load_queue()
 
         self.bind_all("<MouseWheel>", self._on_mousewheel, add="+")
@@ -138,13 +139,41 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
     def _set_zoom(self, scale: float, save: bool = True):
         self.ui_scale = min(1.8, max(0.7, round(scale, 2)))
         for name, (_fam, base, _w) in FONT_SPECS.items():
-            self.f[name].configure(size=max(7, int(round(base * self.ui_scale))))
+            extra = self.transcript_scale if name == "transcript" else 1.0
+            self.f[name].configure(size=max(7, int(round(base * self.ui_scale * extra))))
         self.style.configure("Queue.Treeview", rowheight=int(self.f["body"].metrics("linespace") * 1.45) + 4)
         for flow in self._flows:
             self.after_idle(flow.relayout)
         if save:
             self.settings["ui_scale"] = self.ui_scale
             SettingsStore.save(self.settings)
+
+    TRANSCRIPT_SIZES = [0.8, 0.9, 1.0, 1.15, 1.3, 1.5, 1.75, 2.0, 2.5]
+
+    @property
+    def transcript_scale(self) -> float:
+        return float(self.__dict__.get("_transcript_scale") or self.settings.get("transcript_scale") or 1.0)
+
+    def _set_transcript_size(self, scale: float, save: bool = True):
+        """The transcript and the segment box only, on top of View ▸ Larger/Smaller Text (which sizes everything)."""
+        self._transcript_scale = min(self.TRANSCRIPT_SIZES[-1], max(self.TRANSCRIPT_SIZES[0], round(float(scale), 2)))
+        _fam, base, _w = FONT_SPECS["transcript"]
+        self.f["transcript"].configure(size=max(7, int(round(base * self.ui_scale * self._transcript_scale))))
+        lbl = self.__dict__.get("lbl_text_size")
+        if lbl is not None:
+            lbl.config(text=f"{self._transcript_scale * 100:.0f}%")
+        if save:
+            self.settings["transcript_scale"] = self._transcript_scale
+            SettingsStore.save(self.settings)
+
+    def _transcript_size_step(self, direction: int):
+        cur = self.transcript_scale
+        sizes = self.TRANSCRIPT_SIZES
+        if direction > 0:
+            nxt = next((s for s in sizes if s > cur + 1e-6), sizes[-1])
+        else:
+            nxt = next((s for s in reversed(sizes) if s < cur - 1e-6), sizes[0])
+        self._set_transcript_size(nxt)
 
     def _flow(self, parent, **kw) -> FlowFrame:
         flow = FlowFrame(parent, **kw)
@@ -259,6 +288,12 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         v.add_command(label="Smaller Text", accelerator=f"{acc}-", command=lambda: self._set_zoom(self.ui_scale - 0.1))
         v.add_command(label="Actual Size", accelerator=f"{acc}0", command=lambda: self._set_zoom(1.0))
         v.add_separator()
+        v.add_command(label="Larger Transcript Text", accelerator=f"{acc}Option-+" if IS_MAC else "Ctrl+Alt++",
+                      command=lambda: self._transcript_size_step(+1))
+        v.add_command(label="Smaller Transcript Text", accelerator=f"{acc}Option--" if IS_MAC else "Ctrl+Alt+-",
+                      command=lambda: self._transcript_size_step(-1))
+        v.add_command(label="Default Transcript Text", command=lambda: self._set_transcript_size(1.0))
+        v.add_separator()
         self.var_show_pct = tk.BooleanVar(value=False)
         v.add_checkbutton(label="Show % on Uncertain Words", variable=self.var_show_pct, command=self._rerender)
         self.var_show_video = tk.BooleanVar(value=True)
@@ -320,6 +355,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         # Use the <Mod-Key-x> form: in Tk "<Command-1>" would mean Command + mouse button 1.
         for key, fn in keys.items():
             self.bind_all(f"<{MOD}-Key-{key}>", lambda e, fn=fn: (fn(), "break")[-1])
+        alt = "Option" if IS_MAC else "Alt"
+        for key, d in (("equal", +1), ("plus", +1), ("minus", -1)):
+            self.bind_all(f"<{MOD}-{alt}-Key-{key}>", lambda e, d=d: (self._transcript_size_step(d), "break")[-1])
         self.bind_all("<Escape>", self._toggle_play)  # works while typing in the segment editor
         if not IS_MAC:
             # On macOS the menu's ⌘↩ works wherever the focus is (Tk hands accelerators to the system menu). On Linux and

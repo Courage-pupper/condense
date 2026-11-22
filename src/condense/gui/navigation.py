@@ -158,7 +158,9 @@ class NavigationMixin:
             f"  {c}⇧R              re-transcribe a passage\n"
             f"  {c}I               insert a missing segment\n"
             f"  {c}1 / {c}2 / {c}3     Settings / Console / Transcript tab\n"
-            f"  {c}+ / {c}- / {c}0     zoom")
+            f"  {c}+ / {c}- / {c}0     zoom (everything)\n"
+            + ("  ⌘⌥+ / ⌘⌥-        transcript text larger / smaller (or ⌘ + scroll wheel)" if IS_MAC else
+               "  Ctrl+Alt++ / Ctrl+Alt+-   transcript text larger / smaller (or Ctrl + scroll wheel)"))
         if not IS_MAC:
             text = text.replace("⌃", "Ctrl+").replace("⇧", "Shift+")
         T = THEME

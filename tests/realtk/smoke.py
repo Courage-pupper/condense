@@ -296,6 +296,12 @@ def main():
     for z in (1.2, 0.9, 1.0):
         app._set_zoom(z, save=False)
         pump(app, 0.1)
+    size0 = int(app.f["transcript"].cget("size"))
+    app._transcript_size_step(+1)
+    app._transcript_size_step(+1)
+    pump(app, 0.1)
+    assert int(app.f["transcript"].cget("size")) > size0, "transcript text size did not change"
+    app._set_transcript_size(1.0, save=False)
     ok("shortcuts, speakers, project overview + speakers, trim (with frames from ffmpeg), zoom")
 
     print("[4] a 3-hour transcript in the real text widget")

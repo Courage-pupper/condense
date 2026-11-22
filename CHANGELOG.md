@@ -30,6 +30,11 @@ by file as before.
 - The **overview is a tree** — Day ▸ Group ▸ transcript ▸ episodes — with totals per day and group; double-click an
   episode to go to it. The CSV has a column per level.
 
+### Reviewing
+- **Transcript text size:** *A−* / *A+* in the transcript toolbar (80–250 %), Ctrl/⌘ + scroll wheel over the transcript,
+  or *View ▸ Larger / Smaller Transcript Text*. Sizes the transcript and the segment box only, on top of the window zoom,
+  and is remembered.
+
 ### Projects are now something you open
 - A new **Project** menu: *New Project…*, *Open Project…*, *Open Recent*, *Close Project*, *Project Overview…* and
   *Project Speakers…*. A project is still just the study's folder; nothing is moved.

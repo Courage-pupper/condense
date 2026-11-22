@@ -157,7 +157,7 @@ ok(f"found at {iv['start']:.2f} s (cut at 47.30 s), match {iv['source']['match']
 print("[5] export an episode as a clip with a transcript timed to it")
 ep = TD.load(doc.path).get_episode(iv["id"])
 out = study / "Day 1 2026-08-10" / "Group 1" / "Semi-structured Interviews"
-assert app._episode_default_dir(ep) == out
+assert app._episode_default_dir(ep).resolve() == out.resolve()
 app._start_episode_export(session, ep, "G1D1_I1_new", out, "exact", wait=True)
 msg = app.msg_queue.get_nowait()
 while msg.get("type") != "episode":

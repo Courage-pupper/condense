@@ -114,6 +114,8 @@ tab opens:
 | ⌘[ ⌘] / Ctrl+[ Ctrl+] | back / forward 5 seconds |
 | ⌘⇧. ⌘⇧, / Ctrl+Shift+. Ctrl+Shift+, | faster / slower |
 
+**Text size:** *A−* / *A+* in the transcript toolbar make the transcript and the segment box larger or smaller (80–250 %), also with Ctrl/⌘ + scroll wheel over the transcript or *View ▸ Larger / Smaller Transcript Text*. It is remembered. *View ▸ Larger / Smaller Text* (⌘+ / Ctrl++) sizes the whole window.
+
 The line above the transcript shows how much is **checked**. Checked segments get a ✓, and the queue shows the
 percentage for each task. Condense remembers where you stopped in each transcript.
 

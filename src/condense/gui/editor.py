@@ -42,6 +42,12 @@ class EditorMixin:
         cmb_show.bind("<<ComboboxSelected>>", lambda e: (self._autosave_edit(rerender=False), self._rerender()))
         bar.add(cmb_show)
         bar.add(self._tool(bar, "Find…", self._toggle_find))
+        bar.add(self._separator(bar))
+        bar.add(self._label(bar, "Text", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]))
+        bar.add(self._tool(bar, "A−", lambda: self._transcript_size_step(-1)))
+        self.lbl_text_size = self._label(bar, f"{self.transcript_scale * 100:.0f}%", font="small", fg=T["fg_secondary"], bg=T["bg_panel"])
+        bar.add(self.lbl_text_size)
+        bar.add(self._tool(bar, "A+", lambda: self._transcript_size_step(+1)))
         self.var_autoplay = tk.BooleanVar(value=True)
         self._persist["autoplay"] = self.var_autoplay
         bar.add(self._check(bar, "Play snippet on jump", self.var_autoplay, bg=T["bg_panel"], font="small"))
@@ -209,6 +215,12 @@ class EditorMixin:
         for k in ("e", "E"):
             pt.bind(f"<Key-{k}>", brk(self._mark_episode))
         pt.bind("<Return>", brk(self._focus_editor))
+        # Ctrl/⌘ + mouse wheel over the transcript: its text size (like a browser)
+        for widget in (pt, self.edit_text):
+            widget.bind(f"<{MOD}-MouseWheel>", lambda e: (self._transcript_size_step(+1 if e.delta > 0 else -1), "break")[-1])
+            if not IS_MAC:
+                widget.bind("<Control-Button-4>", lambda e: (self._transcript_size_step(+1), "break")[-1])
+                widget.bind("<Control-Button-5>", lambda e: (self._transcript_size_step(-1), "break")[-1])
         pt.bind(f"<{MOD}-Key-a>", lambda e: (self._select_all_segments(), "break")[-1])
         self.edit_text.bind("<Tab>", brk(self._focus_transcript))  # a tab character is never wanted in a transcript
         self.cmb_seg_speaker.bind("<<ComboboxSelected>>", lambda e: self._on_speaker_combo())
