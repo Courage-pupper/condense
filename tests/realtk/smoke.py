@@ -82,10 +82,15 @@ def shot(app, name, win=None):
 
 
 def key(app, widget, sequence):
-    widget.focus_force()
-    pump(app, 0.05)
+    """A real key press. Key events go to the focused widget, so wait until it really has the focus (Windows can be slow)."""
+    for _ in range(40):
+        widget.focus_force()
+        pump(app, 0.05)
+        if app.focus_get() is widget:
+            break
+    assert app.focus_get() is widget, f"{widget} did not get the keyboard focus"
     widget.event_generate(sequence)
-    pump(app, 0.1)
+    pump(app, 0.15)
 
 
 def main():
