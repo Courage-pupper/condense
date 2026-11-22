@@ -183,3 +183,59 @@ assert "In Plenary" in app.cmb_show.cget("values") if isinstance(app.cmb_show.cg
 rows = proj.overview(study)
 assert len(next(r for r in rows if r["name"] == "G1D1_session")["episodes"]) == 2
 ok("types saved; overview rows list each transcript's episodes")
+
+print("[7] folder structure: read from the folders, names numbered per group across days")
+from condense.core import structure as stlib
+st = proj.project_settings(study)["structure"]
+assert st.sessions == "{Day}/{Group}/Session Recordings", st.sessions
+assert st.interviews == "{Day}/{Group}/Semi-structured Interviews/G{group}D{day}_I{n}", st.interviews
+assert st.levels == ["Day", "Group"]
+app._render_doc(TD.load(doc.path))
+assert app._next_interview_name() == "G1D1_I2"            # G1D1_I1 exists (and the episode was renamed by its export)
+d2_inter = study / "Day 2 2026-08-11" / "Group 1" / "Semi-structured Interviews"
+d2_inter.mkdir()
+for n in (4, 5):
+    (d2_inter / f"G1D2_I{n}.mp4").write_bytes(b"x")
+assert app._next_interview_name() == "G1D1_I6"            # counts across the group's days: I5 on day 2 is taken
+app._set_multi_selection([12, 13])
+win, ed = app._mark_episode()
+assert ed["type"].get() == "Interview" and ed["label"].get() == "G1D1_I6", (ed["type"].get(), ed["label"].get())
+win, ps = app._project_settings_dialog()
+assert ps["preset"].get() == "Workshops: Day ▸ Group"
+ps["interviews"].set("{Day}/{Group}/Interviews/I"); ps["preview"].cget("text")
+assert ps["save"]() is None and "Fix the structure" in ps["error"].cget("text")
+ps["preset"].set("Interview study: Participant ▸ Session"); ps["on_preset"]()
+assert ps["sessions"].get() == "{Participant}/{Session}" and ps["preset"].get() == "Interview study: Participant ▸ Session"
+ps["detect"]()
+assert ps["interviews"].get() == st.interviews and ps["save"]() is True
+ok("structure suggested from the folders; next name G1D1_I6 (numbers count across days); E names a new interview; presets, checks")
+
+print("[8] tidy: a plan first; moves only when confirmed; undo")
+uns = study / "Day 2 2026-08-11" / "Semi-structured Interviews Unsorted"
+uns.mkdir(exist_ok=True)
+(uns / "G1D2_I7.mp4").write_bytes(b"clip"); (uns / "G1D2_I7").mkdir(); (uns / "G1D2_I7" / "G1D2_I7.srt").write_text("1")
+(uns / "G1D2_I5.mp4").write_bytes(b"x")                    # a duplicate of a sorted clip
+(uns / "IMG_0042.mp4").write_bytes(b"?")                   # can't tell
+(uns / "G2D2_I1.mp4").write_bytes(b"g2")                   # Group 2 has no interview folder on day 2
+before = sorted(p.name for p in uns.iterdir())
+win, td = app._tidy_dialog()
+plan = {it["src"].name: it for it in td["plan"]()}
+assert sorted(p.name for p in uns.iterdir()) == before, "the plan must not move anything"
+assert plan["G1D2_I7.mp4"]["ok"] and plan["G1D2_I7.mp4"]["dst"] == d2_inter.resolve() / "G1D2_I7.mp4"
+assert not plan["G1D2_I5.mp4"]["ok"] and "duplicate" in plan["G1D2_I5.mp4"]["reason"]
+assert not plan["IMG_0042.mp4"]["ok"] and "does not follow" in plan["IMG_0042.mp4"]["reason"]
+assert plan["G2D2_I1.mp4"]["ok"] and "creates the folder" in plan["G2D2_I1.mp4"]["reason"]
+(study / "Day 2 2026-08-11" / "Group 2").rename(study / "Day 2 2026-08-11" / "Group two")  # no folder numbered 2 any more
+td["refresh"]()
+plan = {it["src"].name: it for it in td["plan"]()}
+assert not plan["G2D2_I1.mp4"]["ok"] and "no folder for Day 2, Group 2" in plan["G2D2_I1.mp4"]["reason"], plan["G2D2_I1.mp4"]
+pipe.messagebox.askyesno = lambda *a, **k: False
+assert td["move"]() == [] and (uns / "G1D2_I7.mp4").exists()   # declined: nothing happens
+pipe.messagebox.askyesno = lambda *a, **k: True
+done = td["move"]()
+assert (d2_inter / "G1D2_I7.mp4").exists() and (d2_inter / "G1D2_I7" / "G1D2_I7.srt").exists() and not (uns / "G1D2_I7.mp4").exists()
+assert len(done) == 2 and (study / stlib.MOVES_FILE).exists(), done
+assert app._next_interview_name() == "G1D1_I8"
+td["undo"]()
+assert (uns / "G1D2_I7.mp4").exists() and (uns / "G1D2_I7" / "G1D2_I7.srt").exists() and not (d2_inter / "G1D2_I7.mp4").exists()
+ok("plan lists where and why (duplicates, unknown names, missing folders stay); declined = nothing; move with its folder; undo")

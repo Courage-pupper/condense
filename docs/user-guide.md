@@ -220,12 +220,32 @@ A **project** is the folder of one study. Every transcript in that folder or its
 moved or copied; Condense only puts a small `condense-project.json` in the folder. Projects are optional: without one,
 Condense works file by file as before.
 
-**Your folder structure stays.** Condense reads the levels from your folder names: with `Day 1 2026-08-10/Group 1/…`
-the levels are *Day* and *Group*. Media folders inside a group (`Session Recordings`, `Semi-structured Interviews` …) are
-simply part of that group. **Consent forms** and **…Unsorted** folders are skipped: never opened or listed. Levels and
-skipped folders can be changed in *Project ▸ Project Settings…*.
+**Your folder structure stays.** When you create the project, Condense reads your structure from the folders and
+writes it as a template you can check and change in *Project ▸ Project Settings…*:
+
+```
+Session folders:  {Day}/{Group}/Session Recordings
+Interview clips:  {Day}/{Group}/Semi-structured Interviews/G{group}D{day}_I{n}
+```
+
+- `{Day}`, `{Group}` are the levels: any folder at that place, such as `Day 1 2026-08-10`. `{day}`, `{group}` are their
+  numbers (the first number in the folder name).
+- `{n}` numbers a group's interviews **across all days**: if Group 1 has I1–I13, its next interview is I14, whatever the day.
+- There are presets (*Workshops: Day ▸ Group*, *Interview study: Participant ▸ Session*, *One folder*) and a live
+  example of where files go. *Read from my folders* suggests the template again.
+- **Consent forms** and **…Unsorted** folders are skipped: never opened or listed.
+
+Condense only *reads* your structure. It uses it to find interview clips, to name new ones (`G1D2_I14`) when you mark an
+interview with **E** or export one, and to save them in the right folder.
 
 ![Project settings](images/project-settings.png)
+
+**Tidy unsorted folders** (*Project ▸ Tidy Unsorted Folders…*) shows, for each file in a …Unsorted folder, where it
+belongs according to its name, and why. Files whose names don't follow the pattern, duplicates and files without a
+matching folder stay where they are. **It is only a plan**: nothing is moved unless you click *Move* and confirm. Moves
+are recorded in `condense-moves.json` and *Undo last move* puts the files back.
+
+![Tidy plan](images/tidy.png)
 
 ![No project open: start or open one](images/project-start.png)
 

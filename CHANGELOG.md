@@ -22,6 +22,16 @@ by file as before.
   Interview episode labelled with the clip's name. Uncertain matches are marked for checking; running it again updates
   instead of duplicating. The session's sound is read once and cached.
 
+### Your folder structure, as a template
+- *Project ▸ Project Settings* describes the study's structure as templates, read from your folders when the project is
+  created: `{Day}/{Group}/Session Recordings` and `{Day}/{Group}/Semi-structured Interviews/G{group}D{day}_I{n}`.
+  Presets (*Workshops*, *Interview study*, *One folder*), a live example, and *Read from my folders*.
+- `{n}` numbers a group's interviews **across all days**. A new interview marked with **E** or exported as a clip gets the
+  next name (e.g. `G1D2_I14`) and goes into the group's interview folder; *Find interview clips* looks exactly there.
+- **Tidy Unsorted Folders** (Project menu) is a plan first: for each file in a …Unsorted folder, where it belongs and why.
+  Duplicates, unrecognised names and missing folders stay put. Nothing moves until you confirm; moves are recorded in
+  `condense-moves.json` and can be undone.
+
 ### Projects follow your folders
 - Levels are read from folder names: `Day 1 2026-08-10/Group 1/…` gives *Day* and *Group*. Media folders inside a group
   stay part of it.

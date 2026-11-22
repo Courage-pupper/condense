@@ -123,7 +123,12 @@ def build(work: Path):
     video = _video(day1 / "Group 1" / "Session Recordings" / "demo_G1D1.mp4", 120)
     _clip(video, day1 / "Group 1" / "Semi-structured Interviews" / "G1D1_I1.mp4", 70.0, 26.0)
     proj.save_project(study, SPEAKERS, name="Demo study")
-    proj.update_project(study, levels=["Day", "Group"], skip=list(proj.DEFAULT_SKIP), episode_types=["Interview", "Phase"])
+    proj.update_project(study, levels=["Day", "Group"], skip=list(proj.DEFAULT_SKIP), episode_types=["Interview", "Phase"],
+                        structure={"sessions": "{Day}/{Group}/Session Recordings",
+                                   "interviews": "{Day}/{Group}/Semi-structured Interviews/G{group}D{day}_I{n}"})
+    unsorted = day2 / "Semi-structured Interviews Unsorted"
+    _clip(video, unsorted / "G1D2_I2.mp4", 10.0, 5.0)
+    _clip(video, unsorted / "IMG_0042.mp4", 20.0, 3.0)
     named = {"SPEAKER_00": "Facilitator", "SPEAKER_01": "Robin", "SPEAKER_02": "Sam", "SPEAKER_03": "Kim"}
     d1 = _doc(day1 / "Group 1" / "Session Recordings" / "demo_G1D1", "demo_G1D1", SESSION_1, 1, video, named)
     for i in range(0, 6):

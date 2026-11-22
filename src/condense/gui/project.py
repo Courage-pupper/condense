@@ -83,6 +83,7 @@ class ProjectMixin:
         pm.add_command(label="Project Overview…", command=self._project_overview)
         pm.add_command(label="Project Speakers…", command=lambda: self._project_speakers_dialog())
         pm.add_command(label="Project Settings…", command=lambda: self._project_settings_dialog())
+        pm.add_command(label="Tidy Unsorted Folders…", command=lambda: self._tidy_dialog())
         mb.add_cascade(label="Project", menu=pm)
         self.project_menu = pm
 
@@ -195,8 +196,10 @@ class ProjectMixin:
             try:
                 proj.create_project(folder, v_name.get().strip() or folder.name, speakers)
                 skip = [x.strip() for x in v_skip.get().split(",") if x.strip()]
-                levels = [x.strip() for x in v_levels.get().split(",") if x.strip()] or proj.detect_levels(folder, skip)
-                proj.update_project(folder, levels=levels, skip=skip)
+                sug = proj.suggest_settings(folder, skip)
+                levels = [x.strip() for x in v_levels.get().split(",") if x.strip()] or sug["levels"]
+                structure = sug["structure"] if levels == sug["levels"] else None
+                proj.update_project(folder, levels=levels, skip=skip, **({"structure": structure} if structure else {}))
             except OSError as exc:
                 lbl_err.config(text=f"Could not create the project: {exc}")
                 return None
@@ -228,7 +231,7 @@ class ProjectMixin:
                                        "it and its subfolders become part of it; nothing is moved.", parent=self):
                 return None
             proj.create_project(folder)
-            proj.update_project(folder, levels=proj.detect_levels(folder), skip=list(proj.DEFAULT_SKIP))
+            proj.update_project(folder, **proj.suggest_settings(folder))
             f = folder / proj.PROJECT_FILE
         self._set_project(f.parent)
         return self._project_overview()
@@ -467,47 +470,189 @@ class ProjectMixin:
 
     # ================================================================== project settings
     def _project_settings_dialog(self, folder: Optional[Path] = None, on_saved=None):
+        from condense.core import structure as stlib
         T = THEME
         folder = Path(folder) if folder else self._project_dir()
         if folder is None:
             return self._project_start_dialog()
         cfg = proj.project_settings(folder)
+        data = proj.load_project(folder / proj.PROJECT_FILE)
+        cur = data.get("structure") or proj.suggest_settings(folder, cfg["skip"])["structure"]
+        preset = next((k for k, v in stlib.PRESETS.items() if v == cur), stlib.CUSTOM)
         win = tk.Toplevel(self)
         win.title("Project settings")
         win.configure(bg=T["bg_panel"], padx=16, pady=14)
         win.transient(self)
         self._label(win, f"Project settings — {folder}", font="body_bold", bg=T["bg_panel"]).grid(row=0, column=0, columnspan=3, sticky="w")
         v_name = tk.StringVar(value=cfg["name"])
-        v_levels = tk.StringVar(value=", ".join(cfg["levels"]))
+        v_preset = tk.StringVar(value=preset)
+        v_sess = tk.StringVar(value=cur.get("sessions", ""))
+        v_int = tk.StringVar(value=cur.get("interviews", ""))
         v_skip = tk.StringVar(value=", ".join(cfg["skip"]))
         v_types = tk.StringVar(value=", ".join(cfg["episode_types"]))
-        rows = (("Name", v_name, ""),
-                ("Levels", v_levels, "Folder levels below the project, e.g. Day, Group. The overview groups transcripts by them."),
-                ("Skip folders", v_skip, "Never opened or listed (consent forms, unsorted material). * matches anything."),
-                ("Episode types", v_types, "Kinds of episodes, e.g. Interview, Phase, Plenary. Each gets its own colour."))
-        for r, (label, var, hint) in enumerate(rows):
-            self._label(win, label, font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=1 + 2 * r, column=0, sticky="w", padx=(0, 8), pady=(6, 0))
-            self._entry(win, var, font="small", width=50).grid(row=1 + 2 * r, column=1, sticky="we", pady=(6, 0))
+        lbl_preview = self._label(win, "", font="mono_small", fg=T["fg_secondary"], bg=T["bg_panel"], justify=tk.LEFT)
+        grid_rows = [("Name", v_name, ""),
+                     ("Session folders", v_sess, "Where session recordings are. {Day}, {Group} … are your folder levels."),
+                     ("Interview clips", v_int, "Folder and name of cut-out interviews. {group}, {day} … are the levels' numbers; "
+                                                "{n} counts a group's interviews across all days."),
+                     ("Skip folders", v_skip, "Never opened or listed (consent forms, unsorted material). * matches anything."),
+                     ("Episode types", v_types, "Kinds of episodes, e.g. Interview, Phase, Plenary. Each gets its own colour.")]
+        r = 1
+        self._label(win, "Structure", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=r, column=0, sticky="w", padx=(0, 8), pady=(8, 0))
+        cmb = ttk.Combobox(win, textvariable=v_preset, values=list(stlib.PRESETS) + [stlib.CUSTOM], state="readonly", width=40, font=self.f["small"])
+        cmb.grid(row=r, column=1, sticky="w", pady=(8, 0))
+        r += 1
+        for label, var, hint in grid_rows:
+            self._label(win, label, font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=r, column=0, sticky="w", padx=(0, 8), pady=(6, 0))
+            self._entry(win, var, font="small", width=56).grid(row=r, column=1, sticky="we", pady=(6, 0))
+            r += 1
             if hint:
-                self._label(win, hint, font="small", fg=T["fg_dim"], bg=T["bg_panel"], wraplength=440, justify=tk.LEFT
-                            ).grid(row=2 + 2 * r, column=1, sticky="w")
-        self._tool(win, "Detect", lambda: v_levels.set(", ".join(proj.detect_levels(folder, [x.strip() for x in v_skip.get().split(",") if x.strip()])))
-                   ).grid(row=3, column=2, padx=(6, 0), pady=(6, 0))
+                self._label(win, hint, font="small", fg=T["fg_dim"], bg=T["bg_panel"], wraplength=460, justify=tk.LEFT).grid(row=r, column=1, sticky="w")
+                r += 1
+            if label == "Interview clips":
+                lbl_preview.grid(row=r, column=1, sticky="w", pady=(4, 0))
+                r += 1
+
+        def preview(*_):
+            st = stlib.Structure(v_sess.get(), v_int.get())
+            probs = st.problems()
+            if probs:
+                lbl_preview.config(text="⚠ " + "\n⚠ ".join(probs), fg=T["warn"])
+            else:
+                lbl_preview.config(text=f"Levels: {' ▸ '.join(st.levels) or '(none)'}\nSession:   {st.example('sessions')}\n"
+                                        f"Interview: {st.example()}", fg=T["fg_secondary"])
+            if (not busy["preset"] and v_preset.get() != stlib.CUSTOM
+                    and stlib.PRESETS.get(v_preset.get()) != {"sessions": v_sess.get(), "interviews": v_int.get()}):
+                v_preset.set(stlib.CUSTOM)
+
+        busy = {"preset": False}
+
+        def on_preset(_e=None):
+            p = stlib.PRESETS.get(v_preset.get())
+            if p:
+                busy["preset"] = True
+                v_sess.set(p["sessions"])
+                v_int.set(p["interviews"])
+                busy["preset"] = False
+                preview()
+
+        def detect():
+            sug = proj.suggest_settings(folder, [x.strip() for x in v_skip.get().split(",") if x.strip()])["structure"]
+            v_sess.set(sug["sessions"])
+            v_int.set(sug["interviews"])
+
+        cmb.bind("<<ComboboxSelected>>", on_preset)
+        for var in (v_sess, v_int):
+            var.trace_add("write", preview)
+        self._tool(win, "Read from my folders", detect).grid(row=1, column=2, padx=(6, 0), pady=(8, 0))
+        lbl_err = self._label(win, "", font="small", fg=T["warn"], bg=T["bg_panel"])
+        lbl_err.grid(row=r, column=0, columnspan=3, sticky="w")
+        r += 1
 
         def save():
+            st = stlib.Structure(v_sess.get(), v_int.get())
+            if st.problems():
+                lbl_err.config(text="Fix the structure first (see the warnings above).")
+                return None
             split = (lambda v: [x.strip() for x in v.get().split(",") if x.strip()])
-            proj.update_project(folder, name=v_name.get().strip() or folder.name, levels=split(v_levels), skip=split(v_skip),
-                                episode_types=split(v_types) or ["Interview"])
+            proj.update_project(folder, name=v_name.get().strip() or folder.name, levels=st.levels, skip=split(v_skip),
+                                episode_types=split(v_types) or ["Interview"],
+                                structure={"sessions": st.sessions, "interviews": st.interviews})
             self._refresh_project_ui()
             self._append_log(f"Project settings saved: {folder / proj.PROJECT_FILE}", "INFO")
             win.destroy()
             if self.active_doc is not None:
                 self._rerender()
             on_saved and on_saved()
+            return True
 
         bar = tk.Frame(win, bg=T["bg_panel"])
-        bar.grid(row=20, column=0, columnspan=3, sticky="e", pady=(14, 0))
+        bar.grid(row=r, column=0, columnspan=3, sticky="e", pady=(14, 0))
         self._tool(bar, "Cancel", win.destroy).pack(side=tk.LEFT, padx=(0, 6))
         self._tool(bar, "Save", save, primary=True).pack(side=tk.LEFT)
         win.bind("<Escape>", lambda e: (win.destroy(), "break")[-1])
-        return win, {"name": v_name, "levels": v_levels, "skip": v_skip, "types": v_types, "save": save}
+        preview()
+        return win, {"name": v_name, "preset": v_preset, "sessions": v_sess, "interviews": v_int, "skip": v_skip, "types": v_types,
+                     "save": save, "on_preset": on_preset, "detect": detect, "preview": lbl_preview, "error": lbl_err}
+
+    # ================================================================== tidy: a plan first, moves only when confirmed
+    def _tidy_dialog(self, folder: Optional[Path] = None):
+        from condense.core import structure as stlib
+        T = THEME
+        folder = Path(folder) if folder else self._project_dir()
+        if folder is None:
+            return self._project_start_dialog()
+        st = proj.project_settings(folder)["structure"]
+        win = tk.Toplevel(self)
+        win.title("Tidy unsorted folders")
+        win.configure(bg=T["bg_panel"], padx=14, pady=12)
+        win.transient(self)
+        self._label(win, "Where the files in your …Unsorted folders belong, read from their names and the project's structure. "
+                         "This is only a plan: nothing is moved unless you click Move and confirm. Every move is recorded in "
+                         f"{stlib.MOVES_FILE} and can be undone here.", font="small", fg=T["fg_secondary"], bg=T["bg_panel"],
+                    wraplength=720, justify=tk.LEFT).pack(anchor="w")
+        cols = ("dst", "why")
+        tree = ttk.Treeview(win, columns=cols, show="tree headings", height=12, style="Queue.Treeview")
+        tree.heading("#0", text="File")
+        tree.column("#0", width=230)
+        tree.heading("dst", text="Would go to")
+        tree.column("dst", width=330)
+        tree.heading("why", text="Why")
+        tree.column("why", width=260)
+        tree.pack(fill=tk.BOTH, expand=True, pady=8)
+        lbl = self._label(win, "", font="small", fg=T["fg_secondary"], bg=T["bg_panel"])
+        lbl.pack(anchor="w")
+        state: Dict = {"plan": []}
+
+        def rel(p):
+            try:
+                return str(Path(p).relative_to(folder.resolve()))
+            except ValueError:
+                return str(p)
+
+        def refresh():
+            for item in tree.get_children():
+                tree.delete(item)
+            if st is None:
+                state["plan"] = []
+                lbl.config(text="The project has no folder structure yet: set it in Project ▸ Project Settings.")
+                return []
+            state["plan"] = st.tidy_plan(folder)
+            for i, it in enumerate(state["plan"]):
+                extra = f"  (+ folder {it['companion'].name})" if it.get("companion") else ""
+                tree.insert("", tk.END, iid=str(i), text=("✓ " if it["ok"] else "· ") + it["src"].name,
+                            values=(rel(it["dst"].parent) + extra if it["dst"] else "—", it["reason"]))
+            movable = sum(1 for it in state["plan"] if it["ok"])
+            lbl.config(text=f"{movable} file(s) can be moved; {len(state['plan']) - movable} stay where they are." if state["plan"]
+                       else "Nothing to tidy: no files in …Unsorted folders.")
+            btn_move.config(text=f"Move {movable} file(s)…")
+            return state["plan"]
+
+        def move():
+            items = [it for it in state["plan"] if it["ok"]]
+            if not items:
+                return []
+            if not messagebox.askyesno("Tidy unsorted folders", f"Move {len(items)} file(s) into their folders?\n\n"
+                                       "Nothing is deleted or overwritten, and you can undo this here.", parent=win):
+                return []
+            done = stlib.apply_moves(folder, items)
+            self._append_log(f"Tidied: moved {len(done)} item(s); undo in Project ▸ Tidy Unsorted Folders.", "SUCCESS")
+            refresh()
+            return done
+
+        def undo():
+            undone = stlib.undo_last_moves(folder)
+            self._append_log(f"Undid the last tidy: {len(undone)} item(s) moved back." if undone else "Nothing to undo.", "INFO")
+            refresh()
+            return undone
+
+        bar = tk.Frame(win, bg=T["bg_panel"])
+        bar.pack(fill=tk.X, pady=(8, 0))
+        btn_move = self._tool(bar, "Move…", move, primary=True)
+        btn_move.pack(side=tk.LEFT)
+        self._tool(bar, "Undo last move", undo).pack(side=tk.LEFT, padx=(6, 0))
+        self._tool(bar, "Refresh", refresh).pack(side=tk.LEFT, padx=(6, 0))
+        self._tool(bar, "Close", win.destroy).pack(side=tk.RIGHT)
+        win.bind("<Escape>", lambda e: (win.destroy(), "break")[-1])
+        refresh()
+        return win, {"plan": lambda: state["plan"], "move": move, "undo": undo, "refresh": refresh, "label": lbl}

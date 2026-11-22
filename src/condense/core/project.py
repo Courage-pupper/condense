@@ -73,7 +73,10 @@ def update_project(folder: Path, **fields) -> Path:
 def project_settings(folder: Path) -> Dict:
     data = load_project(Path(folder) / PROJECT_FILE)
     from condense.core.episodes import DEFAULT_TYPES
-    return {"name": data.get("name") or Path(folder).name, "levels": list(data.get("levels") or []),
+    from condense.core.structure import from_project
+    st = from_project(data)
+    levels = st.levels if st is not None and st.levels else list(data.get("levels") or [])
+    return {"name": data.get("name") or Path(folder).name, "levels": levels, "structure": st,
             "skip": list(data.get("skip") if data.get("skip") is not None else DEFAULT_SKIP),
             "episode_types": list(data.get("episode_types") or DEFAULT_TYPES), "speakers": list(data["speakers"])}
 
@@ -154,6 +157,14 @@ def transcripts_under(folder: Path, stop=None, max_dirs: int = 20000, skip=None)
         dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d not in SKIP_DIRS and not skipped(d, skip))
         found += [Path(root) / f for f in files if f.endswith(TranscriptDocument.SUFFIX) and not f.startswith(".")]
     return sorted(found)
+
+
+def suggest_settings(folder: Path, skip=None) -> Dict:
+    """Levels and folder structure for an existing study, read from its folders."""
+    from condense.core.structure import suggest
+    skip = list(DEFAULT_SKIP) if skip is None else skip
+    levels = detect_levels(folder, skip)
+    return {"levels": levels, "skip": skip, "structure": suggest(folder, levels)}
 
 
 def create_project(folder: Path, name: Optional[str] = None, speakers: Optional[List[str]] = None) -> Path:

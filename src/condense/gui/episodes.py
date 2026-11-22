@@ -26,6 +26,20 @@ class EpisodesMixin:
                 types.append(ep["type"])
         return types
 
+    def _structure_ctx(self):
+        """(project folder, Structure) for the open transcript, or (None, None)."""
+        doc = self.active_doc
+        f = proj.find_project_file(Path(doc.path).parent) if doc is not None else None
+        st = proj.project_settings(f.parent)["structure"] if f else None
+        return (f.parent, st) if st is not None else (None, None)
+
+    def _next_interview_name(self) -> Optional[str]:
+        project, st = self._structure_ctx()
+        if st is None:
+            return None
+        labels = [e.get("label") or "" for e in self.active_doc.episodes if e["type"] == "Interview"]
+        return st.next_clip_name(project, self.active_doc.path, labels)
+
     def _episode_tag(self, type_: str) -> str:
         types = self._episode_types()
         return f"EPC{(types.index(type_) if type_ in types else len(types)) % len(eplib.PALETTE)}"
@@ -45,7 +59,9 @@ class EpisodesMixin:
         doc = self.active_doc
         start = min(float(doc.segments[i]["start"]) for i in segs)
         end = max(float(doc.segments[i]["end"]) for i in segs)
-        return self._episodes_dialog(preset={"type": self._episode_types()[0], "label": "", "start": start, "end": end})
+        type_ = self._episode_types()[0]
+        label = (self._next_interview_name() or "") if type_ == "Interview" else ""
+        return self._episodes_dialog(preset={"type": type_, "label": label, "start": start, "end": end})
 
     def _episodes_dialog(self, preset: Optional[Dict] = None):
         doc = self.active_doc
@@ -136,6 +152,8 @@ class EpisodesMixin:
                 lbl_msg.config(text="Give the episode a type (e.g. Interview).")
                 return None
             d = self.active_doc
+            if v_type.get().strip() == "Interview" and not v_label.get().strip() and not st["id"]:
+                v_label.set(self._next_interview_name() or "")
             fields = dict(type=v_type.get().strip(), label=v_label.get().strip(), start=a, end=b, approx=bool(v_approx.get()),
                           note=v_note.get().strip())
             if st["id"]:
@@ -201,6 +219,11 @@ class EpisodesMixin:
         """Interviews go next to the other cut-out interviews of this group (a folder named like '…Interview…'), else
         next to the transcript."""
         doc = self.active_doc
+        project, st = self._structure_ctx()
+        if st is not None and ep["type"] == "Interview":
+            target = st.role_folder(project, "interviews", st.values_for(project, doc.path))
+            if target is not None:
+                return target
         saved = (self.settings.get("episode_dirs") or {}).get(ep["type"])
         f = proj.find_project_file(Path(doc.path).parent)
         group = proj.level_folder(f.parent, doc.path, proj.project_settings(f.parent)["levels"]) if f else None
@@ -230,7 +253,11 @@ class EpisodesMixin:
         self._label(win, "Writes the clip and a transcript timed to it (subtitles, TXT, paragraphs for MAXQDA). Import the two "
                          "together.", font="small", fg=T["fg_secondary"], bg=T["bg_panel"], wraplength=520, justify=tk.LEFT
                     ).pack(anchor="w", pady=(4, 8))
-        default_name = ep.get("label") or f"{doc.base_name}_{ep['type']}"
+        project, st = self._structure_ctx()
+        if st is not None and ep["type"] == "Interview" and not st.parse_clip_name(ep.get("label") or ""):
+            default_name = self._next_interview_name() or f"{doc.base_name}_{ep['type']}"
+        else:
+            default_name = ep.get("label") or f"{doc.base_name}_{ep['type']}"
         v_name = tk.StringVar(value=default_name)
         v_dir = tk.StringVar(value=str(self._episode_default_dir(ep)))
         v_mode = tk.StringVar(value=self.settings.get("episode_mode", "exact"))
@@ -306,7 +333,12 @@ class EpisodesMixin:
                   "note": "Times in 'episode' are on the source recording; the clip's transcript starts at 0."}
         (out_dir / f"{msg['name']}.episode.json").write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
         doc.log_edit("export_episode", id=msg["ep"]["id"], output=Path(msg["dst"]).name, mode=msg["mode"])
+        if msg["ep"]["type"] == "Interview":  # the episode now carries the clip's name and knows its clip
+            doc.update_episode(msg["ep"]["id"], label=msg["name"], source={"clip": msg["dst"], "exported": now_iso()})
         doc.save()
+        if self.active_doc is not None and str(self.active_doc.path) == msg["doc"]:
+            self.active_doc = doc
+            self._rerender()
         line = f"Clip: {msg['dst']} — transcript: {', '.join(p.name for p in created.values())}"
         self._append_log(line, "SUCCESS")
         self.lbl_status.config(text=f"Exported {Path(msg['dst']).name} with its transcript.")
@@ -315,6 +347,14 @@ class EpisodesMixin:
     def _candidate_clips(self) -> List[Path]:
         """Videos in this group's interview folders (…Interview…), when the transcript is in a project with levels."""
         doc = self.active_doc
+        media = self._media()
+        project, st = self._structure_ctx()
+        if st is not None:
+            folder = st.role_folder(project, "interviews", st.values_for(project, doc.path))
+            if folder is None or not folder.is_dir():
+                return []
+            return [p for p in sorted(folder.iterdir()) if p.is_file() and p.suffix.lower() in VIDEO_SUFFIXES
+                    and not p.name.startswith(".") and (media is None or p.resolve() != Path(media).resolve())]
         f = proj.find_project_file(Path(doc.path).parent)
         if f is None:
             return []

@@ -297,6 +297,12 @@ def main():
     pump(app)
     shot(app, "project-settings", w_set)
     w_set.destroy()
+    w_tidy, td = app._tidy_dialog()
+    pump(app, 0.3)
+    plan = {it["src"].name: it for it in td["plan"]()}
+    assert plan["G1D2_I2.mp4"]["ok"] and not plan["IMG_0042.mp4"]["ok"], plan
+    shot(app, "tidy", w_tidy)
+    w_tidy.destroy()
     win2, sp = app._project_speakers_dialog(study)
     pump(app)
     shot(app, "project-speakers", win2)
