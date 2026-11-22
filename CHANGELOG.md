@@ -30,6 +30,17 @@
   the audio Whisper hears — useful for quiet children and noisy rooms. The kept audio and video are unchanged; the setting is
   recorded in the transcript's provenance.
 
+### For colleagues
+- **User guide** ([docs/user-guide.md](docs/user-guide.md), also *Help ▸ User Guide*): the whole workflow with
+  screenshots — queue and settings, trimming, the review loop, speakers, notes and find, cutting, projects, MAXQDA
+  import, data handling and troubleshooting. The screenshots are taken from the real app in CI with invented demo data.
+
+### Reliability
+- The real app is tested on a real Tk on macOS, Linux (virtual display) and Windows in every CI run, including real key
+  events for the shortcuts; a 3-hour session is tested through every core path and both trim modes.
+- Large modules split up (editor, pipeline worker); faster re-timing for sessions with many cuts.
+- Project overview: readable table colours.
+
 ### Cutting
 - **Cut while reviewing:** select segments and press **X** (or ✂ Cut / restore). Cut segments are struck through, left out of
   every export (TXT, SRT, VTT, RTF, paragraphs), skipped while playing ("Skip cuts") and don't count towards % checked.

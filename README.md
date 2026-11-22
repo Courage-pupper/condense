@@ -12,6 +12,8 @@ Local video, audio and transcript processing for qualitative research. Everythin
 - **Exports:** paragraphs per speaker turn (RTF/TXT, for Word or MAXQDA), SRT/VTT subtitles, plain text, and an RTF with colour-coded word confidence.
 - **Traceability:** each transcript has a `<name>.transcript.json` master file with word timings, speakers, the settings, tool versions, SHA-256 checksums of the inputs and a log of every edit. All exports are regenerated from it.
 
+**New here?** The [user guide](docs/user-guide.md) walks through a whole study: from recordings to a checked transcript in MAXQDA.
+
 ## Platforms
 
 | Platform | Transcription & speakers | Video compression | Status |

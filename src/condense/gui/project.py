@@ -47,11 +47,11 @@ class ProjectMixin:
         self._entry(top, v_dir, font="small", width=64).pack(side=tk.LEFT, padx=6, fill=tk.X, expand=True)
         lbl_total = self._label(win, "", font="small_bold", bg=T["bg_panel"])
         cols = ("length", "checked", "uncertain", "speakers", "cuts", "notes", "modified")
-        tree = ttk.Treeview(win, columns=cols, show="tree headings", height=16)
+        tree = ttk.Treeview(win, columns=cols, show="tree headings", height=16, style="Queue.Treeview")
         tree.heading("#0", text="Transcript")
         tree.column("#0", width=280)
         for c, w, title in (("length", 80, "Length"), ("checked", 80, "Checked"), ("uncertain", 90, "Uncertain"),
-                            ("speakers", 80, "Speakers"), ("cuts", 70, "Cut"), ("notes", 60, "Notes"), ("modified", 130, "Last change")):
+                            ("speakers", 130, "Speakers"), ("cuts", 70, "Cut"), ("notes", 60, "Notes"), ("modified", 130, "Last change")):
             tree.heading(c, text=title)
             tree.column(c, width=w, anchor="center")
         state = {"rows": []}

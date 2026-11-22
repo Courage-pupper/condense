@@ -101,14 +101,17 @@ def main():
 
     print("[1] main window, queue, settings")
     tasks = []
-    for i, (doc, status) in enumerate(zip(docs, ("Done", "Done", "Pending"))):
+    for i, (doc, status) in enumerate(zip(docs, ("Completed", "Completed", "Pending"))):
+        done = status == "Completed"
         t = app._new_task([str(video)], name=doc.base_name)
-        t.update(status=status, stage="Done" if status == "Done" else "Queued", progress=1.0 if status == "Done" else 0.0,
-                 doc_path=str(doc.path) if status == "Done" else None, output_dir=str(doc.out_dir))
+        t.update(status=status, stage="Done ✓" if done else "Queued", progress=100.0 if done else 0.0,
+                 doc_path=str(doc.path) if done else None, output_dir=str(doc.out_dir))
         tasks.append(t)
     app._add_tasks(tasks)
     app.queue_tree.selection_set(tasks[0]["id"])
     app._on_job_selected()
+    for d in docs[:2]:
+        app._update_task_progress(TD.load(d.path))  # "Done ✓ · 27% checked", as after reviewing
     pump(app, 1.0)
     app.notebook.select(app.tab_settings)
     shot(app, "main-window")

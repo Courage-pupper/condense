@@ -292,6 +292,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         hm.add_checkbutton(label="Check for Updates Automatically", variable=self.var_update_auto, command=self._toggle_update_auto)
         hm.add_separator()
         guide = "docs/install-mac.md" if IS_MAC_PLATFORM else ("docs/install-windows.md" if PLATFORM == "windows" else "docs/install-linux.md")
+        hm.add_command(label="User Guide", command=lambda: self._open_url(f"https://github.com/{updates.REPO}/blob/main/docs/user-guide.md"))
         hm.add_command(label="Installation & Troubleshooting Guide", command=lambda: self._open_url(f"https://github.com/{updates.REPO}/blob/main/{guide}"))
         hm.add_command(label="What's New (Release Notes)", command=lambda: self._open_url(updates.RELEASES_PAGE))
         hm.add_command(label="Report a Problem…", command=lambda: self._open_url(f"https://github.com/{updates.REPO}/issues/new/choose"))
