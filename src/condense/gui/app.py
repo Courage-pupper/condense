@@ -11,10 +11,11 @@ from condense.gui.gpu_check import GpuCheckMixin
 from condense.gui.file_dialogs import FileDialogsMixin
 from condense.gui.cutting import CuttingMixin
 from condense.gui.trim_dialog import TrimDialogMixin
+from condense.gui.find import FindMixin
 from condense.gui.video import VideoMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")
@@ -208,6 +209,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         em.add_separator()
         em.add_command(label="Mark Segment Checked & Next", accelerator=f"{acc}Return" if IS_MAC else "Ctrl+Enter", command=self._check_and_next)
         em.add_command(label="Toggle Segment Checked  (C)", command=self._toggle_checked)
+        em.add_command(label="Find & Replace…", accelerator=f"{acc}F", command=self._toggle_find)
+        em.add_command(label="Search All Transcripts…", command=self._search_all_dialog)
+        em.add_separator()
         em.add_command(label="Cut / Restore Selected Segments  (X)", command=self._toggle_cut)
         em.add_command(label="Restore All Cuts…", command=self._restore_all_cuts)
         em.add_command(label="Select All Segments  (⌘A in transcript)" if IS_MAC else "Select All Segments  (Ctrl+A in transcript)", command=self._select_all_segments)
@@ -301,6 +305,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
             "s": self._save_segment_edit,
             "i": self._insert_segment_dialog,
             "slash": self._show_shortcuts,
+            "f": self._toggle_find,
         }
         # Use the <Mod-Key-x> form: in Tk "<Command-1>" would mean Command + mouse button 1.
         for key, fn in keys.items():

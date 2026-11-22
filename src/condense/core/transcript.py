@@ -528,6 +528,21 @@ class TranscriptDocument:
         self.log_edit("merge_segments", segment=index, merged_speaker=b.get("speaker"))
         return True
 
+    def set_segment_note(self, index: int, note: str) -> bool:
+        """A researcher's note on a segment (shown with ✎, exported as [Note: …] in TXT and paragraphs)."""
+        if not (0 <= index < len(self.segments)):
+            return False
+        note = " ".join(str(note or "").split())
+        seg = self.segments[index]
+        if note == (seg.get("note") or ""):
+            return False
+        if note:
+            seg["note"] = note
+        else:
+            seg.pop("note", None)
+        self.log_edit("note", segment=index + 1, note=note)
+        return True
+
     def set_segment_speaker(self, index: int, speaker: str) -> bool:
         seg = self.segments[index]
         speaker = speaker.strip()
@@ -567,7 +582,9 @@ class TranscriptDocument:
                 out[-1]["segments"].append(i)
             else:
                 out.append({"speaker": spk, "start": start, "end": float(seg.get("end", 0.0)), "text": text, "segments": [i],
-                            "cut": is_cut})
+                            "cut": is_cut, "notes": []})
+            if seg.get("note"):
+                out[-1]["notes"].append(seg["note"])
         return out
 
     # ----- exports -----

@@ -30,6 +30,13 @@ class EditorMixin:
         bar.add(self._tool(bar, "Uncertain ▶", lambda: self._jump_low_conf(+1)))
         bar.add(self._tool(bar, "✂ Cut / restore (X)", self._toggle_cut))
         bar.add(self._tool(bar, "Export trimmed…", self._export_trimmed_dialog))
+        bar.add(self._label(bar, "Show", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]))
+        self.var_show_filter = tk.StringVar(value="All segments")
+        cmb_show = ttk.Combobox(bar, textvariable=self.var_show_filter, state="readonly", width=13, font=self.f["small"],
+                                values=["All segments", "Uncertain", "Not checked", "With notes", "Cut"])
+        cmb_show.bind("<<ComboboxSelected>>", lambda e: (self._autosave_edit(rerender=False), self._rerender()))
+        bar.add(cmb_show)
+        bar.add(self._tool(bar, "Find…", self._toggle_find))
         self.var_autoplay = tk.BooleanVar(value=True)
         self._persist["autoplay"] = self.var_autoplay
         bar.add(self._check(bar, "Play snippet on jump", self.var_autoplay, bg=T["bg_panel"], font="small"))
@@ -108,6 +115,16 @@ class EditorMixin:
             self.edit_text.bind(seq, lambda e: (self._check_and_next(), "break")[-1])
         for d in range(1, 10):
             self.bind_all(f"<Control-Key-{d}>", lambda e, d=d: (self._assign_speaker_number(d), "break")[-1])
+        note_row = tk.Frame(ep, bg=T["bg_card"])
+        note_row.pack(fill=tk.X, pady=(0, 2))
+        self._label(note_row, "✎ Note", font="small", fg="#c4b5fd").pack(side=tk.LEFT, padx=(0, 6))
+        self.var_seg_note = tk.StringVar(value="")
+        self.ent_seg_note = self._entry(note_row, self.var_seg_note, font="small")
+        self.ent_seg_note.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.ent_seg_note.bind("<Return>", lambda e: (self._save_segment_edit(), "break")[-1])
+        for seq in (f"<{MOD}-Return>", f"<{MOD}-KP_Enter>"):
+            self.ent_seg_note.bind(seq, lambda e: (self._check_and_next(), "break")[-1])
+        self.edit_note_original = ""
         self.lbl_edit_hint = self._wrapping_label(ep, self.EDIT_HINT, font="small", fg=T["fg_dim"])
         self.lbl_edit_hint.pack(fill=tk.X)
         self.edit_seg_idx: Optional[int] = None
@@ -115,6 +132,7 @@ class EditorMixin:
 
         self.tx_paned = tk.PanedWindow(tab, orient=tk.HORIZONTAL, sashwidth=6, sashrelief=tk.FLAT, bd=0, bg=T["bg_panel"], showhandle=False)
         self.tx_paned.pack(fill=tk.BOTH, expand=True)
+        self._build_find_bar(tab, before=self.tx_paned)
         frame = tk.Frame(self.tx_paned, bg=T["bg_panel"])
         self.tx_paned.add(frame, minsize=300, stretch="always")
         frame.rowconfigure(0, weight=1)
@@ -141,6 +159,8 @@ class EditorMixin:
         pt.tag_config("MARKER", foreground="#8fb3ff", font=self.f["marker"])
         pt.tag_config("CHECKMARK", foreground=T["ok"], font=self.f["small_bold"])
         pt.tag_config("CUT", overstrike=True, foreground="#5b6475")
+        pt.tag_config("NOTE", foreground="#c4b5fd", font=self.f["small"])
+        pt.tag_config("FOUND", background="#5c4a12")
         pt.tag_config("CUT_HDR", foreground="#f59e0b", font=self.f["small_bold"])
         pt.tag_config("MULTISEL", background="#3a2f5c")
         pt.bind("<ButtonRelease-1>", self._on_text_click)
@@ -249,7 +269,18 @@ class EditorMixin:
         roster = doc.roster()
         spk_tag = {spk: f"SPK{i % len(SPEAKER_COLORS)}" for i, spk in enumerate(roster)}
         rsegs = report["segments"]
-        if self.var_view_mode.get() == "Paragraphs":
+        show = self.var_show_filter.get() if self.__dict__.get("var_show_filter") is not None else "All segments"
+        if show != "All segments":  # a filter shows matching segments one by one
+            def wanted(i):
+                if show == "Uncertain":
+                    return any(float(w.get("probability", w.get("prob", 0.85))) < med_t for w in rsegs[i].get("words") or [])
+                if show == "Not checked":
+                    return not doc.segments[i].get("checked") and i not in cut_set
+                if show == "With notes":
+                    return bool(doc.segments[i].get("note"))
+                return i in cut_set
+            groups = [[i] for i in range(len(rsegs)) if not is_blank_text(rsegs[i].get("text")) and wanted(i)]
+        elif self.var_view_mode.get() == "Paragraphs":
             groups = [p["segments"] for p in doc.paragraphs(include_cut=True)]
         else:
             groups = [[i] for i in range(len(rsegs)) if not is_blank_text(rsegs[i].get("text"))]
@@ -322,9 +353,12 @@ class EditorMixin:
                 else:
                     put((" " if pos["col"] > 0 else "") + (seg["text"] or "…"), *(("HIGH", "CUT") if si in cut_set else ("HIGH",)))
                 seg_ranges[si] = (seg_start, f"{pos['line']}.{pos['col']}")
+                note = doc.segments[si].get("note")
+                if note:
+                    put(f"  ✎ {note}", "NOTE")
             put("\n")
         txt.configure(state=tk.DISABLED)
-        for tag in ("CUT", "MULTISEL", "EDITSEG", "PLAYING", "CURRENT"):
+        for tag in ("CUT", "FOUND", "MULTISEL", "EDITSEG", "PLAYING", "CURRENT"):
             txt.tag_raise(tag)
 
         self.word_spans, self.line_spans, self.low_conf, self.current_span = spans, line_spans, low, None
@@ -334,6 +368,7 @@ class EditorMixin:
         if new_doc:
             self.sel_segs, self.sel_anchor = [], None
         self._paint_multi_selection()
+        self._paint_found()
         total = max(1, len(spans))
         edited = sum(1 for s in doc.segments if s.get("edited"))
         self.lbl_ci_summary.config(
@@ -341,6 +376,7 @@ class EditorMixin:
                  f"{len(low)} uncertain ({len(low) * 100 / total:.0f}%)   ·   mean word probability {report['overall_ci'][0] * 100:.0f}%   ·   "
                  f"{len(roster)} speaker(s)" + (f"   ·   {edited} edited" if edited else "")
                  + (f"   ·   ✂ {cutlib.describe(doc.cuts)}" if doc.cuts else "")
+                 + (f"   ·   showing {len(groups)} {show.lower()}" if show != "All segments" else "")
         )
         self.cmb_seg_speaker.configure(values=roster)
         self._refresh_speaker_chips()
@@ -563,6 +599,7 @@ class EditorMixin:
             "  X                cut / restore the selected segments\n"
             "  Return           edit the open segment's text\n"
             f"  {c}Return          save, mark checked, next segment\n"
+            f"  {c}F               find & replace\n"
             "  double-click     play from that word\n\n"
             "While typing in the segment box\n"
             f"  {c}Return          save, mark checked, next segment\n"
@@ -608,6 +645,8 @@ class EditorMixin:
         self.edit_original = ("", "")
         self.edit_text.delete("1.0", tk.END)
         self.var_seg_speaker.set("")
+        self.edit_note_original = ""
+        self.var_seg_note.set("")
         self.lbl_edit_title.config(text="Click a word to edit its segment")
         self.preview_text.tag_remove("EDITSEG", "1.0", tk.END)
 
@@ -615,7 +654,9 @@ class EditorMixin:
         if self.edit_seg_idx is None:
             return False
         text = " ".join(self.edit_text.get("1.0", "end-1c").split())
-        return text != " ".join(self.edit_original[0].split()) or self.var_seg_speaker.get().strip() != self.edit_original[1]
+        note = " ".join(self.var_seg_note.get().split())
+        return (text != " ".join(self.edit_original[0].split()) or self.var_seg_speaker.get().strip() != self.edit_original[1]
+                or note != self.edit_note_original)
 
     def _load_segment_into_editor(self, seg_idx: int):
         doc = self.active_doc
@@ -632,6 +673,8 @@ class EditorMixin:
         self.edit_text.insert("1.0", text)
         self.edit_text.edit_reset()
         self.var_seg_speaker.set(speaker)
+        self.edit_note_original = seg.get("note") or ""
+        self.var_seg_note.set(self.edit_note_original)
         self._refresh_speaker_chips()
         mark = ("  ✎" if seg.get("edited") else "") + ("  ✓" if seg.get("checked") else "")
         self.btn_checked.configure(text="✓ Checked" if seg.get("checked") else "Mark checked")
@@ -867,6 +910,7 @@ class EditorMixin:
             return
         doc.edit_segment_text(idx, text)
         doc.set_segment_speaker(idx, self.var_seg_speaker.get())
+        doc.set_segment_note(idx, self.var_seg_note.get())
         doc.set_checked(idx, True)
         if self._commit(f"Checked segment {idx + 1}.") is None:
             return

@@ -2,6 +2,18 @@
 
 ## 0.11.0 — 2026-11-20
 
+### Reviewing
+- **Find & replace** (⌘F / Ctrl+F, or *Find…* in the transcript toolbar): matching segments are highlighted, ◀/▶ (Return /
+  ⇧Return) step through them, *Replace* and *Replace all* are one undo step each; options for match case and whole words.
+  Word timings are kept; only changed words are marked as edited.
+- **Search all transcripts** (Edit menu or *All transcripts…* in the find bar): searches every transcript in a folder
+  (and its subfolders), opens a hit at its segment, and can replace everywhere — each transcript gets a backup, new
+  exports and an entry in its edit history.
+- **Notes on segments:** a ✎ Note field under the segment text. Notes appear in the transcript and in the TXT and paragraph
+  exports as `[Note: …]`.
+- **Show filter** in the transcript toolbar: All segments / Uncertain / Not checked / With notes / Cut. ↑/↓ move within the
+  filtered segments, so you can work through only the uncertain or unchecked ones.
+
 ### Cutting
 - **Cut while reviewing:** select segments and press **X** (or ✂ Cut / restore). Cut segments are struck through, left out of
   every export (TXT, SRT, VTT, RTF, paragraphs), skipped while playing ("Skip cuts") and don't count towards % checked.

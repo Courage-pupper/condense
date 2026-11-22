@@ -108,7 +108,8 @@ class RTFConfidenceWriter:
         blocks = []
         for p in paragraphs:
             spk = f"{p['speaker']}: " if p.get("speaker") else ""
-            blocks.append(f"{spk}{p['text']} [{cls._hms(p['end'])}]")
+            notes = "".join(f" [Note: {n}]" for n in p.get("notes") or [])
+            blocks.append(f"{spk}{p['text']}{notes} [{cls._hms(p['end'])}]")
         output_path.write_text("\n\n".join(blocks) + "\n", encoding="utf-8")
 
     @classmethod
@@ -121,7 +122,8 @@ class RTFConfidenceWriter:
         ]
         for p in paragraphs:
             spk = f"\\b {cls._escape_rtf(p['speaker'])}:\\b0  " if p.get("speaker") else ""
-            parts.append(f"{spk}{cls._escape_rtf(p['text'])} \\cf1 [{cls._hms(p['end'])}]\\cf0\\par")
+            notes = "".join(f" \\i [Note: {cls._escape_rtf(n)}]\\i0" for n in p.get("notes") or [])
+            parts.append(f"{spk}{cls._escape_rtf(p['text'])}{notes} \\cf1 [{cls._hms(p['end'])}]\\cf0\\par")
         parts.append("}")
         output_path.write_text("\n".join(parts), encoding="utf-8")
 
@@ -134,6 +136,8 @@ class RTFConfidenceWriter:
             if is_blank_text(text):
                 continue
             speaker = seg.get("speaker")
+            if seg.get("note"):
+                text += f" [Note: {seg['note']}]"
             if speaker:
                 if speaker != last_speaker:
                     out_lines.append(f"\n[{speaker}]")

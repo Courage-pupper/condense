@@ -213,10 +213,12 @@ class PlayerMixin:
             return
         changed = doc.edit_segment_text(idx, self.edit_text.get("1.0", "end-1c"))
         changed = doc.set_segment_speaker(idx, self.var_seg_speaker.get()) or changed
+        changed = doc.set_segment_note(idx, self.var_seg_note.get()) or changed
         if not changed:
             return
         if self._commit(f"Saved segment {idx + 1} — transcript and exports updated.") is not None:
             self.edit_original = ((doc.segments[idx].get("text") or "").strip(), doc.segments[idx].get("speaker") or "")
+            self.edit_note_original = doc.segments[idx].get("note") or ""
             if rerender:
                 self._rerender()
             if reload:
@@ -232,6 +234,7 @@ class PlayerMixin:
         self.edit_text.delete("1.0", tk.END)
         self.edit_text.insert("1.0", self.edit_original[0])
         self.var_seg_speaker.set(self.edit_original[1])
+        self.var_seg_note.set(self.edit_note_original)
 
     def _split_at_current_word(self):
         doc = self.active_doc
