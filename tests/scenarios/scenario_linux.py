@@ -212,5 +212,5 @@ d2 = TD.load(media / "P02" / "P02.transcript.json")
 assert d2.segments[0].get("checked") and app.edit_seg_idx == 1
 dialog = SimpleNamespace(widget=SimpleNamespace(winfo_toplevel=lambda: object()))
 assert app._check_and_next_key(dialog) is None and app.edit_seg_idx == 1   # from a dialog: ignored
-assert "<Control-KP_Enter>" in app.edit_text._binds
+assert f"<{pipe.MOD}-KP_Enter>" in app.edit_text._binds  # MOD follows the real OS (Command on a Mac)
 ok("Ctrl+Enter / keypad Enter from the transcript or the text box; ignored on other tabs and in dialogs")
