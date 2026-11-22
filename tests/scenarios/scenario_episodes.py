@@ -259,7 +259,7 @@ assert not any(n.startswith("G1D1_I1_new") and by_name[n]["role"] == "other" for
 iid = next(i for i, it in app.pp_items.items() if it.get("media") and it["media"].name == "final_video.mp4")
 assert app.pp_tree.item(iid, "values") == ("not transcribed",) if isinstance(app.pp_tree.item(iid, "values"), tuple) else True
 n_jobs = len(app.jobs)
-assert app._pp_activate(fv) == "queued" and app.jobs[-1]["inputs"] == [str(g3 / "Session Recordings" / "final_video.mp4")]
+assert app._pp_activate(fv) == "queued" and [Path(p).resolve() for p in app.jobs[-1]["inputs"]] == [(g3 / "Session Recordings" / "final_video.mp4").resolve()]
 assert app._pp_status(fv) == ("in Tasks", "queued")
 assert app._pp_activate(by_name["G1D1_session.mp4"]) == "opened" and app.active_doc.base_name == "G1D1_session"
 # names like D1G3_I1 next to G1D1_I1: both patterns are learned; the most used is first
