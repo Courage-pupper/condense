@@ -150,7 +150,7 @@ def main():
                                                        "vaapi_ok": True, "gpu_test": {"vram_gb": 24}})
     app = CondenseApp()
     app.report_callback_exception = lambda exc, val, tb: errors.append(traceback.format_exception(exc, val, tb))
-    app.geometry("1560x960+0+0" if SHOTS is not None else "1280x800+0+0")
+    app.geometry("1560x960+0+0" if SHOTS is not None else "1440x860+0+0")  # a laptop screen
     pump(app, 1.0)
     to_foreground(app)
 
@@ -179,6 +179,8 @@ def main():
     app.notebook.select(app.tab_preview)
     pump(app, 0.8)
     pt = app.preview_text
+    lines = pt.winfo_height() / app.f["transcript"].metrics("linespace")
+    assert lines >= 4, f"the transcript shows only {lines:.1f} lines in a {app.winfo_width()}x{app.winfo_height()} window"
     app.var_autoplay.set(False)
     app._goto_segment(0)
     pump(app, 0.5)

@@ -7,10 +7,9 @@ from condense.gui._common import *  # noqa: F401,F403
 
 class EditorMixin:
     # ------------------------------------------------------------------ transcript editor
-    PLAYER_LATENCY_S = 0.25
+    PLAYER_LATENCY_S = 0.25  # ffplay start-up delay; keeps the follow-along highlight in sync
     SHOW_FILTERS = ["All segments", "Uncertain", "Not checked", "With notes", "Cut"]
-    EDIT_HINT = ("The box shows exactly the highlighted segment. Unchanged words keep their exact timing; corrected words are "
-                 "timed within the words they replace and marked as checked. Every change is logged in the .transcript.json.")  # ffplay start-up delay; keeps the follow-along highlight in sync
+    EDIT_HINT = "Unchanged words keep their timing; corrected words are timed within the ones they replace. Every change is logged."
 
     def _build_preview_tab(self):
         T = THEME
@@ -89,8 +88,8 @@ class EditorMixin:
         info = tk.Frame(tab, bg=T["bg_panel"])
         info.pack(fill=tk.X, pady=(6, 4))
         # Fixed heights for the lines that change on every ↑/↓: if they grew or shrank, the transcript would jump.
-        self.lbl_ci_summary = self._wrapping_label(info, kbd("No transcript open. Select a finished job or use Open… (⇧⌘O)."), font="small_bold",
-                                                   bg=T["bg_panel"], height=2, anchor="nw")
+        self.lbl_ci_summary = self._label(info, kbd("No transcript open. Select a finished job or use Open… (⇧⌘O)."), font="small_bold",
+                                          bg=T["bg_panel"], height=1, anchor="w", justify=tk.LEFT)
         self.lbl_ci_summary.pack(fill=tk.X)
         self.lbl_word = self._label(info, "", font="mono_small", fg=T["fg_secondary"], bg=T["bg_panel"], anchor="w", justify=tk.LEFT, height=1)
         self.lbl_word.pack(fill=tk.X)
@@ -139,7 +138,7 @@ class EditorMixin:
         for seq in (f"<{MOD}-Return>", f"<{MOD}-KP_Enter>"):
             self.ent_seg_note.bind(seq, lambda e: (self._check_and_next(), "break")[-1])
         self.edit_note_original = ""
-        self.lbl_edit_hint = self._wrapping_label(ep, self.EDIT_HINT, font="small", fg=T["fg_dim"], height=2, anchor="nw")
+        self.lbl_edit_hint = self._label(ep, self.EDIT_HINT, font="small", fg=T["fg_dim"], height=1, anchor="w", justify=tk.LEFT)
         self.lbl_edit_hint.pack(fill=tk.X)
         self.edit_seg_idx: Optional[int] = None
         self.edit_original = ("", "")
