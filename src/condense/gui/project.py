@@ -590,15 +590,15 @@ class ProjectMixin:
         self._label(win, "Where the files in your …Unsorted folders belong, read from their names and the project's structure. "
                          "This is only a plan: nothing is moved unless you click Move and confirm. Every move is recorded in "
                          f"{stlib.MOVES_FILE} and can be undone here.", font="small", fg=T["fg_secondary"], bg=T["bg_panel"],
-                    wraplength=720, justify=tk.LEFT).pack(anchor="w")
+                    wraplength=1060, justify=tk.LEFT).pack(anchor="w")
         cols = ("dst", "why")
         tree = ttk.Treeview(win, columns=cols, show="tree headings", height=12, style="Queue.Treeview")
         tree.heading("#0", text="File")
-        tree.column("#0", width=230)
+        tree.column("#0", width=200)
         tree.heading("dst", text="Would go to")
-        tree.column("dst", width=330)
+        tree.column("dst", width=440)
         tree.heading("why", text="Why")
-        tree.column("why", width=260)
+        tree.column("why", width=440)
         tree.pack(fill=tk.BOTH, expand=True, pady=8)
         lbl = self._label(win, "", font="small", fg=T["fg_secondary"], bg=T["bg_panel"])
         lbl.pack(anchor="w")
