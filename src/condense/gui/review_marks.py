@@ -16,6 +16,8 @@ class ReviewMarksMixin:
                 changed = True
         if changed:
             self._save_queue()
+        if self.__dict__.get("pp_tree") is not None:
+            self._pp_update_doc(doc)
 
     def _toggle_checked(self):
         doc, idx = self.active_doc, self.edit_seg_idx

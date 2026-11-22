@@ -778,6 +778,8 @@ class QueueMixin:
                     self._save_queue()
                     ok = msg.get("success")
                     self._append_log("Pipeline finished." if ok else "Pipeline finished with errors or was stopped.", "SUCCESS" if ok else "ERROR")
+                    if self.__dict__.get("pp_tree") is not None:
+                        self._refresh_project_panel()  # new transcripts appear in the project
         except queue.Empty:
             pass
         self.after(100, self._poll_queue)

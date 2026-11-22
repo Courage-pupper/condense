@@ -290,6 +290,8 @@ class EditorMixin:
         if new_doc:
             self._project_follow_doc(doc)
             self._forget_project_cache()
+            if self.__dict__.get("pp_tree") is not None:
+                self._pp_mark_open()
         roster = self._roster()
         spk_tag = {spk: f"SPK{i % len(SPEAKER_COLORS)}" for i, spk in enumerate(roster)}
         rsegs = report["segments"]

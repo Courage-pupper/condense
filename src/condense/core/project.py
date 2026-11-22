@@ -89,6 +89,8 @@ def skipped(name: str, patterns) -> bool:
 def _level_word(names: List[str]) -> Optional[str]:
     """'Day 1 2026-08-10', 'Day 2 …' -> 'Day'; 'Group 1', 'Group 2' -> 'Group'. None if the names share no leading word."""
     words = [re.split(r"[\s_\-]+|(?<=[A-Za-z])(?=\d)", n.strip())[0] for n in names if n.strip()]
+    if len(words) == 1 and re.match(r"^[A-Za-z]+[\s_\-]*\d", names[0].strip()):
+        return words[0].capitalize()  # a single "Day 1 …" or "Group 3" is a level too
     if len(words) < 2:
         return None
     word, count = Counter(w.capitalize() for w in words if w and not w[0].isdigit()).most_common(1)[0] if any(
@@ -205,6 +207,8 @@ def overview_row(path: Path) -> Dict:
         "edits": len(doc.data.get("edit_history") or []),
         "modified": datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M"),
         "episodes": doc.episodes,
+        "media_paths": [m for m in [(doc.data.get("media") or {}).get("playback")]
+                        + [i.get("path") for i in ((doc.data.get("provenance") or {}).get("inputs") or []) if isinstance(i, dict)] if m],
     }
 
 
@@ -240,3 +244,87 @@ def write_overview_csv(rows: List[Dict], target: Path) -> Path:
                 lv = dict(r.get("levels") or [])
                 w.writerow([lv.get(c, "") if c in level_names else r.get(c, "") for c in cols])
     return target
+
+
+MEDIA_EXTS = {".mp4", ".mov", ".m4v", ".mkv", ".avi", ".mts", ".m2ts", ".webm", ".wav", ".mp3", ".m4a", ".aac", ".flac"}
+
+
+def inventory(folder: Path, stop=None, max_dirs: int = 20000) -> List[Dict]:
+    """Everything a study holds, by level folder: each recording (transcribed or not) with its role — session, interview
+    or other — and its transcript's overview row; transcripts whose recording was not found are listed too.
+    Media inside Condense's own output folders (compressed copies) belong to their transcript and are not listed."""
+    from condense.core.transcript import TranscriptDocument
+    from condense.core.util import is_system_junk
+    folder = Path(folder).resolve()
+    settings = project_settings(folder) if (folder / PROJECT_FILE).is_file() else {"levels": [], "skip": DEFAULT_SKIP, "structure": None}
+    st = settings.get("structure")
+    media: List[Path] = []
+    transcripts: List[Path] = []
+    output_dirs = set()
+    seen = 0
+    for root, dirs, files in os.walk(folder, followlinks=False, onerror=lambda e: None):
+        seen += 1
+        if seen > max_dirs or (stop is not None and stop.is_set()):
+            break
+        dirs[:] = sorted(d for d in dirs if not d.startswith(".") and d not in SKIP_DIRS and not skipped(d, settings["skip"]))
+        here = Path(root)
+        if any(f.endswith(TranscriptDocument.SUFFIX) and not f.startswith(".") for f in files):
+            output_dirs.add(here)
+        for f in sorted(files):
+            if f.startswith(".") or is_system_junk(f):
+                continue
+            if f.endswith(TranscriptDocument.SUFFIX):
+                transcripts.append(here / f)
+            elif Path(f).suffix.lower() in MEDIA_EXTS:
+                media.append(here / f)
+    media = [m for m in media if m.parent not in output_dirs]
+    rows: Dict[Path, Dict] = {}
+    for t in transcripts:
+        if stop is not None and stop.is_set():
+            break
+        try:
+            rows[t] = overview_row(t)
+        except Exception as exc:
+            rows[t] = {"path": t, "name": t.name, "error": str(exc), "media_paths": []}
+    by_path: Dict[str, List[Path]] = {}
+    by_name: Dict[str, List[Path]] = {}
+    for t, row in rows.items():
+        for mp in row.get("media_paths") or []:
+            try:
+                by_path.setdefault(str(Path(mp).resolve()), []).append(t)
+            except OSError:
+                pass
+            by_name.setdefault(Path(mp).name, []).append(t)
+
+    def role_of(dir_: Path) -> str:
+        if st is not None:
+            r = st.role_of(folder, dir_)
+            if r:
+                return "session" if r == "sessions" else "interview"
+            return "other"
+        low = dir_.name.lower()
+        return "interview" if "interview" in low else ("session" if "session" in low else "other")
+
+    def group_of(path: Path) -> Tuple:
+        return tuple(level_path(folder, path, settings["levels"]))
+
+    items: List[Dict] = []
+    used = set()
+    for m in media:
+        # 1. Condense's default: results in a folder named like the recording, next to it
+        sub = m.parent / m.stem
+        cands = sorted(sub.glob(f"*{TranscriptDocument.SUFFIX}")) if sub.is_dir() else []
+        t = next((c for c in cands if not c.name.startswith(".") and c not in used), None)
+        # 2. a transcript that names this file, preferably in the same day/group
+        same = [c for c in by_path.get(str(m.resolve()), []) if c not in used]
+        t = t or next((c for c in same if group_of(c) == group_of(m)), None) or next(iter(same), None)
+        # 3. same file name, same level folder (the drive may be mounted elsewhere on another computer)
+        t = t or next((c for c in by_name.get(m.name, []) if group_of(c) == group_of(m) and c not in used), None)
+        if t is not None:
+            used.add(t)
+        items.append({"role": role_of(m.parent), "media": m, "transcript": t, "row": rows.get(t), "levels": group_of(m)})
+    for t, row in rows.items():
+        if t not in used:
+            outer = t.parent.parent if t.parent in output_dirs else t.parent
+            items.append({"role": role_of(outer), "media": None, "transcript": t, "row": row, "levels": group_of(t)})
+    return items

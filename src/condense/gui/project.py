@@ -33,6 +33,10 @@ class ProjectMixin:
             pass
         self._forget_project_cache()
         self._refresh_project_ui()
+        if self.__dict__.get("pp_tree") is not None:
+            self._refresh_project_panel()
+            if folder is not None:
+                self.left_tabs.select(self.tab_project)
         if announce:
             self._append_log(f"Project: {proj.project_name(folder)} ({folder})" if folder else "Project closed.", "INFO")
 

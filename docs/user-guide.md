@@ -231,6 +231,9 @@ Interview clips:  {Day}/{Group}/Semi-structured Interviews/G{group}D{day}_I{n}
 - `{Day}`, `{Group}` are the levels: any folder at that place, such as `Day 1 2026-08-10`. `{day}`, `{group}` are their
   numbers (the first number in the folder name).
 - `{n}` numbers a group's interviews **across all days**: if Group 1 has I1–I13, its next interview is I14, whatever the day.
+- If your clips are named in more than one way (`G1D1_I1` and `D1G4_I1`), list the patterns with `|`:
+  `G{group}D{day}_I{n} | D{day}G{group}_I{n}`. All are recognised; new clips use the first. *Read from my folders* finds
+  the patterns your clips already use.
 - There are presets (*Workshops: Day ▸ Group*, *Interview study: Participant ▸ Session*, *One folder*) and a live
   example of where files go. *Read from my folders* suggests the template again.
 - **Consent forms** and **…Unsorted** folders are skipped: never opened or listed.
@@ -262,6 +265,14 @@ are recorded in `condense-moves.json` and *Undo last move* puts the files back.
 - **Getting sessions into it:** set a task's output folder (*Task Details ▸ Output*) to a folder inside the project, or
   keep your videos in the study folder (results are saved next to them). You can also move finished session folders
   into it.
+
+**The Project tab** (next to *Tasks*, on the left) keeps the study in view while you work: every recording by day
+and group — **transcribed or not** — sorted into *Sessions*, *Interviews* and *Other recordings*, with each transcript's
+progress and episodes. Double-click a transcript to open it (or an episode to go to it); double-click a recording without
+a transcript to add it to Tasks. Right-click for more: transcribe several at once, find interview clips in a session,
+show in folder.
+
+![The Project tab](images/project-panel.png)
 
 **Project overview** (click the project's name, or *Project ▸ Project Overview…*) shows the study as a tree — Day ▸
 Group ▸ transcript ▸ its episodes — with totals per day and group. For each transcript it lists its length, how much is checked, the share of uncertain words, speakers (and how many still have no name), cut time,

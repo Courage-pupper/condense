@@ -43,6 +43,10 @@ class Structure:
     def __init__(self, sessions: str = "", interviews: str = ""):
         self.sessions = sessions.strip().strip("/")
         self.interviews = interviews.strip().strip("/")
+        segs = _segments(self.interviews)
+        # the clip name may have alternatives, "G{group}D{day}_I{n} | D{day}G{group}_I{n}": all are recognised, the first
+        # is used for new clips
+        self.name_alts: List[str] = [a.strip() for a in segs[-1].split("|") if a.strip()] if segs else []
         self.levels: List[str] = []
         for seg in _segments(self.sessions) + _segments(self.interviews)[:-1]:
             m = re.fullmatch(r"\{([A-Z][A-Za-z0-9_ ]*)\}", seg)
@@ -56,9 +60,10 @@ class Structure:
             for seg in _segments(t)[:-1] if name == "Interview clips" else _segments(t):
                 if _PH.search(seg) and not re.fullmatch(r"\{[A-Z][A-Za-z0-9_ ]*\}", seg):
                     out.append(f"{name}: a level like {{Day}} must be a whole folder name ({seg}).")
-        if self.interviews and "{n}" not in _segments(self.interviews)[-1]:
-            out.append("Interview clips: the name needs {n}, the interview number.")
-        for ph in _PH.findall(self.interviews.split("/")[-1] if self.interviews else ""):
+        for alt in self.name_alts:
+            if "{n}" not in alt:
+                out.append(f"Interview clips: the name {alt} needs {{n}}, the interview number.")
+        for ph in _PH.findall(" ".join(self.name_alts)):
             if ph != "n" and ph.capitalize() not in self.levels and ph not in self.levels:
                 out.append(f"Interview clips: {{{ph}}} is not a level of the folders.")
         return out
@@ -69,7 +74,7 @@ class Structure:
         if role == "sessions":
             return "/".join(_fill(seg, vals) for seg in _segments(self.sessions)) + "/recording.mp4"
         segs = _segments(self.interviews)
-        return "/".join(_fill(seg, vals) for seg in segs[:-1]) + "/" + _fill(segs[-1], dict(vals, n="4")) + ".mp4"
+        return "/".join(_fill(seg, vals) for seg in segs[:-1]) + "/" + _fill(self.name_alts[0], dict(vals, n="4")) + ".mp4"
 
     # ----- reading paths -----
     def values_for(self, project: Path, path: Path) -> Dict:
@@ -88,34 +93,47 @@ class Structure:
         vals = self.values_for(project, path)
         return Path(project).resolve().joinpath(*[vals[lv] for lv in self.levels]) if vals else None
 
+    def role_of(self, project: Path, folder: Path) -> Optional[str]:
+        """'sessions' or 'interviews' if folder is that folder of some level folders, else None."""
+        try:
+            parts = Path(folder).resolve().relative_to(Path(project).resolve()).parts
+        except ValueError:
+            return None
+        for role, segs in (("sessions", _segments(self.sessions)), ("interviews", _segments(self.interviews)[:-1])):
+            if len(parts) != len(segs):
+                continue
+            if all(re.fullmatch(r"\{[A-Z][A-Za-z0-9_ ]*\}", sg) or sg.lower() == pt.lower() for sg, pt in zip(segs, parts)):
+                return role
+        return None
+
     def role_folder(self, project: Path, role: str, vals: Dict) -> Optional[Path]:
         segs = _segments(self.sessions) if role == "sessions" else _segments(self.interviews)[:-1]
         if not all(lv in vals for lv in self.levels):
             return None
         return Path(project).resolve().joinpath(*[_fill(seg, vals) for seg in segs])
 
-    def name_regex(self) -> Optional[re.Pattern]:
-        if not self.interviews:
-            return None
-        pat, pos = "", 0
-        last = _segments(self.interviews)[-1]
-        for m in _PH.finditer(last):
-            pat += re.escape(last[pos:m.start()])
-            key = m.group(1)
-            pat += f"(?P<{_group_name(key)}>\\d+)" if key == "n" or key.islower() else f"(?P<{_group_name(key)}>.+?)"
-            pos = m.end()
-        pat += re.escape(last[pos:])
-        return re.compile(f"^{pat}$", re.IGNORECASE)
+    def name_regexes(self) -> List[re.Pattern]:
+        out = []
+        for last in self.name_alts:
+            pat, pos = "", 0
+            for m in _PH.finditer(last):
+                pat += re.escape(last[pos:m.start()])
+                key = m.group(1)
+                pat += f"(?P<{_group_name(key)}>\\d+)" if key == "n" or key.islower() else f"(?P<{_group_name(key)}>.+?)"
+                pos = m.end()
+            pat += re.escape(last[pos:])
+            out.append(re.compile(f"^{pat}$", re.IGNORECASE))
+        return out
 
     def parse_clip_name(self, stem: str) -> Optional[Dict]:
-        rx = self.name_regex()
-        m = rx.match(stem) if rx else None
-        if not m:
-            return None
-        return {_ungroup(k): (int(v) if v.isdigit() else v) for k, v in m.groupdict().items()}
+        for rx in self.name_regexes():
+            m = rx.match(stem)
+            if m:
+                return {_ungroup(k): (int(v) if v.isdigit() else v) for k, v in m.groupdict().items()}
+        return None
 
     def clip_name(self, vals: Dict, n: int) -> str:
-        return _fill(_segments(self.interviews)[-1], dict(vals, n=str(n)))
+        return _fill(self.name_alts[0], dict(vals, n=str(n)))
 
     # ----- numbering -----
     def used_numbers(self, project: Path, group_value: Dict, extra_labels: List[str] = ()) -> List[int]:
@@ -235,8 +253,59 @@ def suggest(project: Path, levels: List[str]) -> Dict[str, str]:
                          and "screen" not in n.lower()), None)
     interviews_dir = next((n for n, _ in sorted(inner.items(), key=lambda x: -x[1]) if "interview" in n.lower()), None) or "Interviews"
     initials = "".join(f"{lv[0].upper()}{{{lv.lower()}}}" for lv in reversed(levels))
+    folder_part = f"{lv_path}/{interviews_dir}"
+    learned = learn_name_patterns(Path(project), Structure("", f"{folder_part}/{initials}_I{{n}}"))
     return {"sessions": lv_path + (f"/{sessions_dir}" if sessions_dir else ""),
-            "interviews": f"{lv_path}/{interviews_dir}/{initials}_I{{n}}"}
+            "interviews": f"{folder_part}/{' | '.join(learned) if learned else initials + '_I{n}'}"}
+
+
+def name_pattern(stem: str, vals: Dict, levels: List[str]) -> Optional[str]:
+    """'D1G4_I3' in Day 1 / Group 4 -> 'D{day}G{group}_I{n}': numbers become the level they equal (the letter before a
+    number decides when two levels have the same number); the last unexplained number is {n}."""
+    nums = list(re.finditer(r"\d+", stem))
+    if not nums:
+        return None
+    used, out, pos, n_done = set(), "", 0, False
+    for i, m in enumerate(nums):
+        value, before = int(m.group()), stem[:m.start()]
+        letter = before[-1].upper() if before and before[-1].isalpha() else ""
+        choice = None
+        for lv in levels:
+            if lv.lower() in used or vals.get(lv.lower()) != value:
+                continue
+            if letter and lv[0].upper() == letter:
+                choice = lv.lower()
+                break
+            choice = choice or lv.lower()
+        if choice and i < len(nums) - 1:
+            used.add(choice)
+            ph = choice
+        elif i == len(nums) - 1 and not n_done:
+            ph, n_done = "n", True
+        else:
+            return None
+        out += stem[pos:m.start()] + "{" + ph + "}"
+        pos = m.end()
+    out += stem[pos:]
+    return out if n_done and len(used) == len(levels) else None
+
+
+def learn_name_patterns(project: Path, structure: "Structure", video_exts=(".mp4", ".mov", ".m4v", ".mkv", ".avi", ".mts")) -> List[str]:
+    """The naming patterns of the clips already in the interview folders, most used first."""
+    counts: Dict[str, int] = {}
+    project = Path(project)
+    for root, dirs, files in os.walk(project, onerror=lambda e: None):
+        dirs[:] = [d for d in dirs if not d.startswith(".") and not d.lower().startswith("consent") and "unsorted" not in d.lower()]
+        if structure.role_of(project, Path(root)) != "interviews":
+            continue
+        vals = structure.values_for(project, Path(root) / "x")
+        for f in files:
+            if f.startswith(".") or Path(f).suffix.lower() not in video_exts:
+                continue
+            pat = name_pattern(Path(f).stem, vals, structure.levels)
+            if pat and pat.endswith("{n}"):  # "G1D1_I1_new" is a one-off, not a naming scheme
+                counts[pat] = counts.get(pat, 0) + 1
+    return [p for p, _ in sorted(counts.items(), key=lambda x: (-x[1], x[0]))]
 
 
 def from_project(data: Dict) -> Optional[Structure]:

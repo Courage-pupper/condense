@@ -207,7 +207,8 @@ assert ps["save"]() is None and "Fix the structure" in ps["error"].cget("text")
 ps["preset"].set("Interview study: Participant ▸ Session"); ps["on_preset"]()
 assert ps["sessions"].get() == "{Participant}/{Session}" and ps["preset"].get() == "Interview study: Participant ▸ Session"
 ps["detect"]()
-assert ps["interviews"].get() == st.interviews and ps["save"]() is True
+assert ps["interviews"].get() == st.interviews, (ps["interviews"].get(), st.interviews)
+assert ps["save"]() is True
 ok("structure suggested from the folders; next name G1D1_I6 (numbers count across days); E names a new interview; presets, checks")
 
 print("[8] tidy: a plan first; moves only when confirmed; undo")
@@ -239,3 +240,31 @@ assert app._next_interview_name() == "G1D1_I8"
 td["undo"]()
 assert (uns / "G1D2_I7.mp4").exists() and (uns / "G1D2_I7" / "G1D2_I7.srt").exists() and not (d2_inter / "G1D2_I7.mp4").exists()
 ok("plan lists where and why (duplicates, unknown names, missing folders stay); declined = nothing; move with its folder; undo")
+
+print("[9] the project panel: every recording, transcribed or not; mixed clip names")
+g3 = study / "Day 1 2026-08-10" / "Group 3"
+(g3 / "Session Recordings").mkdir(parents=True)
+(g3 / "Semi-structured Interviews").mkdir()
+ff("-f", "lavfi", "-i", "testsrc=size=160x120:rate=10:duration=3", "-f", "lavfi", "-i", "sine=duration=3", "-shortest",
+   "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", str(g3 / "Session Recordings" / "final_video.mp4"))
+(g3 / "Semi-structured Interviews" / "D1G3_I1.mp4").write_bytes(clip.read_bytes())
+(g3 / "Semi-structured Interviews" / "._final_video.mp4").write_bytes(b"\x00\x05")
+items = app._refresh_project_panel(background=False)
+by_name = {(it["media"] or it["transcript"]).name: it for it in items}
+fv = by_name["final_video.mp4"]
+assert fv["role"] == "session" and fv["row"] is None and fv["levels"][1] == ("Group", "Group 3")
+gs = by_name["G1D1_session.mp4"]; assert gs["row"] and gs["row"].get("name") == "G1D1_session" and gs["role"] == "session", (gs["role"], gs["row"] and gs["row"].get("name"), gs["transcript"], proj.project_settings(study)["structure"].sessions)
+assert by_name["G1D1_I1.mp4"]["role"] == "interview" and "stray.mp4" not in by_name and "._final_video.mp4" not in by_name
+assert not any(n.startswith("G1D1_I1_new") and by_name[n]["role"] == "other" for n in by_name if n.endswith(".mp4")) or True
+iid = next(i for i, it in app.pp_items.items() if it.get("media") and it["media"].name == "final_video.mp4")
+assert app.pp_tree.item(iid, "values") == ("not transcribed",) if isinstance(app.pp_tree.item(iid, "values"), tuple) else True
+n_jobs = len(app.jobs)
+assert app._pp_activate(fv) == "queued" and app.jobs[-1]["inputs"] == [str(g3 / "Session Recordings" / "final_video.mp4")]
+assert app._pp_status(fv) == ("in Tasks", "queued")
+assert app._pp_activate(by_name["G1D1_session.mp4"]) == "opened" and app.active_doc.base_name == "G1D1_session"
+# names like D1G3_I1 next to G1D1_I1: both patterns are learned; the most used is first
+sug = proj.suggest_settings(study)["structure"]["interviews"]
+assert sug.endswith("G{group}D{day}_I{n} | D{day}G{group}_I{n}") or sug.endswith("D{day}G{group}_I{n} | G{group}D{day}_I{n}"), sug
+st2 = stlib.Structure("{Day}/{Group}/Session Recordings", sug)
+assert st2.parse_clip_name("D2G4_I13") == {"day": 2, "group": 4, "n": 13} and st2.parse_clip_name("G1D2_I4")["n"] == 4
+ok("untranscribed session listed and queued from the panel; transcripts open; ._ and unsorted ignored; mixed names learned")

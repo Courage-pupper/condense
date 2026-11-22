@@ -17,10 +17,11 @@ from condense.gui.trim_dialog import TrimDialogMixin
 from condense.gui.find import FindMixin
 from condense.gui.project import ProjectMixin
 from condense.gui.episodes import EpisodesMixin
+from condense.gui.project_panel import ProjectPanelMixin
 from condense.gui.video import VideoMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, ProjectPanelMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")
@@ -437,7 +438,17 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.paned.add(right, minsize=480, stretch="always")
         self.after(80, self._restore_sash)
 
-        self._build_queue_panel(left)
+        # Tasks and the project's recordings share the left side; the project tab is shown when a project is open
+        self.left_tabs = ttk.Notebook(left)
+        self.left_tabs.pack(fill=tk.BOTH, expand=True)
+        self.tab_tasks = tk.Frame(self.left_tabs, bg=THEME["bg_panel"], pady=6)
+        self.tab_project = tk.Frame(self.left_tabs, bg=THEME["bg_panel"], pady=6)
+        self.left_tabs.add(self.tab_tasks, text="Tasks")
+        self.left_tabs.add(self.tab_project, text="Project")
+        self._build_queue_panel(self.tab_tasks)
+        self._build_project_panel(self.tab_project)
+        if self._project_dir() is not None:
+            self.left_tabs.select(self.tab_project)
 
         self.notebook = ttk.Notebook(right)
         self.notebook.pack(fill=tk.BOTH, expand=True)

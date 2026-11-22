@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.13.0 — 2026-11-22
+
+### The project, always in view
+- A **Project** tab next to *Tasks* shows every recording of the study by day and group — **transcribed or not** —
+  sorted into *Sessions*, *Interviews* and *Other recordings* (like screen recordings), with each transcript's progress
+  and episodes. The open transcript is highlighted; progress updates as you check segments.
+- **Double-click** opens a transcript (or an episode in it); on a recording without a transcript it offers to add it to
+  Tasks. Right-click: transcribe several at once, find interview clips in a session, show in folder.
+- New transcripts appear when a run finishes. Condense's own copies (compressed videos in result folders) and macOS `._`
+  files are not listed.
+
+### Clip names in more than one pattern
+- Interview clips named in different ways (`G1D1_I1`, `D1G4_I1`) are all recognised: the patterns are learned from the
+  clips already in the interview folders, and the template accepts alternatives (`G{group}D{day}_I{n} | D{day}G{group}_I{n}`).
+  New clips use the first; numbering counts all of them.
+- A level with a single folder (only `Day 1 …`) is recognised too.
+
 ## 0.12.0 — 2026-11-22
 
 Workshops with groups: episodes for interviews and activity phases, projects that follow your folders, and interviews you

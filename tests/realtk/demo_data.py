@@ -136,8 +136,14 @@ def build(work: Path):
     d1.add_episode("Phase", "Intro & Icebreaker", 0.0, 24.0, approx=True)
     d1.add_episode("Phase", "Dioramas", 24.0, 120.0, approx=True)
     d1.save()
-    d2 = _doc(day1 / "Group 2" / "Session Recordings" / "demo_G2D1", "demo_G2D1", SESSION_2, 2, video, {"SPEAKER_00": "Facilitator"})
-    d3 = _doc(day2 / "Group 1" / "Session Recordings" / "demo_G1D2", "demo_G1D2", SESSION_2[:4], 3, video, {})
+    import shutil
+    v2 = day1 / "Group 2" / "Session Recordings" / "demo_G2D1.mp4"
+    v3 = day2 / "Group 1" / "Session Recordings" / "demo_G1D2.mp4"
+    for v in (v2, v3, day2 / "Group 2" / "Session Recordings" / "final_video.mp4"):
+        v.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(video, v)
+    d2 = _doc(v2.parent / "demo_G2D1", "demo_G2D1", SESSION_2, 2, v2, {"SPEAKER_00": "Facilitator"})
+    d3 = _doc(v3.parent / "demo_G1D2", "demo_G1D2", SESSION_2[:4], 3, v3, {})
     return study, video, [d1, d2, d3]
 
 

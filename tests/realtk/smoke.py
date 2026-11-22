@@ -297,6 +297,15 @@ def main():
     pump(app)
     shot(app, "project-settings", w_set)
     w_set.destroy()
+    app.left_tabs.select(app.tab_project)
+    for _ in range(100):
+        pump(app, 0.1)
+        if app.pp_items:
+            break
+    names = {it["media"].name: it for it in app.pp_items.values() if it.get("media") and not it.get("episode")}
+    assert names["final_video.mp4"]["row"] is None and names["demo_G1D1.mp4"]["row"] is not None, sorted(names)
+    shot(app, "project-panel")
+    app.left_tabs.select(app.tab_tasks)
     w_tidy, td = app._tidy_dialog()
     pump(app, 0.3)
     plan = {it["src"].name: it for it in td["plan"]()}
