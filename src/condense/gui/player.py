@@ -431,6 +431,7 @@ class PlayerMixin:
         self.preview_text.tag_add("PLAYING", f"{sp['line']}.{sp['c0']}", f"{sp['line']}.{sp['c1']}")
         if self.var_follow.get():
             self.preview_text.see(f"{sp['line']}.{sp['c0']}")
+        self._cd_follow(pos)
 
     def _update_time_label(self):
         speed = self._speed()

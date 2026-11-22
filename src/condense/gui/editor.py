@@ -540,6 +540,9 @@ class EditorMixin:
             self._video_stop()
             self._toggle_video_panel()
             self._video_still(self.play_pos)
+        if self.__dict__.get("cd_text") is not None and self._cd_visible():
+            self._cd_refresh()  # the Coding tab shows the same transcript (also after undo)
+
 
     def _select_span(self, idx: int, autoplay: bool = False, scroll: bool = True, load_editor: bool = True):
         if not (0 <= idx < len(self.word_spans)):

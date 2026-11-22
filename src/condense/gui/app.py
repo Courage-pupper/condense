@@ -18,10 +18,11 @@ from condense.gui.find import FindMixin
 from condense.gui.project import ProjectMixin
 from condense.gui.episodes import EpisodesMixin
 from condense.gui.project_panel import ProjectPanelMixin
+from condense.gui.coding_tab import CodingMixin
 from condense.gui.video import VideoMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, ProjectPanelMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, ProjectPanelMixin, CodingMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")
@@ -377,6 +378,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         v.add_command(label="Settings", accelerator=f"{acc}1", command=lambda: self.notebook.select(self.tab_settings))
         v.add_command(label="Console", accelerator=f"{acc}2", command=lambda: self.notebook.select(self.tab_console))
         v.add_command(label="Transcript", accelerator=f"{acc}3", command=lambda: self.notebook.select(self.tab_preview))
+        v.add_command(label="Coding", accelerator=f"{acc}4", command=lambda: self.notebook.select(self.tab_coding))
         v.add_separator()
         v.add_command(label="Keyboard Shortcuts", accelerator=f"{acc}/", command=self._show_shortcuts)
         mb.add_cascade(label="View", menu=v)
@@ -420,7 +422,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             "equal": lambda: self._set_zoom(self.ui_scale + 0.1), "plus": lambda: self._set_zoom(self.ui_scale + 0.1),
             "minus": lambda: self._set_zoom(self.ui_scale - 0.1), "0": lambda: self._set_zoom(1.0),
             "1": lambda: self.notebook.select(self.tab_settings), "2": lambda: self.notebook.select(self.tab_console),
-            "3": lambda: self.notebook.select(self.tab_preview),
+            "3": lambda: self.notebook.select(self.tab_preview), "4": lambda: self.notebook.select(self.tab_coding),
             "bracketleft": lambda: self._seek_rel(-5), "bracketright": lambda: self._seek_rel(+5),
             "s": self._save_segment_edit,
             "i": self._insert_segment_dialog,
@@ -532,9 +534,12 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.notebook.add(self.tab_settings, text="Settings")
         self.notebook.add(self.tab_console, text="Console")
         self.notebook.add(self.tab_preview, text="Transcript")
+        self.tab_coding = tk.Frame(self.notebook, bg=THEME["bg_panel"], padx=8, pady=8)
+        self.notebook.add(self.tab_coding, text="Coding")
         self._build_settings_tab()
         self._build_console_tab()
         self._build_preview_tab()
+        self._build_coding_tab()
 
     def _restore_sash(self):
         if self.paned.winfo_width() <= 1:

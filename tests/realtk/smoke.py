@@ -443,6 +443,39 @@ def main():
     shot(app, "editor-episodes")
     ok("episodes: phases shown, interview clip found at 70.0 s by its sound and added")
 
+    # coding: the Coding tab with the demo codebook; code a selection for real; stripes; a moment without speech
+    app._render_doc(TD.load(docs[0].path))
+    app.notebook.select(app.tab_coding)
+    pump(app, 1.0)
+    assert app._cd["words"] and app._cd["resolved"], "the Coding tab shows nothing"
+    ct = app.cd_text
+    words = app._cd["words"]
+    first = next(n for n, w in enumerate(words) if w[3] == 9)       # "Green, because green is the colour of the river."
+    last = max(n for n, w in enumerate(words) if w[3] == 9)
+    ct.tag_add("sel", f"{words[first][0]}.{words[first][1]}", f"{words[last][0]}.{words[last][2]}")
+    cb = app._cd_codebook()
+    feelings = cb.find("Feelings")["id"]
+    app.cd_tree.selection_set(feelings)
+    pump(app, 0.2)
+    kid = app._cd_apply(feelings)
+    assert kid and any(r["id"] == kid for r in app._cd["resolved"])
+    ct.tag_remove("sel", "1.0", "end")
+    ct.see(f"{words[first][0]}.0")
+    pump(app, 0.5)
+    assert app._cd.get("stripe_hits"), "no coding stripes drawn"
+    shot(app, "coding")
+    w_m, tdlg = app._cd_time_dialog(30.0, 36.0)
+    pump(app, 0.3)
+    shot(app, "coding-moment", w_m)
+    w_m.destroy()
+    w_e, ce = app._cd_edit_code(cb.find("Making")["id"])
+    pump(app, 0.3)
+    shot(app, "coding-code", w_e)
+    w_e.destroy()
+    app.notebook.select(app.tab_preview)
+    pump(app, 0.3)
+    ok("Coding tab: demo codebook, a real selection coded, stripes drawn, moment and code dialogs")
+
     res = app._trim_dialog(video)
     assert res is not None
     win, st = res

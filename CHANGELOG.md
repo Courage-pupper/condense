@@ -2,6 +2,18 @@
 
 ## 0.16.0 — unreleased
 
+### Coding (first version)
+- A **Coding** tab (⌘4 / Ctrl+4): the project's **codebook** on the left, the transcript with a coloured **stripe** for
+  every coding, and the transcript's codings below (time, code, speaker, text, memo).
+- **Inductive and evolving:** select words and press **N** for a new code that codes them; **1–9** reuse recent codes;
+  subcodes; each code has a colour, definition, *use when* / *not when*, example and memo. **Merge** codes (subcodes and
+  memos move along), **split** a code by giving some of its codings a new code, delete codes. The codebook
+  (`condense-codebook.json` in the study folder) records every change in its log.
+- **Moments without speech:** drag on the timeline, choose a code and describe what happens (materials, devices,
+  gestures); shown in the transcript at its time.
+- Codings are saved in the transcript, with backups and undo, and stay on their words through corrections, splits,
+  merges and re-transcribed passages.
+
 ### Under the hood: ready for coding
 - Every word now has a permanent id. Corrections, splits, merges, deleted or inserted segments and re-transcribed
   passages keep the ids of the words they don't change, so anything attached to words — codes, coming next — stays on

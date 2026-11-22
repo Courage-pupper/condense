@@ -15,10 +15,11 @@ Shortcuts are written **Mac / Linux and Windows**, for example **⌘↩ / Ctrl+E
 6. [Notes, find and replace, filters](#6-notes-find-and-replace-filters)
 7. [Cutting parts out](#7-cutting-parts-out)
 8. [Episodes: interviews and activity phases](#8-episodes-interviews-and-activity-phases)
-9. [Projects: many sessions of one study](#9-projects-many-sessions-of-one-study)
-10. [Into MAXQDA](#10-into-maxqda)
-11. [Your data](#11-your-data)
-12. [When something goes wrong](#12-when-something-goes-wrong)
+9. [Coding](#9-coding)
+10. [Projects: many sessions of one study](#10-projects-many-sessions-of-one-study)
+11. [Into MAXQDA](#11-into-maxqda)
+12. [Your data](#12-your-data)
+13. [When something goes wrong](#13-when-something-goes-wrong)
 
 ---
 
@@ -227,7 +228,43 @@ again updates the episodes instead of adding them twice.
 
 ![Finding a cut-out interview in the session](images/find-clips.png)
 
-## 9. Projects: many sessions of one study
+## 9. Coding
+
+The **Coding** tab (⌘4 / Ctrl+4) codes the open transcript with the project's codebook. The codebook is kept in the
+study folder (`condense-codebook.json`) and shared by all its transcripts. Coding needs a project (see [Projects](#10-projects-many-sessions-of-one-study)).
+
+![The Coding tab](images/coding.png)
+
+**The codebook grows while you code.**
+- **New code from what you've selected:** select words in the transcript and press **N** (or *New code from selection*):
+  name it, and the selection is coded with it. **+ Code** and **+ Subcode** add codes without coding.
+- **Edit…** (or right-click a code) gives a code its name, place in the tree, colour, **definition**, *use when*, *not
+  when*, an **example** and a **memo**. The panel below the codebook shows them for the selected code.
+- **Merge into another code** (*More ▾* or right-click): all its codings get the other code, its subcodes move along,
+  and its memo is added to the other's. A code that turned out too big is **split** by making a new (sub)code and giving
+  the codings that belong to it the new code: select one in the list below and *Change code…*.
+- **Delete** removes a code, its subcodes and their codings (asks first). Every change to the codebook is recorded in
+  its log; changes to transcripts keep a backup and can be undone.
+
+**Coding.** Select words (drag), then:
+- double-click a code in the codebook, or press **Return** for the selected code;
+- press **1–9** for a recent code (shown above the transcript);
+- or right-click the selection.
+
+Each coding shows as a coloured **stripe** next to the text and as a mark on the timeline. Click a stripe or coded words
+to select a coding; the list below shows all codings of the transcript (or *only the selected code*) with their speaker
+and text. **Memo…**, **Change code…** and **Delete coding** (or Del) work on the selected one; double-click plays it.
+
+**Moments without speech** — working with the materials, a device, a gesture: **drag on the timeline** over the moment
+(or *Moment without speech…*), choose the code and describe **what happens**. It appears in the transcript at its time
+as ◆ with your description, and counts like any other coding.
+
+![A moment without speech](images/coding-moment.png)
+
+Codings stay on their words when you correct the text, split or merge segments, or re-transcribe a passage in the
+Transcript tab. If every word of a coding is deleted, it is listed with ⚠ so you can decide what to do with it.
+
+## 10. Projects: many sessions of one study
 
 A **project** is the folder of one study. Every transcript in that folder or its subfolders belongs to it. Nothing is
 moved or copied; Condense only puts a small `condense-project.json` in the folder. Projects are optional: without one,
@@ -302,7 +339,7 @@ and colours in every session of that group, on every day: in Group 1, **Facilita
 
 ![Project speakers](images/project-speakers.png)
 
-## 10. Into MAXQDA
+## 11. Into MAXQDA
 
 MAXQDA links a transcript to its video through the timestamps at the end of each paragraph. That is the format of
 Condense's paragraph exports.
@@ -320,7 +357,7 @@ Condense's paragraph exports.
 
 MAXQDA can also import the `.srt` subtitles together with the video.
 
-## 11. Your data
+## 12. Your data
 
 - **Everything stays on your computer.** Whisper and speaker detection run locally; nothing is uploaded. The only
   network access is the update check (to GitHub, sending no data) and, if you use it, downloading the pyannote speaker
@@ -332,7 +369,7 @@ MAXQDA can also import the `.srt` subtitles together with the video.
 - Follow your ethics approval and data-management plan for where recordings and transcripts are stored. Use
   pseudonyms in speaker names, notes and replacements.
 
-## 12. When something goes wrong
+## 13. When something goes wrong
 
 - **Transcribing is very slow:** run *Help ▸ Test GPU…*. The [install guide](install-linux.md) for your system explains
   how to get the GPU working.

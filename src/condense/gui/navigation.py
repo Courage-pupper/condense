@@ -137,6 +137,11 @@ class NavigationMixin:
             "  C                mark checked / not checked (all selected)\n"
             "  X                cut / restore the selected segments\n"
             "  E                mark the selected segments as an episode (interview, phase)\n"
+            "Coding tab\n"
+            "  select words, then Return   code them with the selected code (or double-click a code)\n"
+            "  N                new code from the selected words\n"
+            "  1 – 9            code the selection with a recent code\n"
+            "  Del              delete the selected coding · drag on the timeline: a moment without speech\n"
             "  S / M / I        split before the selected word / merge with the next / insert a segment\n"
             + ("  ⌫ (delete)       delete the open segment (asks first)\n" if IS_MAC else "  Del              delete the open segment (asks first)\n") +
             "  Return           edit the open segment's text\n"
@@ -159,7 +164,7 @@ class NavigationMixin:
             f"  {c}Z / {c}⇧Z         undo / redo a transcript change\n"
             f"  {c}⇧R              re-transcribe a passage\n"
             f"  {c}I               insert a missing segment\n"
-            f"  {c}1 / {c}2 / {c}3     Settings / Console / Transcript tab\n"
+            f"  {c}1 – {c}4       Settings / Console / Transcript / Coding tab\n"
             f"  {c}+ / {c}- / {c}0     zoom (everything)\n"
             + ("  ⌘⌥+ / ⌘⌥-        transcript text larger / smaller (or ⌘ + scroll wheel)" if IS_MAC else
                "  Ctrl+Alt++ / Ctrl+Alt+-   transcript text larger / smaller (or Ctrl + scroll wheel)"))

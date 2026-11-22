@@ -113,6 +113,30 @@ def _doc(folder: Path, name: str, lines, seed, video: Path, names):
     return doc
 
 
+def _demo_codes(study: Path, doc):
+    """An invented codebook and a few codings, for the Coding tab screenshot."""
+    from condense.core import coding as cod
+    cb = cod.Codebook.for_project(study)
+    making = cb.add("Making", definition="Building or changing something with the materials", color="#fbbf24")
+    floating = cb.add("Floating and sinking", parent=making)
+    ideas = cb.add("Ideas for improvement", color="#34d399", definition="Suggestions how to make something work better")
+    rules = cb.add("Rules and fairness", color="#60a5fa")
+    cb.add("Feelings", color="#f472b6")
+    cb.save()
+
+    def code(code_id, seg, w0, w1):
+        ws = doc.segments[seg]["words"]
+        cod.add_coding(doc, code_id, ws[w0]["start"], ws[w1]["end"], ws[w0]["wid"], ws[w1]["wid"])
+    doc.ensure_word_ids()
+    code(making, 4, 0, len(doc.segments[4]["words"]) - 1)      # "Can I make a paper boat?"
+    code(making, 6, 0, len(doc.segments[6]["words"]) - 1)      # "I want to make a raft with sticks."
+    code(rules, 13, 0, len(doc.segments[13]["words"]) - 1)     # "That's not fair, you used tape."
+    code(rules, 14, 0, len(doc.segments[14]["words"]) - 1)     # "Tape is allowed …"
+    code(floating, 17, 0, len(doc.segments[17]["words"]) - 1)  # "Mine floats! It floats!"
+    code(ideas, 20, 0, len(doc.segments[20]["words"]) - 1)     # "A smaller sail. Or more weight at the bottom."
+    cod.add_coding(doc, making, 95.0, 101.0, memo="Kim tests the raft in the water tray, pushes it across")
+
+
 def build(work: Path):
     """Demo study laid out like a real one: Day ▸ Group ▸ media folders, consent forms and unsorted material beside."""
     study = Path(work) / "Demo study"
@@ -133,6 +157,7 @@ def build(work: Path):
     d1 = _doc(day1 / "Group 1" / "Session Recordings" / "demo_G1D1", "demo_G1D1", SESSION_1, 1, video, named)
     for i in range(0, 6):
         d1.set_checked(i, True)
+    _demo_codes(study, d1)
     d1.add_episode("Phase", "Intro & Icebreaker", 0.0, 24.0, approx=True)
     d1.add_episode("Phase", "Dioramas", 24.0, 120.0, approx=True)
     d1.save()
