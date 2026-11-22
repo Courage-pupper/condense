@@ -111,7 +111,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         style.configure("Primary.TButton", background=T["accent"], foreground="#ffffff", borderwidth=0, font=f["body_bold"], padding=(12, 5))
         style.map("Primary.TButton", background=[("active", T["accent_hover"]), ("disabled", T["bg_card"])], foreground=[("disabled", T["fg_dim"])])
         style.configure("Tool.TButton", background=T["bg_card"], foreground=T["fg_primary"], borderwidth=1, bordercolor=T["border"],
-                        lightcolor=T["bg_card"], darkcolor=T["bg_card"], font=f["small_bold"], padding=(8, 3))
+                        lightcolor=T["bg_card"], darkcolor=T["bg_card"], font=f["small_bold"], padding=(8, 3), width=-3)
         style.map("Tool.TButton", background=[("active", "#2b3348")], foreground=[("disabled", T["fg_dim"])])
 
         style.configure("TNotebook", background=T["bg_root"], borderwidth=0, tabmargins=(0, 0, 0, 0))
