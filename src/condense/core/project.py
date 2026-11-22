@@ -137,9 +137,62 @@ def level_folder(project: Path, path: Path, levels: List[str]) -> Optional[Path]
     return Path(project).resolve().joinpath(*[name for _, name in lp]) if lp else None
 
 
+def group_key(project: Path, path: Path) -> Optional[str]:
+    """The group a file belongs to: the name of its deepest level folder ("Group 1"). The same group on different days
+    is the same case, so its speakers are shared across days."""
+    levels = project_settings(project)["levels"]
+    lp = level_path(project, path, levels)
+    return lp[-1][1] if lp and len(lp) == len(levels) else None
+
+
+def groups_in(project: Path) -> List[str]:
+    """All deepest-level folder names (Group 1, Group 2 …) in the project, in natural order."""
+    cfg = project_settings(project)
+    if not cfg["levels"]:
+        return []
+    current = [Path(project)]
+    for lv in cfg["levels"]:
+        nxt = []
+        for d in current:
+            try:
+                nxt += [c for c in d.iterdir() if c.is_dir() and c.name.lower().startswith(lv.lower()) and not skipped(c.name, cfg["skip"])]
+            except OSError:
+                pass
+        current = nxt
+    names = sorted({c.name for c in current}, key=lambda n: [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", n)])
+    return names
+
+
+def group_speakers(project: Path, group: str) -> List[str]:
+    return list((load_project(Path(project) / PROJECT_FILE).get("group_speakers") or {}).get(group) or [])
+
+
+def save_group_speakers(project: Path, group: str, speakers: List[str]) -> Path:
+    data = load_project(Path(project) / PROJECT_FILE)
+    gs = dict(data.get("group_speakers") or {})
+    clean: List[str] = []
+    for n in speakers:
+        n = " ".join(str(n).split())
+        if n and n not in clean:
+            clean.append(n)
+    if clean:
+        gs[group] = clean
+    else:
+        gs.pop(group, None)
+    return update_project(project, group_speakers=gs)
+
+
 def project_speakers_for(transcript_path: Path) -> List[str]:
+    """Speakers offered first for a transcript, in key order: the project's (e.g. facilitators, in every group), then
+    those of the transcript's group (its children)."""
     f = find_project_file(Path(transcript_path).parent)
-    return list(load_project(f)["speakers"]) if f else []
+    if not f:
+        return []
+    out = list(load_project(f)["speakers"])
+    g = group_key(f.parent, transcript_path)
+    if g:
+        out += [n for n in group_speakers(f.parent, g) if n not in out]
+    return out
 
 
 def effective_roster(doc_roster: List[str], project: List[str]) -> List[str]:

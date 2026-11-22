@@ -288,3 +288,24 @@ pipe.messagebox.askyesno = lambda *a, **k: False
 assert app._mark_transcripts_checked([d2_path], True) == 0 and proj.overview_row(d2_path)["checked_pct"] == 0
 pipe.messagebox.askyesno = lambda *a, **k: True
 ok("open or not: 100 %, cut segments excluded, logged, undoable, asks first")
+
+print("[11] speakers per group: the project's (facilitators) first, then the group's children, on every day")
+assert proj.groups_in(study) == ["Group 1", "Group 2", "Group 3"] or proj.groups_in(study)[:1] == ["Group 1"], proj.groups_in(study)
+proj.save_project(study, ["Facilitator"])
+win, sp = app._project_speakers_dialog()
+app._render_doc(TD.load(doc.path))           # Day 1 / Group 1
+win, sp = app._project_speakers_dialog()
+assert sp["scope"].get() == "Group 1"        # opens on the open transcript's group
+sp["add"]("Robin"); sp["add"]("Sam"); sp["add"]("Facilitator")  # a project speaker is not repeated in a group
+sp["scope"].set("Group 3"); sp["show"](); sp["add"]("Kim")
+sp["save"]()
+assert proj.group_speakers(study, "Group 1") == ["Robin", "Sam"] and proj.group_speakers(study, "Group 3") == ["Kim"]
+assert app._roster()[:3] == ["Facilitator", "Robin", "Sam"] and "Kim" not in app._roster()
+app._goto_segment(0); app._assign_speaker_number(3)
+assert TD.load(doc.path).segments[0]["speaker"] == "Sam"
+d2_doc = TD.load(d2_path)                    # Day 2 / Group 1: the same group, so the same children
+assert proj.project_speakers_for(d2_doc.path) == ["Facilitator", "Robin", "Sam"]
+g3 = proj.project_speakers_for(g3 / "Session Recordings" / "final_video" / "x.transcript.json")
+assert g3 == ["Facilitator", "Kim"], g3
+assert proj.project_speakers_for(study / "Consent forms" / "x.transcript.json") == ["Facilitator"]
+ok("group lists saved; keys: Facilitator 1, Robin 2, Sam 3 in Group 1 on every day; Group 3 gets Kim; no repeats")

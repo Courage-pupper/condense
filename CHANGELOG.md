@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.0 — 2026-11-22
+
+### Speakers per group
+- Each group is its own case: *Project ▸ Speakers (Project and Groups)…* keeps a speaker list for the **whole project**
+  (people in every group, e.g. facilitators) and one **per group** (its children). A transcript gets the project's
+  speakers first, then its group's — on every day, since Group 1 on Day 2 is the same group as on Day 1. So in Group 1,
+  Facilitator is 1, Robin 2, Sam 3; Group 3's children don't appear there.
+- The dialog opens on the open transcript's group; right-click a group (or a recording) in the Project tab for
+  *Speakers of Group …*. *Add names from transcripts* collects the names already used in that group.
+
 ## 0.13.0 — 2026-11-22
 
 ### The project, always in view

@@ -237,7 +237,15 @@ class ProjectPanelMixin:
         if first:
             target = first.get("media") or first.get("transcript")
             m.add_command(label="Show in Folder", command=lambda: self._open_externally(Path(target).parent))
+        group = None
+        if iid and iid.startswith("L:"):
+            group = iid[2:].split("/")[-1]
+        elif first and (first.get("media") or first.get("transcript")):
+            project = self._project_dir()
+            group = proj.group_key(project, first.get("media") or first.get("transcript")) if project else None
         m.add_separator()
+        if group:
+            m.add_command(label=f"Speakers of {group}…", command=lambda: self._project_speakers_dialog(group=group))
         m.add_command(label="Refresh", command=lambda: self._refresh_project_panel())
         m.add_command(label="Project Settings…", command=lambda: self._project_settings_dialog(on_saved=self._refresh_project_panel))
         try:

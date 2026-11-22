@@ -85,7 +85,7 @@ class ProjectMixin:
         pm.add_command(label="Close Project", command=lambda: self._set_project(None))
         pm.add_separator()
         pm.add_command(label="Project Overview…", command=self._project_overview)
-        pm.add_command(label="Project Speakers…", command=lambda: self._project_speakers_dialog())
+        pm.add_command(label="Speakers (Project and Groups)…", command=lambda: self._project_speakers_dialog())
         pm.add_command(label="Project Settings…", command=lambda: self._project_settings_dialog())
         pm.add_command(label="Tidy Unsorted Folders…", command=lambda: self._tidy_dialog())
         mb.add_cascade(label="Project", menu=pm)
@@ -385,7 +385,9 @@ class ProjectMixin:
         return win, state
 
     # ================================================================== project speakers
-    def _project_speakers_dialog(self, folder: Optional[Path] = None, on_saved=None):
+    def _project_speakers_dialog(self, folder: Optional[Path] = None, on_saved=None, group: Optional[str] = None):
+        """Speakers of the project (in every group, e.g. facilitators) and of each group (its children). A transcript's
+        number keys are the project's speakers first, then its group's."""
         T = THEME
         folder = Path(folder) if folder else self._project_dir()
         if folder is None:
@@ -393,15 +395,28 @@ class ProjectMixin:
         f = proj.find_project_file(folder)
         if f is not None and f.parent != folder.resolve():
             folder = f.parent  # edit the list that applies here
-        names = list(proj.load_project(f)["speakers"]) if f else []
+        folder = folder.resolve()
+        ALL = "Whole project (in every group)"
+        groups = proj.groups_in(folder) if f else []
+        if group is None and self.active_doc is not None and f is not None:
+            group = proj.group_key(folder, self.active_doc.path)
+        lists = {ALL: list(proj.load_project(f)["speakers"]) if f else []}
+        for g in groups:
+            lists[g] = proj.group_speakers(folder, g)
         win = tk.Toplevel(self)
-        win.title("Project speakers")
+        win.title("Speakers")
         win.configure(bg=T["bg_panel"], padx=14, pady=12)
         win.transient(self)
-        self._label(win, f"Speakers of “{proj.project_name(folder)}”, in key order. They keep the same number key (1–9) and "
-                         "colour in every transcript of the project.", font="small", fg=T["fg_secondary"], bg=T["bg_panel"],
-                    wraplength=380, justify=tk.LEFT).pack(anchor="w")
-        lst = tk.Listbox(win, height=10, width=36, bg=T["bg_input"], fg=T["fg_primary"], font=self.f["small"], relief=tk.FLAT,
+        self._label(win, "Project speakers appear in every group (e.g. facilitators). Group speakers only in that group's "
+                         "transcripts, on every day (its children). Number keys: the project's first, then the group's.",
+                    font="small", fg=T["fg_secondary"], bg=T["bg_panel"], wraplength=420, justify=tk.LEFT).pack(anchor="w")
+        v_scope = tk.StringVar(value=group if group in lists else ALL)
+        srow = tk.Frame(win, bg=T["bg_panel"])
+        srow.pack(fill=tk.X, pady=(8, 0))
+        self._label(srow, "Speakers of", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).pack(side=tk.LEFT)
+        cmb = ttk.Combobox(srow, textvariable=v_scope, values=[ALL] + groups, state="readonly", width=30, font=self.f["small"])
+        cmb.pack(side=tk.LEFT, padx=(6, 0))
+        lst = tk.Listbox(win, height=10, width=40, bg=T["bg_input"], fg=T["fg_primary"], font=self.f["small"], relief=tk.FLAT,
                          highlightthickness=1, highlightbackground=T["border"], exportselection=False)
         lst.pack(fill=tk.BOTH, expand=True, pady=8)
         v_new = tk.StringVar(value="")
@@ -409,39 +424,59 @@ class ProjectMixin:
         row.pack(fill=tk.X)
         ent = self._entry(row, v_new, font="small", width=24)
         ent.pack(side=tk.LEFT)
-        st = {"names": names}
+        st = {"lists": lists, "changed": set()}
 
-        def show():
+        def cur() -> List[str]:
+            return st["lists"][v_scope.get()]
+
+        def show(*_):
             lst.delete(0, tk.END)
-            for i, n in enumerate(st["names"]):
-                lst.insert(tk.END, f"{i + 1 if i < 9 else ' '}  {n}")
+            offset = 0 if v_scope.get() == ALL else len(st["lists"][ALL])
+            if offset:
+                lst.insert(tk.END, f"   (1–{offset}: the project's {', '.join(st['lists'][ALL])})")
+                lst.itemconfig(0, foreground=T["fg_dim"])
+            for i, n in enumerate(cur()):
+                k = offset + i + 1
+                lst.insert(tk.END, f"{k if k <= 9 else ' '}  {n}")
+
+        def index_of_selection() -> Optional[int]:
+            sel = lst.curselection()
+            if not sel:
+                return None
+            i = sel[0] - (1 if v_scope.get() != ALL and st["lists"][ALL] else 0)
+            return i if 0 <= i < len(cur()) else None
 
         def add(name=None):
             n = " ".join((name if name is not None else v_new.get()).split())
-            if n and n not in st["names"]:
-                st["names"].append(n)
+            if n and n not in cur() and (v_scope.get() == ALL or n not in st["lists"][ALL]):
+                cur().append(n)
+                st["changed"].add(v_scope.get())
             v_new.set("")
             show()
 
         def move(d):
-            sel = lst.curselection()
-            if not sel:
+            i = index_of_selection()
+            if i is None:
                 return
-            i = sel[0]
             j = i + d
-            if 0 <= j < len(st["names"]):
-                st["names"][i], st["names"][j] = st["names"][j], st["names"][i]
+            if 0 <= j < len(cur()):
+                cur()[i], cur()[j] = cur()[j], cur()[i]
+                st["changed"].add(v_scope.get())
                 show()
-                lst.selection_set(j)
+                lst.selection_set(j + (1 if v_scope.get() != ALL and st["lists"][ALL] else 0))
 
         def remove():
-            sel = lst.curselection()
-            if sel:
-                del st["names"][sel[0]]
+            i = index_of_selection()
+            if i is not None:
+                del cur()[i]
+                st["changed"].add(v_scope.get())
                 show()
 
         def from_transcripts():
-            for p in proj.transcripts_under(folder):
+            scope = v_scope.get()
+            for p in proj.transcripts_under(folder, skip=proj.project_settings(folder)["skip"]):
+                if scope != ALL and proj.group_key(folder, p) != scope:
+                    continue
                 try:
                     for n in TranscriptDocument.load(p).roster():
                         if not n.startswith(proj.GENERIC_SPEAKER):
@@ -450,14 +485,19 @@ class ProjectMixin:
                     pass
 
         def save():
-            path = proj.save_project(folder, st["names"])
+            for scope in st["changed"]:
+                if scope == ALL:
+                    proj.save_project(folder, st["lists"][ALL])
+                else:
+                    proj.save_group_speakers(folder, scope, st["lists"][scope])
             self._forget_project_cache()
-            self._append_log(f"Project speakers saved ({path}): {', '.join(st['names']) or 'none'}", "INFO")
+            self._append_log(f"Speakers saved for: {', '.join(sorted(st['changed'])) or 'nothing changed'}", "INFO")
             win.destroy()
             if self.active_doc is not None:
                 self._rerender()
             on_saved and on_saved()
 
+        cmb.bind("<<ComboboxSelected>>", show)
         self._tool(row, "Add", add).pack(side=tk.LEFT, padx=(6, 0))
         ent.bind("<Return>", lambda e: add())
         bar = tk.Frame(win, bg=T["bg_panel"])
@@ -469,7 +509,9 @@ class ProjectMixin:
         self._tool(bar2, "Save", save, primary=True).pack(side=tk.RIGHT)
         self._tool(bar2, "Cancel", win.destroy).pack(side=tk.RIGHT, padx=(0, 6))
         show()
-        st.update(add=add, move=move, remove=remove, from_transcripts=from_transcripts, save=save, lst=lst)
+        st.update(add=add, move=move, remove=remove, from_transcripts=from_transcripts, save=save, lst=lst, scope=v_scope,
+                  show=show, groups=groups, ALL=ALL, select=lambda i: lst.selection_set(i))
+        st["names"] = lists[ALL]  # (kept for older callers: the project's list)
         return win, st
 
     # ================================================================== project settings

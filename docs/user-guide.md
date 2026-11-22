@@ -281,9 +281,11 @@ your supervisor.
 
 ![Project overview](images/project-overview.png)
 
-**Project speakers** (*Project speakers…* in the overview, or *Project ▸ Project Speakers…*): the people of the study,
-in a fixed order. They come first in every transcript of the project, so **Facilitator is always 1, Robin always 2**,
-with the same colours, in every session. *Add names from transcripts* collects the names you have already used.
+**Speakers** (*Project ▸ Speakers (Project and Groups)…*, or right-click a group in the Project tab): each group is its
+own case, so there is a list for the **whole project** — people in every group, such as facilitators — and one **per
+group** for its children. A transcript gets the project's speakers first, then its group's, with the same number keys
+and colours in every session of that group, on every day: in Group 1, **Facilitator is always 1, Robin always 2**.
+*Add names from transcripts* collects the names you have already used in that group.
 
 ![Project speakers](images/project-speakers.png)
 
