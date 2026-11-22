@@ -4,6 +4,7 @@ Cuts are time ranges on the original recording's timeline. Nothing is deleted: a
 (struck through) and can be restored. A trimmed export maps every remaining time onto the shortened timeline, so
 the exported transcript's timestamps match the exported video exactly (what MAXQDA needs to link them).
 """
+import bisect
 import copy
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -77,14 +78,17 @@ class TimeMap:
             self.offsets.append(acc)
             acc += b - a
         self.duration = acc
+        self.starts = [a for a, _ in self.kept]
 
     def __call__(self, t: float) -> float:
-        for (a, b), off in zip(self.kept, self.offsets):
-            if t < a:
-                return off  # inside a cut before this interval: snaps to where the cut was
-            if t <= b:
-                return off + (t - a)
-        return self.duration
+        i = bisect.bisect_right(self.starts, t) - 1  # the last kept part starting at or before t
+        if i < 0:
+            return 0.0  # inside a cut at the very beginning
+        a, b = self.kept[i]
+        if t <= b:
+            return self.offsets[i] + (t - a)
+        # inside the cut after part i: snaps to where the cut was
+        return self.offsets[i + 1] if i + 1 < len(self.kept) else self.duration
 
 
 def retime_segments(segments: Sequence[Dict], cuts: Sequence[Range], tmap: TimeMap) -> List[Dict]:

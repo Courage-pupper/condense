@@ -38,7 +38,14 @@ jobs:
         run: python -m pip install -e ".[dev]"
 
       - name: Run tests
+        if: runner.os != 'Linux'
         run: python -m pytest -q
+
+      - name: Run tests (Linux, with a virtual display for the real-Tk test)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y xvfb
+          xvfb-run -a -s "-screen 0 1600x1000x24" python -m pytest -q -rs
 
       - name: Check the PowerShell scripts (Windows PowerShell 5.1 syntax)
         if: runner.os == 'Windows'
@@ -57,3 +64,29 @@ jobs:
           bash -n scripts/install-mac.sh
           bash -n scripts/install-linux.sh
           ./scripts/install-linux.sh --help > /dev/null
+
+  screenshots:
+    # The pictures in docs/user-guide.md: the real app on a virtual display, with invented demo data only.
+    name: user-guide screenshots
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ffmpeg, Xvfb, ImageMagick
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg xvfb imagemagick fonts-dejavu
+      - name: Install Condense
+        run: python -m pip install -e .
+      - name: Take the screenshots
+        env:
+          CONDENSE_SCREENSHOTS: ${{ github.workspace }}/screenshots
+          CONDENSE_WORK: ${{ runner.temp }}/work
+          PYTHONPATH: tests/realtk
+        run: |
+          export HOME="${{ runner.temp }}/home"; mkdir -p "$HOME"
+          xvfb-run -a -s "-screen 0 1600x1000x24" python tests/realtk/smoke.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: user-guide-screenshots
+          path: screenshots/*.png
