@@ -57,7 +57,9 @@ class QueueMixin:
 
         self.ctx_menu = tk.Menu(self, tearoff=0)
         self.ctx_menu.add_command(label="Open Transcript", command=self._open_selected_transcript)
-        self.ctx_menu.add_command(label="Show in Finder", command=self._open_selected_job_folder)
+        self.ctx_menu.add_command(label="Show in Finder" if IS_MAC else "Show in Folder", command=self._open_selected_job_folder)
+        self.ctx_menu.add_command(label="Mark Transcript Checked (100 %)", command=lambda: self._mark_selected_tasks_checked(True))
+        self.ctx_menu.add_command(label="Mark Transcript Not Checked", command=lambda: self._mark_selected_tasks_checked(False))
         self.ctx_menu.add_separator()
         self.ctx_menu.add_command(label="Combine Selected into One Merge Task", command=self._combine_selected)
         self.ctx_menu.add_command(label="Split Merge Task into Single Tasks", command=self._split_merge_task)
@@ -148,6 +150,14 @@ class QueueMixin:
         self.lbl_task_note = self._wrapping_label(card, "", font="small", fg=T["fg_dim"])
         self.lbl_task_note.pack(fill=tk.X, pady=(4, 0))
         self._show_task_details(None)
+
+    def _mark_selected_tasks_checked(self, checked: bool):
+        sel = set(self.queue_tree.selection())
+        paths = [Path(t["doc_path"]) for t in self.jobs if t["id"] in sel and t.get("doc_path") and Path(t["doc_path"]).exists()]
+        if not paths:
+            self.lbl_status.config(text="Select finished tasks (with a transcript) first.")
+            return 0
+        return self._mark_transcripts_checked(paths, checked)
 
     def _show_queue_context_menu(self, event):
         row = self.queue_tree.identify_row(event.y)

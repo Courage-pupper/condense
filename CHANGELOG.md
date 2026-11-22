@@ -19,6 +19,9 @@
   chips) keep a fixed height, so moving with ↑/↓ no longer shifts the layout.
 
 ### Editing
+- **Mark a whole transcript checked (100 %)** — or not checked — from the right-click menu of the Project tab (several
+  at once) or the task list, or *Edit ▸ Mark Whole Transcript Checked*. Cut segments don't count; a backup is kept,
+  the edit log records it, and ⌘Z / Ctrl+Z undoes it when the transcript is open.
 - **Esc while typing** in the segment box (or the note field) saves and takes you back to the transcript, where ↑/↓ move
   on and Return edits again. Outside the text boxes Esc still plays and pauses.
 

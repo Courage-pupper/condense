@@ -246,6 +246,10 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         em.add_command(label="Redo Transcript Change", accelerator=f"{acc}Shift-Z" if IS_MAC else "Ctrl+Shift+Z", command=self._redo)
         em.add_separator()
         em.add_command(label="Mark Segment Checked & Next", accelerator=f"{acc}Return" if IS_MAC else "Ctrl+Enter", command=self._check_and_next)
+        em.add_command(label="Mark Whole Transcript Checked (100 %)",
+                       command=lambda: self.active_doc is not None and self._mark_transcripts_checked([self.active_doc.path], True))
+        em.add_command(label="Mark Whole Transcript Not Checked",
+                       command=lambda: self.active_doc is not None and self._mark_transcripts_checked([self.active_doc.path], False))
         em.add_command(label="Toggle Segment Checked  (C)", command=self._toggle_checked)
         em.add_command(label="Find & Replace…", accelerator=f"{acc}F", command=self._toggle_find)
         em.add_command(label="Search All Transcripts…", command=self._search_all_dialog)

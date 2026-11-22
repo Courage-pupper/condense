@@ -117,7 +117,7 @@ tab opens:
 **Text size:** *A−* / *A+* in the transcript toolbar make the transcript and the segment box larger or smaller (80–250 %), also with Ctrl/⌘ + scroll wheel over the transcript or *View ▸ Larger / Smaller Transcript Text*. It is remembered. *View ▸ Larger / Smaller Text* (⌘+ / Ctrl++) sizes the whole window.
 
 The line above the transcript shows how much is **checked**. Checked segments get a ✓, and the queue shows the
-percentage for each task. Condense remembers where you stopped in each transcript.
+percentage for each task. Condense remembers where you stopped in each transcript. If you reviewed a transcript elsewhere, right-click it in the Project tab or the task list and choose *Mark All Checked (100 %)* (or use the Edit menu); ⌘Z / Ctrl+Z undoes it.
 
 **Markers** for things Whisper can't write: *Markers ▾* in the editor, or while typing ⌃L ⌃I ⌃U ⌃C ⌃P ⌃G ⌃N on the Mac
 and Ctrl+Shift+L, I, U, C, P, G, N on Linux and Windows. They insert `[laughs]`, `[inaudible 0:12:31]`, `[unclear: ]`,

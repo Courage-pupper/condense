@@ -269,3 +269,22 @@ st2 = stlib.Structure("{Day}/{Group}/Session Recordings", sug)
 assert st2.parse_clip_name("D2G4_I13") == {"day": 2, "group": 4, "n": 13} and st2.parse_clip_name("G1D2_I4")["n"] == 4
 assert proj._level_word(["Session Recordings"] * 3 + ["Leica"]) is None and proj._level_word(["Group 3"]) == "Group"
 ok("untranscribed session listed and queued from the panel; transcripts open; ._ and unsorted ignored; mixed names learned")
+
+print("[10] mark whole transcripts checked (100 %) from the menus, with undo")
+d2_path = next(it["transcript"] for it in proj.inventory(study) if it.get("row") and it["row"]["name"] == "G1D2_session")
+app._render_doc(TD.load(doc.path))  # another transcript is open
+assert app._mark_transcripts_checked([d2_path], True) > 0
+assert proj.overview_row(d2_path)["checked_pct"] == 100
+d = TD.load(doc.path); d.cut_segments([0]); d.save(); app._render_doc(TD.load(doc.path))
+app._mark_transcripts_checked([doc.path], True)
+d = TD.load(doc.path)
+assert d.checked_fraction() == 1.0 and not d.segments[0].get("checked")   # a cut segment is left alone
+assert any(e.get("action") == "check_all" for e in d.data.get("edit_history") or [])
+app._undo()
+assert TD.load(doc.path).checked_fraction() < 1.0
+app._render_doc(TD.load(d2_path)); app._undo()
+assert proj.overview_row(d2_path)["checked_pct"] == 0
+pipe.messagebox.askyesno = lambda *a, **k: False
+assert app._mark_transcripts_checked([d2_path], True) == 0 and proj.overview_row(d2_path)["checked_pct"] == 0
+pipe.messagebox.askyesno = lambda *a, **k: True
+ok("open or not: 100 %, cut segments excluded, logged, undoable, asks first")

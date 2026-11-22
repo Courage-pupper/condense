@@ -361,6 +361,14 @@ class TranscriptDocument:
             seg.pop("checked_at", None)
         return True
 
+    def set_all_checked(self, checked: bool = True) -> int:
+        """Every segment that is not cut marked checked (or not checked). Returns how many changed."""
+        n = sum(1 for i, seg in enumerate(self.segments)
+                if not is_blank_text(seg.get("text")) and not self.is_segment_cut(i) and self.set_checked(i, checked))
+        if n:
+            self.log_edit("check_all" if checked else "uncheck_all", segments=n)
+        return n
+
     # ----- cuts (parts left out of exports and of a trimmed video; never deleted) -----
     @property
     def cuts(self) -> List[Tuple[float, float]]:

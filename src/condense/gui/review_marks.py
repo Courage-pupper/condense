@@ -41,6 +41,48 @@ class ReviewMarksMixin:
             self._rerender()
             self._load_segment_into_editor(idx)
 
+    def _mark_transcripts_checked(self, paths: List[Path], checked: bool = True, ask: bool = True) -> int:
+        """Whole transcripts marked checked (100 %) or not checked, e.g. after reviewing outside Condense. Each gets a
+        backup and an entry in its edit log; ⌘Z / Ctrl+Z undoes it when that transcript is open."""
+        paths = [Path(p) for p in paths if p]
+        if not paths:
+            return 0
+        what = "checked (100 %)" if checked else "not checked (0 %)"
+        names = "\n".join(f"• {p.name.replace(TranscriptDocument.SUFFIX, '')}" for p in paths[:8]) + ("\n…" if len(paths) > 8 else "")
+        if ask and not messagebox.askyesno("Mark transcripts", f"Mark every segment of {len(paths)} transcript(s) as {what}?\n\n{names}\n\n"
+                                           "Cut segments don't count. A backup is kept, and "
+                                           f"{kbd('⌘Z')} undoes it when the transcript is open.", parent=self):
+            return 0
+        total = 0
+        for path in paths:
+            active = self.active_doc is not None and Path(self.active_doc.path).resolve() == path.resolve()
+            if active:
+                self._autosave_edit(rerender=False)
+                doc = self.active_doc
+                n = doc.set_all_checked(checked)
+                if n and self._commit(f"Marked the whole transcript {what}: {n} segment(s).") is not None:
+                    self._rerender()
+                    if self.edit_seg_idx is not None:
+                        self._load_segment_into_editor(self.edit_seg_idx)
+            else:
+                try:
+                    previous = path.read_text(encoding="utf-8")
+                    doc = TranscriptDocument.load(path)
+                    n = doc.set_all_checked(checked)
+                    if n:
+                        doc.save(backup=True)
+                        undo, redo = self._undo_stacks.setdefault(str(doc.path), ([], []))
+                        undo.append((f"Marked the whole transcript {what}", previous))
+                        redo.clear()
+                except Exception as exc:
+                    self._append_log(f"Could not mark {path.name}: {exc}", "ERROR")
+                    continue
+                self._update_task_progress(doc)
+            total += n
+            self._append_log(f"{path.name}: {n} segment(s) marked {what}.", "INFO")
+        self.lbl_status.config(text=f"{len(paths)} transcript(s) marked {what}.")
+        return total
+
     def _check_and_next_key(self, event=None):
         """Ctrl+Enter anywhere in the main window, but only while the Transcript tab is showing (never from a dialog
         or another tab, where it would check a segment you cannot see)."""

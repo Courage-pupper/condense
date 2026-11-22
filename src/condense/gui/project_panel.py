@@ -226,6 +226,11 @@ class ProjectPanelMixin:
             if first["role"] == "session":
                 m.add_command(label="Find Interview Clips in This Session…",
                               command=lambda: (self._pp_activate(first), self._link_clips_dialog()))
+        done = [s["transcript"] for s in sel if s.get("row") and "error" not in s["row"] and not s.get("episode")]
+        if done:
+            m.add_command(label=f"Mark All Checked (100 %){'' if len(done) == 1 else f' — {len(done)} transcripts'}",
+                          command=lambda: self._mark_transcripts_checked(done, True))
+            m.add_command(label="Mark All Not Checked", command=lambda: self._mark_transcripts_checked(done, False))
         todo = [s["media"] for s in sel if s.get("media") and not s.get("row")]
         if todo:
             m.add_command(label=f"Transcribe {len(todo)} Recording(s)…", command=lambda: self._pp_transcribe(todo))
