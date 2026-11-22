@@ -19,6 +19,9 @@ class PlayerMixin:
         sx = width / dur
         roster = self._roster()
         items: List[Tuple] = []
+        for ep in doc.episodes:  # drawn first, behind everything: like the coloured blocks of a session plan
+            items.append(("episode", ep["start"] * sx, max(ep["start"] * sx + 2, ep["end"] * sx), self._episode_color(ep["type"]),
+                          bool(ep.get("approx"))))
         for seg in doc.segments:
             x0, x1 = float(seg.get("start", 0.0)) * sx, max(float(seg.get("start", 0.0)) * sx + 1, float(seg.get("end", 0.0)) * sx)
             spk = seg.get("speaker")
@@ -45,6 +48,10 @@ class PlayerMixin:
             elif item[0] == "check":
                 _, x0, x1 = item
                 tl.create_rectangle(x0, height - 5, x1, height - 2, fill=THEME["ok"], outline="")
+            elif item[0] == "episode":
+                _, x0, x1, color, approx = item
+                tl.create_rectangle(x0, 0, x1, height, fill=self._dim(color, 0.16 if approx else 0.3), outline="")
+                tl.create_rectangle(x0, 0, x1, 3, fill=self._dim(color, 0.6 if approx else 1.0), outline="")
             elif item[0] == "cut":
                 _, x0, x1 = item
                 tl.create_rectangle(x0, 0, x1, height, fill="#000000", stipple="gray50", outline="#f59e0b")

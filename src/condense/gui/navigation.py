@@ -136,6 +136,7 @@ class NavigationMixin:
             "  R                replay the open segment\n"
             "  C                mark checked / not checked (all selected)\n"
             "  X                cut / restore the selected segments\n"
+            "  E                mark the selected segments as an episode (interview, phase)\n"
             "  Return           edit the open segment's text\n"
             f"  {c}Return          save, mark checked, next segment\n"
             f"  {c}F               find & replace\n"

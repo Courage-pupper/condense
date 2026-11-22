@@ -239,15 +239,48 @@ def main():
     win, st = app._project_overview()
     for _ in range(100):
         pump(app, 0.1)
-        if st["tree"].get_children():
+        if st["rows"]:
             break
-    assert len(st["tree"].get_children()) == 3, st["lbl"].cget("text")
+    assert len(st["rows"]) == 3, st["lbl"].cget("text")
+    assert [st["tree"].item(i, "text") for i in st["tree"].get_children()] == ["Day 1 2026-03-12", "Day 2 2026-03-13"]
     shot(app, "project-overview", win)
+    w_set, ps = app._project_settings_dialog()
+    pump(app)
+    shot(app, "project-settings", w_set)
+    w_set.destroy()
     win2, sp = app._project_speakers_dialog(study)
     pump(app)
     shot(app, "project-speakers", win2)
     win2.destroy()
     win.destroy()
+    # episodes: the session's phases, then the cut-out interview found by its sound
+    app._render_doc(TD.load(docs[0].path))
+    pump(app, 0.3)
+    assert "▶ Phase Dioramas" in pt.get("1.0", tk.END)
+    w_link, lk = app._link_clips_dialog()
+    assert [p.name for p in lk["clips"]] == ["G1D1_I1.mp4"], lk["clips"]
+    lk["find"]()
+    for _ in range(300):
+        pump(app, 0.1)
+        if not lk["busy"] and lk["results"]:
+            break
+    r = next(iter(lk["results"].values()))
+    assert r.get("confident") and abs(r["start"] - 70.0) < 0.1, r
+    shot(app, "find-clips", w_link)
+    assert lk["add"]() == (1, 0)
+    w_link.destroy()
+    w_ep, es = app._episodes_dialog()
+    pump(app, 0.3)
+    iv = [e for e in TD.load(docs[0].path).episodes if e["type"] == "Interview"][0]
+    es["select"](iv["id"])
+    pump(app, 0.3)
+    shot(app, "episodes", w_ep)
+    w_ep.destroy()
+    app._goto_segment(TD.load(docs[0].path).episode_segments(iv)[0])
+    pump(app, 0.6)
+    shot(app, "editor-episodes")
+    ok("episodes: phases shown, interview clip found at 70.0 s by its sound and added")
+
     res = app._trim_dialog(video)
     assert res is not None
     win, st = res

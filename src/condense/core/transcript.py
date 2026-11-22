@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 from condense.core import cuts as cutlib
+from condense.core import episodes as eplib
 from condense.core.exports import RTFConfidenceWriter
 from condense.core.util import *  # noqa: F401,F403
 
@@ -417,6 +418,53 @@ class TranscriptDocument:
         self.set_cuts(self.cuts + [(start, end)])
         self.log_edit("cut_range", start=round(start, 3), end=round(end, 3))
 
+    # ----- episodes (interviews, activity phases …): labelled stretches, nothing removed -----
+    @property
+    def episodes(self) -> List[Dict]:
+        return sorted((eplib.normalize(e) for e in self.data.get("episodes") or []), key=lambda e: (e["start"], -e["end"]))
+
+    def _set_episodes(self, eps: List[Dict]) -> None:
+        self.data["episodes"] = [eplib.normalize(e) for e in sorted(eps, key=lambda e: (float(e["start"]), -float(e["end"])))]
+
+    def add_episode(self, type_: str, label: str, start: float, end: float, approx: bool = False,
+                    source: Optional[Dict] = None, note: str = "") -> str:
+        ep = eplib.normalize({"type": type_, "label": label.strip(), "start": start, "end": end, "approx": bool(approx),
+                              "note": note})
+        if source:
+            ep["source"] = source
+        self._set_episodes(self.episodes + [ep])
+        self.log_edit("add_episode", id=ep["id"], type=ep["type"], label=ep["label"], start=ep["start"], end=ep["end"])
+        return ep["id"]
+
+    def get_episode(self, ep_id: str) -> Optional[Dict]:
+        return next((e for e in self.episodes if e["id"] == ep_id), None)
+
+    def update_episode(self, ep_id: str, **fields) -> bool:
+        eps = self.episodes
+        for e in eps:
+            if e["id"] == ep_id:
+                e.update({k: v for k, v in fields.items() if k in ("type", "label", "start", "end", "approx", "note", "source")})
+                self._set_episodes(eps)
+                self.log_edit("update_episode", id=ep_id, **{k: v for k, v in fields.items() if k != "source"})
+                return True
+        return False
+
+    def remove_episode(self, ep_id: str) -> bool:
+        eps = self.episodes
+        keep = [e for e in eps if e["id"] != ep_id]
+        if len(keep) == len(eps):
+            return False
+        self._set_episodes(keep)
+        self.log_edit("remove_episode", id=ep_id)
+        return True
+
+    def episode_segments(self, ep: Dict) -> List[int]:
+        return [i for i, seg in enumerate(self.segments) if eplib.segment_in(seg, ep)]
+
+    def segment_episode_types(self, index: int) -> List[str]:
+        seg = self.segments[index]
+        return [e["type"] for e in self.episodes if eplib.segment_in(seg, e)]
+
     def checked_fraction(self) -> float:
         """Share of speech (by duration) in segments marked as checked; cut parts do not count."""
         total = done = 0.0
@@ -563,6 +611,7 @@ class TranscriptDocument:
         editor) kept as paragraphs of their own, marked "cut"."""
         cuts = self.cuts if cuts is None else cuts
         source = self.segments if segments is None else segments
+        bounds = eplib.boundaries(self.episodes) if segments is None else []
         out: List[Dict] = []
         for i, seg in enumerate(source):
             text = (seg.get("text") or "").strip()
@@ -576,6 +625,8 @@ class TranscriptDocument:
             joined = bool(out) and out[-1]["speaker"] == spk and out[-1]["cut"] == is_cut
             if joined and not is_cut and cuts and cutlib.cut_between(cuts, out[-1]["end"], start):
                 joined = False
+            if joined and bounds and any(out[-1]["end"] - 0.01 < t <= start + 0.01 for t in bounds):
+                joined = False  # an interview or phase starts or ends here
             if joined:
                 out[-1]["text"] += " " + text
                 out[-1]["end"] = float(seg.get("end", out[-1]["end"]))
@@ -598,11 +649,16 @@ class TranscriptDocument:
         """All exports on the original recording's timeline (cut parts left out)."""
         return self._write_exports(self.kept_segments(), self.export_paths(), self.base_name, self.paragraphs())
 
-    def export_trimmed(self, kept_actual, base_name: str, out_dir: Optional[Path] = None) -> Dict[str, Path]:
+    def export_episode(self, ep: Dict, kept_actual, base_name: str, out_dir: Path) -> Dict[str, Path]:
+        """Exports for one episode as its own recording: only what lies inside it (and is not cut), timed from its start."""
+        outside = [(0.0, ep["start"]), (ep["end"], max(ep["end"] + 1.0, max((float(s.get("end", 0)) for s in self.segments), default=0) + 1))]
+        return self.export_trimmed(kept_actual, base_name, out_dir, cuts=cutlib.normalize(list(self.cuts) + outside))
+
+    def export_trimmed(self, kept_actual, base_name: str, out_dir: Optional[Path] = None, cuts=None) -> Dict[str, Path]:
         """Exports for a trimmed recording: cut parts left out and every time moved onto the trimmed timeline.
         kept_actual: the intervals really written to the trimmed file (lossless cuts start at keyframes)."""
         tmap = cutlib.TimeMap(kept_actual)
-        retimed = cutlib.retime_segments(self.segments, self.cuts, tmap)
+        retimed = cutlib.retime_segments(self.segments, self.cuts if cuts is None else cuts, tmap)
         d = Path(out_dir) if out_dir else self.out_dir
         paths = {k: d / p.name.replace(self.base_name, base_name, 1) for k, p in self.export_paths().items()}
         return self._write_exports(retimed, paths, base_name, self.paragraphs(retimed, cuts=[]))

@@ -1,12 +1,14 @@
 """Transcript editor: the transcript view and the segment editor. Navigation, history and review marks are in
 navigation.py, history.py and review_marks.py."""
 from condense.core import cuts as cutlib
+from condense.core import episodes as eplib
 from condense.gui._common import *  # noqa: F401,F403
 
 
 class EditorMixin:
     # ------------------------------------------------------------------ transcript editor
     PLAYER_LATENCY_S = 0.25
+    SHOW_FILTERS = ["All segments", "Uncertain", "Not checked", "With notes", "Cut"]
     EDIT_HINT = ("The box shows exactly the highlighted segment. Unchanged words keep their exact timing; corrected words are "
                  "timed within the words they replace and marked as checked. Every change is logged in the .transcript.json.")  # ffplay start-up delay; keeps the follow-along highlight in sync
 
@@ -31,10 +33,12 @@ class EditorMixin:
         bar.add(self._tool(bar, "Uncertain ▶", lambda: self._jump_low_conf(+1)))
         bar.add(self._tool(bar, "✂ Cut / restore (X)", self._toggle_cut))
         bar.add(self._tool(bar, "Export trimmed…", self._export_trimmed_dialog))
+        bar.add(self._tool(bar, "Episodes…", self._episodes_dialog))
         bar.add(self._label(bar, "Show", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]))
         self.var_show_filter = tk.StringVar(value="All segments")
-        cmb_show = ttk.Combobox(bar, textvariable=self.var_show_filter, state="readonly", width=13, font=self.f["small"],
-                                values=["All segments", "Uncertain", "Not checked", "With notes", "Cut"])
+        cmb_show = ttk.Combobox(bar, textvariable=self.var_show_filter, state="readonly", width=15, font=self.f["small"],
+                                values=self.SHOW_FILTERS)
+        self.cmb_show = cmb_show
         cmb_show.bind("<<ComboboxSelected>>", lambda e: (self._autosave_edit(rerender=False), self._rerender()))
         bar.add(cmb_show)
         bar.add(self._tool(bar, "Find…", self._toggle_find))
@@ -163,6 +167,8 @@ class EditorMixin:
         pt.tag_config("NOTE", foreground="#c4b5fd", font=self.f["small"])
         pt.tag_config("FOUND", background="#5c4a12")
         pt.tag_config("CUT_HDR", foreground="#f59e0b", font=self.f["small_bold"])
+        for i, color in enumerate(eplib.PALETTE):
+            pt.tag_config(f"EPC{i}", foreground=color, font=self.f["small_bold"], spacing1=6, spacing3=2)
         pt.tag_config("MULTISEL", background="#3a2f5c")
         pt.bind("<ButtonRelease-1>", self._on_text_click)
         pt.bind("<Shift-ButtonRelease-1>", self._on_shift_click)
@@ -200,6 +206,8 @@ class EditorMixin:
             pt.bind(f"<Key-{k}>", brk(self._replay_segment))
         for k in ("x", "X"):
             pt.bind(f"<Key-{k}>", brk(self._toggle_cut))
+        for k in ("e", "E"):
+            pt.bind(f"<Key-{k}>", brk(self._mark_episode))
         pt.bind("<Return>", brk(self._focus_editor))
         pt.bind(f"<{MOD}-Key-a>", lambda e: (self._select_all_segments(), "break")[-1])
         self.edit_text.bind("<Tab>", brk(self._focus_transcript))  # a tab character is never wanted in a transcript
@@ -282,7 +290,14 @@ class EditorMixin:
                     return not doc.segments[i].get("checked") and i not in cut_set
                 if show == "With notes":
                     return bool(doc.segments[i].get("note"))
+                if show.startswith("In "):
+                    return i in in_episode
                 return i in cut_set
+            in_episode = set()
+            if show.startswith("In "):
+                for ep in doc.episodes:
+                    if ep["type"] == show[3:]:
+                        in_episode.update(doc.episode_segments(ep))
             groups = [[i] for i in range(len(rsegs)) if not is_blank_text(rsegs[i].get("text")) and wanted(i)]
         elif self.var_view_mode.get() == "Paragraphs":
             groups = [p["segments"] for p in doc.paragraphs(include_cut=True)]
@@ -310,8 +325,23 @@ class EditorMixin:
             else:
                 pos["col"] += len(s)
 
+        eps, next_ep, open_eps = doc.episodes, 0, []
         for group in groups:
             first, last = rsegs[group[0]], rsegs[group[-1]]
+            gstart = float(doc.segments[group[0]].get("start", 0.0))
+            for ep in list(open_eps):  # episodes that ended before this paragraph
+                if gstart >= ep["end"] - 0.05:
+                    put(f"■ end of {ep['type']} {ep.get('label') or ''}\n", self._episode_tag(ep["type"]))
+                    open_eps.remove(ep)
+            while next_ep < len(eps) and eps[next_ep]["start"] <= gstart + 0.05:
+                ep = eps[next_ep]
+                next_ep += 1
+                if ep["end"] <= gstart:
+                    continue
+                approx = "≈ " if ep.get("approx") else ""
+                put(f"▶ {ep['type']} {ep.get('label') or ''}   {approx}{short_ts(ep['start'])[:-2]} – {short_ts(ep['end'])[:-2]}\n",
+                    self._episode_tag(ep["type"]))
+                open_eps.append(ep)
             spk = first.get("speaker")
             group_cut = group[0] in cut_set
             if group_cut:
@@ -383,6 +413,8 @@ class EditorMixin:
                  + (f"   ·   showing {len(groups)} {show.lower()}" if show != "All segments" else "")
         )
         self.cmb_seg_speaker.configure(values=roster)
+        if self.__dict__.get("cmb_show") is not None:
+            self.cmb_show.configure(values=self.SHOW_FILTERS + [f"In {t}" for t in self._episode_types()])
         self._refresh_speaker_chips()
         if new_doc:
             self.play_pos = 0.0

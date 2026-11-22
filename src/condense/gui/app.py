@@ -16,10 +16,11 @@ from condense.gui.cutting import CuttingMixin
 from condense.gui.trim_dialog import TrimDialogMixin
 from condense.gui.find import FindMixin
 from condense.gui.project import ProjectMixin
+from condense.gui.episodes import EpisodesMixin
 from condense.gui.video import VideoMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")
@@ -219,6 +220,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         em.add_separator()
         em.add_command(label="Cut / Restore Selected Segments  (X)", command=self._toggle_cut)
         em.add_command(label="Restore All Cuts…", command=self._restore_all_cuts)
+        em.add_command(label="Episodes (Interviews, Phases)…", command=self._episodes_dialog)
+        em.add_command(label="Mark Selection as Episode  (E)", command=self._mark_episode)
+        em.add_command(label="Find Interview Clips in Recording…", command=self._link_clips_dialog)
         em.add_command(label="Select All Segments  (⌘A in transcript)" if IS_MAC else "Select All Segments  (Ctrl+A in transcript)", command=self._select_all_segments)
         em.add_separator()
         mm = tk.Menu(em, tearoff=0)

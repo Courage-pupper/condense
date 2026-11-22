@@ -61,7 +61,18 @@ def snap_to_keyframes(kept: Sequence[Range], keys: Sequence[float]) -> Tuple[Lis
 
 
 def exact_command(src: Path, dst: Path, kept: Sequence[Range], has_video: bool, has_audio: bool) -> List[str]:
-    """One ffmpeg run: trim + concat filter, H.264 (veryfast, CRF 18) + AAC."""
+    """One ffmpeg run: trim + concat filter, H.264 (veryfast, CRF 18) + AAC. A single part (an episode) seeks to it
+    directly instead of decoding everything before it — frame-accurate, because the output is re-encoded."""
+    if len(kept) == 1:
+        a, b = kept[0]
+        cmd = ["ffmpeg", "-hide_banner", "-y", "-ss", f"{a:.3f}", "-i", str(src), "-t", f"{b - a:.3f}"]
+        if has_video:
+            cmd += ["-map", "0:v:0", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
+        if has_audio:
+            cmd += ["-map", "0:a:0", "-c:a", "aac", "-b:a", "192k"]
+        if dst.suffix.lower() in (".mp4", ".m4a", ".mov"):
+            cmd += ["-movflags", "+faststart"]
+        return cmd + ["-progress", "pipe:1", "-nostats", str(dst)]
     parts, labels = [], []
     for i, (a, b) in enumerate(kept):
         if has_video:

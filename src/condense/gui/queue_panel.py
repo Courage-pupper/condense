@@ -762,6 +762,8 @@ class QueueMixin:
                     self._on_trim_ui_msg(msg)
                 elif mtype == "trim":
                     self._on_trim_msg(msg)
+                elif mtype == "episode":
+                    self._on_episode_msg(msg)
                 elif mtype == "gpu_test":
                     self._on_gpu_test(msg)
                 elif mtype == "probe":

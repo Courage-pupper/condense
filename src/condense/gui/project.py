@@ -82,6 +82,7 @@ class ProjectMixin:
         pm.add_separator()
         pm.add_command(label="Project Overview…", command=self._project_overview)
         pm.add_command(label="Project Speakers…", command=lambda: self._project_speakers_dialog())
+        pm.add_command(label="Project Settings…", command=lambda: self._project_settings_dialog())
         mb.add_cascade(label="Project", menu=pm)
         self.project_menu = pm
 
@@ -143,7 +144,15 @@ class ProjectMixin:
         v_folder = tk.StringVar(value="")
         v_name = tk.StringVar(value="")
         v_spk = tk.StringVar(value="")
+        v_levels = tk.StringVar(value="")
+        v_skip = tk.StringVar(value=", ".join(proj.DEFAULT_SKIP))
         lbl_err = self._label(win, "", font="small", fg=T["warn"], bg=T["bg_panel"])
+
+        def detect():
+            f = Path(v_folder.get()).expanduser()
+            if f.is_dir():
+                skip = [x.strip() for x in v_skip.get().split(",") if x.strip()]
+                v_levels.set(", ".join(proj.detect_levels(f, skip)))
 
         def choose():
             start = v_folder.get() or self.settings.get("last_add_dir") or str(Path.home())
@@ -152,6 +161,7 @@ class ProjectMixin:
                 v_folder.set(f)
                 if not v_name.get().strip():
                     v_name.set(Path(f).name)
+                detect()
 
         for r, (label, var) in enumerate((("Folder", v_folder), ("Name", v_name), ("Speakers", v_spk)), start=2):
             self._label(win, label, font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=r, column=0, sticky="w", padx=(0, 8), pady=3)
@@ -159,7 +169,16 @@ class ProjectMixin:
         self._tool(win, "Choose…", choose).grid(row=2, column=2, padx=(6, 0))
         self._label(win, "Optional, comma-separated, in key order — e.g. Facilitator, Robin, Sam. You can change them later.",
                     font="small", fg=T["fg_dim"], bg=T["bg_panel"]).grid(row=5, column=1, columnspan=2, sticky="w")
-        lbl_err.grid(row=6, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        self._label(win, "Levels", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=6, column=0, sticky="w", padx=(0, 8), pady=3)
+        self._entry(win, v_levels, font="small", width=46).grid(row=6, column=1, sticky="we", pady=3)
+        self._label(win, "The folder levels, read from your folder names — e.g. Day, Group for Day 1 …/Group 1/. Leave empty "
+                         "if the folders have no levels.", font="small", fg=T["fg_dim"], bg=T["bg_panel"], wraplength=420,
+                    justify=tk.LEFT).grid(row=7, column=1, columnspan=2, sticky="w")
+        self._label(win, "Skip folders", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=8, column=0, sticky="w", padx=(0, 8), pady=3)
+        self._entry(win, v_skip, font="small", width=46).grid(row=8, column=1, sticky="we", pady=3)
+        self._label(win, "Never opened or listed (e.g. consent forms). * matches anything.", font="small", fg=T["fg_dim"],
+                    bg=T["bg_panel"]).grid(row=9, column=1, columnspan=2, sticky="w")
+        lbl_err.grid(row=10, column=0, columnspan=3, sticky="w", pady=(6, 0))
 
         def create():
             folder = v_folder.get().strip()
@@ -175,6 +194,9 @@ class ProjectMixin:
             speakers = [s for s in (x.strip() for x in v_spk.get().split(",")) if s]
             try:
                 proj.create_project(folder, v_name.get().strip() or folder.name, speakers)
+                skip = [x.strip() for x in v_skip.get().split(",") if x.strip()]
+                levels = [x.strip() for x in v_levels.get().split(",") if x.strip()] or proj.detect_levels(folder, skip)
+                proj.update_project(folder, levels=levels, skip=skip)
             except OSError as exc:
                 lbl_err.config(text=f"Could not create the project: {exc}")
                 return None
@@ -183,11 +205,12 @@ class ProjectMixin:
             return self._project_overview()
 
         bar = tk.Frame(win, bg=T["bg_panel"])
-        bar.grid(row=7, column=0, columnspan=3, sticky="e", pady=(12, 0))
+        bar.grid(row=11, column=0, columnspan=3, sticky="e", pady=(12, 0))
         self._tool(bar, "Cancel", win.destroy).pack(side=tk.LEFT, padx=(0, 6))
         self._tool(bar, "Create Project", create, primary=True).pack(side=tk.LEFT)
         win.bind("<Escape>", lambda e: (win.destroy(), "break")[-1])
-        return win, {"folder": v_folder, "name": v_name, "speakers": v_spk, "create": create, "choose": choose, "error": lbl_err}
+        return win, {"folder": v_folder, "name": v_name, "speakers": v_spk, "levels": v_levels, "skip": v_skip, "create": create,
+                     "choose": choose, "detect": detect, "error": lbl_err}
 
     def _open_project_dialog(self):
         start = str(self._project_dir() or self.settings.get("last_add_dir") or Path.home())
@@ -205,6 +228,7 @@ class ProjectMixin:
                                        "it and its subfolders become part of it; nothing is moved.", parent=self):
                 return None
             proj.create_project(folder)
+            proj.update_project(folder, levels=proj.detect_levels(folder), skip=list(proj.DEFAULT_SKIP))
             f = folder / proj.PROJECT_FILE
         self._set_project(f.parent)
         return self._project_overview()
@@ -232,9 +256,9 @@ class ProjectMixin:
         cols = ("length", "checked", "uncertain", "speakers", "cuts", "notes", "modified")
         tree = ttk.Treeview(win, columns=cols, show="tree headings", height=16, style="Queue.Treeview")
         tree.heading("#0", text="Transcript")
-        tree.column("#0", width=280)
+        tree.column("#0", width=320)
         for c, w, title in (("length", 80, "Length"), ("checked", 80, "Checked"), ("uncertain", 90, "Uncertain"),
-                            ("speakers", 130, "Speakers"), ("cuts", 70, "Cut"), ("notes", 60, "Notes"), ("modified", 130, "Last change")):
+                            ("speakers", 130, "Speakers"), ("cuts", 70, "Cut"), ("notes", 60, "Notes"), ("modified", 160, "Last change / time")):
             tree.heading(c, text=title)
             tree.column(c, width=w, anchor="center")
         state = {"rows": [], "stop": threading.Event(), "project": project}
@@ -244,14 +268,35 @@ class ProjectMixin:
             for item in tree.get_children():
                 tree.delete(item)
             ok_rows = [r for r in rows if "error" not in r]
+            nodes: Dict[str, List[Dict]] = {}  # level node iid -> rows below it (for the totals)
             for i, r in enumerate(rows):
+                parent = ""
+                for depth, (_lv, name) in enumerate(r.get("levels") or []):
+                    iid = "L:" + "/".join(n for _, n in r["levels"][: depth + 1])
+                    if iid not in nodes:
+                        tree.insert(parent, tk.END, iid=iid, text=name, open=True)
+                        nodes[iid] = []
+                    if "error" not in r:
+                        nodes[iid].append(r)
+                    parent = iid
                 if "error" in r:
-                    tree.insert("", tk.END, iid=str(i), text=f"⚠ {r['name']}", values=("", "", "", "", "", "", "could not read"))
+                    tree.insert(parent, tk.END, iid=str(i), text=f"⚠ {r['name']}", values=("", "", "", "", "", "", "could not read"))
                     continue
                 spk = f"{r['speakers']}" + (f" ({r['generic_speakers']} unnamed)" if r["generic_speakers"] else "")
-                tree.insert("", tk.END, iid=str(i), text=r["name"], values=(
+                tree.insert(parent, tk.END, iid=str(i), text=r["name"], open=False, values=(
                     short_ts(r["length_s"])[:-2], f"{r['checked_pct']}%", f"{r['uncertain_pct']}%", spk,
                     short_ts(r["cut_s"])[:-2] if r["cut_s"] else "", r["notes"] or "", r["modified"]))
+                for j, ep in enumerate(r.get("episodes") or []):
+                    approx = "≈ " if ep.get("approx") else ""
+                    tree.insert(str(i), tk.END, iid=f"{i}:{j}", text=f"▸ {ep['type']} {ep.get('label') or ''}",
+                                values=(short_ts(ep["end"] - ep["start"])[:-2], "", "", "", "", "",
+                                        f"{approx}{short_ts(ep['start'])[:-2]} – {short_ts(ep['end'])[:-2]}"))
+            for iid, below in nodes.items():
+                length = sum(r["length_s"] for r in below)
+                done = sum(r["length_s"] * r["checked_pct"] / 100 for r in below)
+                n_ep = sum(len(r.get("episodes") or []) for r in below)
+                tree.item(iid, values=(short_ts(length)[:-2], f"{done * 100 / length:.0f}%" if length else "", "",
+                                       f"{len(below)} transcript(s)", "", "", f"{n_ep} episode(s)" if n_ep else ""))
             total_len = sum(r["length_s"] for r in ok_rows)
             done = sum(r["length_s"] * r["checked_pct"] / 100 for r in ok_rows)
             speakers = proj.load_project(project / proj.PROJECT_FILE)["speakers"]
@@ -288,14 +333,20 @@ class ProjectMixin:
 
         def open_selected(event=None):
             sel = tree.selection()
-            if not sel:
+            if not sel or sel[0].startswith("L:"):
                 return
-            r = state["rows"][int(sel[0])]
+            i, _, j = sel[0].partition(":")
+            r = state["rows"][int(i)]
             if "error" in r:
                 return
             self._autosave_edit(rerender=False)
             self._render_doc(TranscriptDocument.load(r["path"]))
             self.notebook.select(self.tab_preview)
+            if j:  # an episode: go to its first segment
+                ep = r["episodes"][int(j)]
+                idx = self.active_doc.episode_segments(ep)
+                if idx:
+                    self._goto_segment(idx[0])
 
         def export_csv():
             if not state["rows"]:
@@ -317,6 +368,7 @@ class ProjectMixin:
         self._tool(bar, "Open", open_selected, primary=True).pack(side=tk.LEFT)
         self._tool(bar, "Project speakers…", lambda: self._project_speakers_dialog(project, on_saved=refresh)).pack(side=tk.LEFT, padx=(6, 0))
         self._tool(bar, "Save as CSV", export_csv).pack(side=tk.LEFT, padx=(6, 0))
+        self._tool(bar, "Settings…", lambda: self._project_settings_dialog(on_saved=refresh)).pack(side=tk.LEFT, padx=(6, 0))
         self._tool(bar, "Close", close).pack(side=tk.RIGHT)
         tree.bind("<Double-Button-1>", open_selected)
         win.protocol("WM_DELETE_WINDOW", close)
@@ -412,3 +464,50 @@ class ProjectMixin:
         show()
         st.update(add=add, move=move, remove=remove, from_transcripts=from_transcripts, save=save, lst=lst)
         return win, st
+
+    # ================================================================== project settings
+    def _project_settings_dialog(self, folder: Optional[Path] = None, on_saved=None):
+        T = THEME
+        folder = Path(folder) if folder else self._project_dir()
+        if folder is None:
+            return self._project_start_dialog()
+        cfg = proj.project_settings(folder)
+        win = tk.Toplevel(self)
+        win.title("Project settings")
+        win.configure(bg=T["bg_panel"], padx=16, pady=14)
+        win.transient(self)
+        self._label(win, f"Project settings — {folder}", font="body_bold", bg=T["bg_panel"]).grid(row=0, column=0, columnspan=3, sticky="w")
+        v_name = tk.StringVar(value=cfg["name"])
+        v_levels = tk.StringVar(value=", ".join(cfg["levels"]))
+        v_skip = tk.StringVar(value=", ".join(cfg["skip"]))
+        v_types = tk.StringVar(value=", ".join(cfg["episode_types"]))
+        rows = (("Name", v_name, ""),
+                ("Levels", v_levels, "Folder levels below the project, e.g. Day, Group. The overview groups transcripts by them."),
+                ("Skip folders", v_skip, "Never opened or listed (consent forms, unsorted material). * matches anything."),
+                ("Episode types", v_types, "Kinds of episodes, e.g. Interview, Phase, Plenary. Each gets its own colour."))
+        for r, (label, var, hint) in enumerate(rows):
+            self._label(win, label, font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=1 + 2 * r, column=0, sticky="w", padx=(0, 8), pady=(6, 0))
+            self._entry(win, var, font="small", width=50).grid(row=1 + 2 * r, column=1, sticky="we", pady=(6, 0))
+            if hint:
+                self._label(win, hint, font="small", fg=T["fg_dim"], bg=T["bg_panel"], wraplength=440, justify=tk.LEFT
+                            ).grid(row=2 + 2 * r, column=1, sticky="w")
+        self._tool(win, "Detect", lambda: v_levels.set(", ".join(proj.detect_levels(folder, [x.strip() for x in v_skip.get().split(",") if x.strip()])))
+                   ).grid(row=3, column=2, padx=(6, 0), pady=(6, 0))
+
+        def save():
+            split = (lambda v: [x.strip() for x in v.get().split(",") if x.strip()])
+            proj.update_project(folder, name=v_name.get().strip() or folder.name, levels=split(v_levels), skip=split(v_skip),
+                                episode_types=split(v_types) or ["Interview"])
+            self._refresh_project_ui()
+            self._append_log(f"Project settings saved: {folder / proj.PROJECT_FILE}", "INFO")
+            win.destroy()
+            if self.active_doc is not None:
+                self._rerender()
+            on_saved and on_saved()
+
+        bar = tk.Frame(win, bg=T["bg_panel"])
+        bar.grid(row=20, column=0, columnspan=3, sticky="e", pady=(14, 0))
+        self._tool(bar, "Cancel", win.destroy).pack(side=tk.LEFT, padx=(0, 6))
+        self._tool(bar, "Save", save, primary=True).pack(side=tk.LEFT)
+        win.bind("<Escape>", lambda e: (win.destroy(), "break")[-1])
+        return win, {"name": v_name, "levels": v_levels, "skip": v_skip, "types": v_types, "save": save}
