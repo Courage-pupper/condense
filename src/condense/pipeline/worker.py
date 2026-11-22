@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple
 
 from condense import __version__
-from condense.asr.runner import WHISPER_RUNNER, runner_command
+from condense.asr.runner import WHISPER_RUNNER, is_harmless_output, runner_command
 from condense.core.exports import RTFConfidenceWriter
 from condense.core.transcript import TranscriptDocument
 from condense.core.util import *  # noqa: F401,F403
@@ -741,7 +741,7 @@ class PipelineWorker(threading.Thread):
                     self.current_proc.terminate()
                     raise InterruptedError("Cancelled.")
                 clean = line.strip()
-                if not clean:
+                if not clean or is_harmless_output(clean):
                     continue
                 tail_lines = (tail_lines + [clean])[-8:]
                 m = pct_regex.search(clean)

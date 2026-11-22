@@ -61,7 +61,7 @@ class RerunMixin:
                 tail: List[str] = []
                 for line in proc.stdout:
                     line = line.strip()
-                    if line:
+                    if line and not is_harmless_output(line):
                         tail = (tail + [line])[-6:]
                         msgq.put({"type": "rerun_progress", "kind": kind, "text": line})
                 if proc.wait() != 0 or not out.exists():

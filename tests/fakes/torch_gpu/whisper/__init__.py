@@ -19,4 +19,6 @@ class _Model:
 
 
 def load_model(name, device=None):
+    # what the libdrm inside ROCm PyTorch prints on Ubuntu (harmless; Condense hides it)
+    print("/opt/amdgpu/share/libdrm/amdgpu.ids: No such file or directory", file=sys.stderr, flush=True)
     return _Model(name, device)

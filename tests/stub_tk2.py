@@ -151,6 +151,17 @@ tk.END = "end"
 ttk = types.ModuleType("tkinter.ttk")
 for n in ["Style", "Button", "Combobox", "Treeview", "Scrollbar", "Notebook", "Progressbar", "Checkbutton"]:
     setattr(ttk, n, type(n, (W,), {}))
+
+
+def _nb_select(self, tab=None):
+    """Like ttk.Notebook.select: with a tab, select it; without, return the selected tab's name."""
+    if tab is not None:
+        self.__dict__["_selected"] = str(tab)
+        return ""
+    return self.__dict__.get("_selected", "")
+
+
+ttk.Notebook.select = _nb_select
 fd = types.ModuleType("tkinter.filedialog")
 fd.askopenfilename = lambda **k: fd._next
 fd.askopenfilenames = lambda **k: fd._next_many

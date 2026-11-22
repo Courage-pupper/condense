@@ -384,3 +384,16 @@ def runner_command(python: str, temp_dir) -> list:
         return [python, str(path)]
     return [python, "-c", WHISPER_RUNNER]
 
+
+# Messages from libraries that look like errors but are harmless; they are kept out of the Console.
+HARMLESS_OUTPUT = (
+    # The libdrm bundled with ROCm builds of PyTorch looks for AMD's table of GPU product names under /opt/amdgpu
+    # (where AMD's driver packages put it; Ubuntu has it in /usr/share/libdrm). Only the card's marketing name is
+    # affected, never the computation.
+    "amdgpu.ids: No such file or directory",
+)
+
+
+def is_harmless_output(line: str) -> bool:
+    return any(marker in line for marker in HARMLESS_OUTPUT)
+

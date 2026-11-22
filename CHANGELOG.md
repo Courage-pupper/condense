@@ -9,6 +9,8 @@
 - Hugging Face token in the Windows Credential Manager, Start-menu and Desktop shortcuts with an icon, no console windows, sharp text on high-DPI screens, `%APPDATA%` / `%LOCALAPPDATA%` locations.
 
 ### Linux
+- **Ctrl+Enter** (save, mark checked, next segment) now works when the transcript has the focus, not only in the text box — on Linux and Windows menu shortcuts are not active by themselves as they are on macOS. The number-pad Enter works too. It acts only on the Transcript tab.
+- The harmless message `amdgpu.ids: No such file or directory` (from the libdrm inside ROCm builds of PyTorch, which looks for AMD's GPU name table under /opt/amdgpu) no longer appears in the Console.
 - **Native file chooser:** opening videos, folders and transcripts now uses the desktop's own dialog — GNOME/GTK through `zenity`, KDE through `kdialog` — with external drives, bookmarks, recent places and search, instead of Tk's old Motif-style dialog. It starts in the last folder used (or the home folder if that drive is no longer connected) and also matches upper-case extensions such as `.MP4`. The installer adds `zenity`; `CONDENSE_FILE_DIALOG=tk|zenity|kdialog` chooses explicitly.
 
 ### All platforms

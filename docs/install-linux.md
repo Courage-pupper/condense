@@ -265,6 +265,11 @@ those packages support yet. Create the environment with Python 3.12: `--python /
 **Condense does not appear in the app menu.** Log out and back in, or start it once with
 `~/.condense/env/bin/condense --install-app`. Launch errors are in `~/.local/state/condense/condense.log`.
 
+**The Console showed `/opt/amdgpu/share/libdrm/amdgpu.ids: No such file or directory`** (Condense 0.10). Harmless:
+the libdrm inside ROCm builds of PyTorch looks for AMD's list of GPU product names where AMD's own driver packages put it;
+Ubuntu keeps it in `/usr/share/libdrm/`. Only the card's display name is affected, not the computation. Condense 0.11
+hides the message.
+
 **The file dialog looks old (no sidebar, no external drives).** Condense uses the desktop's own file chooser through
 `zenity` (GNOME and most desktops) or `kdialog` (KDE) and falls back to Tk's basic dialog when neither is installed:
 `sudo apt install zenity` (or `kdialog` on KDE). To force one: `export CONDENSE_FILE_DIALOG=zenity` (or `kdialog`, `tk`).

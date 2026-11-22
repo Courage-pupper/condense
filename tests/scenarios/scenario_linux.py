@@ -46,6 +46,7 @@ for name, backend in (("P02", plat.DEFAULT_BACKEND), ("P03_48k", "openai-whisper
 gpu = TD.load(media / "P02" / "P02.transcript.json")
 cpu = TD.load(media / "P03_48k" / "P03_48k.transcript.json")
 assert "device=cuda fp16=True" in logs["P02"], logs["P02"][-2000:]
+assert "amdgpu.ids" not in logs["P02"]  # harmless libdrm message kept out of the Console
 assert gpu.data["provenance"]["whisper"]["backend_used"] == "openai-whisper on ROCm GPU (AMD Radeon RX 7900 XTX)", gpu.data["provenance"]["whisper"]
 assert "device=cpu fp16=False" in logs["P03_48k"] and cpu.data["provenance"]["whisper"]["backend_used"] == "openai-whisper on CPU"
 # provenance describes the real machine (this scenario may run on a Mac with CONDENSE_PLATFORM=linux)
@@ -194,3 +195,22 @@ app._add_videos()
 assert len(app.jobs) == before + 1 and app.settings["last_add_dir"] == str(media)
 ok("zenity (GNOME) or kdialog (KDE): multi-select, .MP4 matched too, starts in the last folder (or home if the drive is gone), "
    "cancel = nothing, failure → Tk's dialog; Add Videos uses it")
+
+
+print("[10] Ctrl+Enter (save, check, next) works from the transcript too, but only on the Transcript tab")
+from types import SimpleNamespace
+app.jobs = []
+app._render_doc(TD.load(media / "P02" / "P02.transcript.json"))
+app._select_span(app.span_lookup[(0, 0)])
+app.preview_text.focus_set()
+ev = SimpleNamespace(widget=SimpleNamespace(winfo_toplevel=lambda: app))
+app.notebook.select(app.tab_settings)
+assert app._check_and_next_key(ev) is None and not TD.load(media / "P02" / "P02.transcript.json").segments[0].get("checked")
+app.notebook.select(app.tab_preview)
+assert app._check_and_next_key(ev) == "break"
+d2 = TD.load(media / "P02" / "P02.transcript.json")
+assert d2.segments[0].get("checked") and app.edit_seg_idx == 1
+dialog = SimpleNamespace(widget=SimpleNamespace(winfo_toplevel=lambda: object()))
+assert app._check_and_next_key(dialog) is None and app.edit_seg_idx == 1   # from a dialog: ignored
+assert "<Control-KP_Enter>" in app.edit_text._binds
+ok("Ctrl+Enter / keypad Enter from the transcript or the text box; ignored on other tabs and in dialogs")

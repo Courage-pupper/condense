@@ -98,7 +98,8 @@ class EditorMixin:
         self.spk_chips = self._flow(ep, padx=4, pady=4, bg=T["bg_card"])
         self.spk_chips.pack(fill=tk.X, pady=(6, 0))
         self.edit_text.pack(fill=tk.X, pady=(6, 2))
-        self.edit_text.bind(f"<{MOD}-Return>", lambda e: (self._check_and_next(), "break")[-1])
+        for seq in (f"<{MOD}-Return>", f"<{MOD}-KP_Enter>"):  # main and number-pad Enter
+            self.edit_text.bind(seq, lambda e: (self._check_and_next(), "break")[-1])
         for d in range(1, 10):
             self.bind_all(f"<Control-Key-{d}>", lambda e, d=d: (self._assign_speaker_number(d), "break")[-1])
         self.lbl_edit_hint = self._wrapping_label(ep, self.EDIT_HINT, font="small", fg=T["fg_dim"])
@@ -542,6 +543,7 @@ class EditorMixin:
             "  R                replay the open segment\n"
             "  C                mark checked / not checked (all selected)\n"
             "  Return           edit the open segment's text\n"
+            f"  {c}Return          save, mark checked, next segment\n"
             "  double-click     play from that word\n\n"
             "While typing in the segment box\n"
             f"  {c}Return          save, mark checked, next segment\n"
@@ -820,6 +822,19 @@ class EditorMixin:
         if self._commit(f"Segment {idx + 1} marked {'checked' if now else 'not checked'}.") is not None:
             self._rerender()
             self._load_segment_into_editor(idx)
+
+    def _check_and_next_key(self, event=None):
+        """Ctrl+Enter anywhere in the main window, but only while the Transcript tab is showing (never from a dialog
+        or another tab, where it would check a segment you cannot see)."""
+        try:
+            if event is not None and event.widget.winfo_toplevel() is not self:
+                return None
+            if str(self.notebook.select()) != str(self.tab_preview):
+                return None
+        except Exception:
+            return None
+        self._check_and_next()
+        return "break"
 
     def _check_and_next(self):
         """Save the segment (text + speaker), mark it checked and move to the next one: the review loop."""

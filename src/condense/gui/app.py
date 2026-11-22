@@ -301,6 +301,12 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, PlayerMixin, RerunM
         for key, fn in keys.items():
             self.bind_all(f"<{MOD}-Key-{key}>", lambda e, fn=fn: (fn(), "break")[-1])
         self.bind_all("<Escape>", self._toggle_play)  # works while typing in the segment editor
+        if not IS_MAC:
+            # On macOS the menu's ⌘↩ works wherever the focus is (Tk hands accelerators to the system menu). On Linux and
+            # Windows menu accelerators are only labels, so Ctrl+Enter is bound for the whole window here — also
+            # while the transcript (not the text box) has the focus.
+            for seq in ("<Control-Key-Return>", "<Control-Key-KP_Enter>"):
+                self.bind_all(seq, self._check_and_next_key)
         self.bind_all(f"<{MOD}-Key-z>", self._undo_key)
         self.bind_all(f"<{MOD}-Key-R>", lambda e: (self._retranscribe_dialog(), "break")[-1])
         self.bind_all(f"<{MOD}-Shift-Key-r>", lambda e: (self._retranscribe_dialog(), "break")[-1])
