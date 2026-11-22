@@ -1,14 +1,34 @@
 # Changelog
 
-## 0.11.1 — 2026-11-22
+## 0.12.0 — 2026-11-22
 
-### Fixed
-- **Opening the project overview could freeze Condense.** With no transcript open, it searched your whole home folder,
-  external drives included, before showing anything. It now never searches without a project, searches in the
-  background, skips hidden folders and backups, and stops on very large drives. *Search All Transcripts* uses the same
-  safe search.
-- **macOS `._` files on external drives** (a Mac writes one next to every file on exFAT drives such as a T7) are no
-  longer added as videos by *+ Folder* or listed as broken transcripts.
+Workshops with groups: episodes for interviews and activity phases, projects that follow your folders, and interviews you
+already cut out found again in their session by their sound. Projects stay optional — without one, Condense works file
+by file as before.
+
+### Episodes: interviews and activity phases
+- An **episode** labels a stretch of a recording: the facilitator's interview with a group, or a phase such as
+  *Dioramas*. Nothing is removed. Select segments and press **E**, or use *Episodes…* in the transcript toolbar.
+- Episodes show as **coloured bands on the timeline** and as **headers in the transcript** (▶ … / ■ end of …), and start
+  new paragraphs. Phases you only know roughly can be marked *approximate*.
+- **Show ▸ In Interview / In Phase …** moves through only the segments of one kind of episode.
+- **Export an episode as a clip** with a transcript timed to it (SRT, TXT, paragraphs for MAXQDA) and an `.episode.json`
+  record. Interviews are saved next to the group's other interviews. Exact export now jumps straight to the episode
+  instead of decoding the whole recording before it.
+
+### Interviews you already cut out
+- **Find interview clips…** (Episodes dialog or Edit menu) finds each clip from the group's interview folder in the
+  session recording **by its sound** — to a few hundredths of a second, whatever tool cut it — and adds it as an
+  Interview episode labelled with the clip's name. Uncertain matches are marked for checking; running it again updates
+  instead of duplicating. The session's sound is read once and cached.
+
+### Projects follow your folders
+- Levels are read from folder names: `Day 1 2026-08-10/Group 1/…` gives *Day* and *Group*. Media folders inside a group
+  stay part of it.
+- **Consent forms** and **…Unsorted** folders are skipped: never opened or listed.
+- **Project ▸ Project Settings…**: name, levels, skipped folders and episode types (Interview, Phase, Plenary …).
+- The **overview is a tree** — Day ▸ Group ▸ transcript ▸ episodes — with totals per day and group; double-click an
+  episode to go to it. The CSV has a column per level.
 
 ### Projects are now something you open
 - A new **Project** menu: *New Project…*, *Open Project…*, *Open Recent*, *Close Project*, *Project Overview…* and
@@ -18,6 +38,14 @@
 - Opening a transcript of a study opens its project. *Open Transcript* and *Search All Transcripts* start in the project's
   folder.
 - The user guide's project section explains the workflow.
+
+### Fixed
+- **Opening the project overview could freeze Condense.** With no transcript open, it searched your whole home folder,
+  external drives included, before showing anything. It now never searches without a project, searches in the
+  background, skips hidden folders and backups, and stops on very large drives. *Search All Transcripts* uses the same
+  safe search.
+- **macOS `._` files on external drives** (a Mac writes one next to every file on exFAT drives such as a T7) are no
+  longer added as videos by *+ Folder* or listed as broken transcripts.
 
 ## 0.11.0 — 2026-11-22
 

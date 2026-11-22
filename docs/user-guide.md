@@ -14,10 +14,11 @@ Shortcuts are written **Mac / Linux and Windows**, for example **⌘↩ / Ctrl+E
 5. [Speakers](#5-speakers)
 6. [Notes, find and replace, filters](#6-notes-find-and-replace-filters)
 7. [Cutting parts out](#7-cutting-parts-out)
-8. [Projects: many sessions of one study](#8-projects-many-sessions-of-one-study)
-9. [Into MAXQDA](#9-into-maxqda)
-10. [Your data](#10-your-data)
-11. [When something goes wrong](#11-when-something-goes-wrong)
+8. [Episodes: interviews and activity phases](#8-episodes-interviews-and-activity-phases)
+9. [Projects: many sessions of one study](#9-projects-many-sessions-of-one-study)
+10. [Into MAXQDA](#10-into-maxqda)
+11. [Your data](#11-your-data)
+12. [When something goes wrong](#12-when-something-goes-wrong)
 
 ---
 
@@ -182,11 +183,47 @@ with a transcript timed to it, use *Export trimmed…* (or *File ▸ Export Trim
 
 Use the trimmed video and the trimmed transcript **together** in MAXQDA (see below).
 
-## 8. Projects: many sessions of one study
+## 8. Episodes: interviews and activity phases
 
-A **project** is the folder of one study. Every transcript in that folder or its subfolders belongs to it, for example
-`Study/Session 1/…` and `Study/Session 2/…`. Nothing is moved or copied; Condense only puts a small
-`condense-project.json` in the folder.
+An **episode** labels a stretch of a recording without removing anything. Examples are the facilitator's interview with
+a group in the middle of its session, or an activity phase such as *Dioramas* or *Risks intro*. Episodes show as
+coloured bands on the timeline and as headers in the transcript, and they start new paragraphs.
+
+![Phases and an interview in a group's session](images/editor-episodes.png)
+
+- **Mark one:** select its segments in the transcript (drag, or ⇧↓ / Shift+↓) and press **E**. Choose the type, give it
+  a label (e.g. `G1D1_I1` or `Dioramas`) and check the times. Tick *approximate* for phases you only know roughly.
+- **See and edit them all:** *Episodes…* in the transcript toolbar (or *Edit ▸ Episodes…*). Double-click one to go to it.
+
+  ![Episodes dialog](images/episodes.png)
+
+- **Work through one kind:** the *Show* filter has *In Interview*, *In Phase* … — ↑/↓ then move only through those
+  segments.
+- **Export one as a clip:** *Export clip…* in the Episodes dialog writes the clip and a transcript timed to it (SRT, TXT,
+  paragraphs for MAXQDA), plus a small `.episode.json` record of where it came from. Interviews are saved next to the
+  group's other interviews (a folder with "Interview" in its name), so you no longer need to cut them out by hand.
+- **Episode types** (Interview, Phase, Plenary …) are set per project in *Project ▸ Project Settings…*.
+
+**Interviews you already cut out:** open the group's session transcript and choose *Find interview clips…* (in the
+Episodes dialog or the Edit menu). Condense lists the clips in the group's interview folder, finds each one in the
+session by its **sound** (to a few hundredths of a second, whatever tool cut it), and adds them as Interview episodes
+labelled with the clip's name. Matches it isn't sure about are marked so you can check them by listening. Running it
+again updates the episodes instead of adding them twice.
+
+![Finding a cut-out interview in the session](images/find-clips.png)
+
+## 9. Projects: many sessions of one study
+
+A **project** is the folder of one study. Every transcript in that folder or its subfolders belongs to it. Nothing is
+moved or copied; Condense only puts a small `condense-project.json` in the folder. Projects are optional: without one,
+Condense works file by file as before.
+
+**Your folder structure stays.** Condense reads the levels from your folder names: with `Day 1 2026-08-10/Group 1/…`
+the levels are *Day* and *Group*. Media folders inside a group (`Session Recordings`, `Semi-structured Interviews` …) are
+simply part of that group. **Consent forms** and **…Unsorted** folders are skipped: never opened or listed. Levels and
+skipped folders can be changed in *Project ▸ Project Settings…*.
+
+![Project settings](images/project-settings.png)
 
 ![No project open: start or open one](images/project-start.png)
 
@@ -204,9 +241,9 @@ A **project** is the folder of one study. Every transcript in that folder or its
   keep your videos in the study folder (results are saved next to them). You can also move finished session folders
   into it.
 
-**Project overview** (click the project's name, or *Project ▸ Project Overview…*) lists every transcript with its
-length, how much is checked, the share of uncertain words, speakers (and how many still have no name), cut time,
-notes and the last change. Double-click opens one. *Save as CSV* writes `condense-overview.csv`, for your records or
+**Project overview** (click the project's name, or *Project ▸ Project Overview…*) shows the study as a tree — Day ▸
+Group ▸ transcript ▸ its episodes — with totals per day and group. For each transcript it lists its length, how much is checked, the share of uncertain words, speakers (and how many still have no name), cut time,
+notes and the last change. Double-click opens a transcript, or goes straight to an episode. *Save as CSV* writes `condense-overview.csv`, for your records or
 your supervisor.
 
 ![Project overview](images/project-overview.png)
@@ -217,7 +254,7 @@ with the same colours, in every session. *Add names from transcripts* collects t
 
 ![Project speakers](images/project-speakers.png)
 
-## 9. Into MAXQDA
+## 10. Into MAXQDA
 
 MAXQDA links a transcript to its video through the timestamps at the end of each paragraph. That is the format of
 Condense's paragraph exports.
@@ -235,7 +272,7 @@ Condense's paragraph exports.
 
 MAXQDA can also import the `.srt` subtitles together with the video.
 
-## 10. Your data
+## 11. Your data
 
 - **Everything stays on your computer.** Whisper and speaker detection run locally; nothing is uploaded. The only
   network access is the update check (to GitHub, sending no data) and, if you use it, downloading the pyannote speaker
@@ -247,7 +284,7 @@ MAXQDA can also import the `.srt` subtitles together with the video.
 - Follow your ethics approval and data-management plan for where recordings and transcripts are stored. Use
   pseudonyms in speaker names, notes and replacements.
 
-## 11. When something goes wrong
+## 12. When something goes wrong
 
 - **Transcribing is very slow:** run *Help ▸ Test GPU…*. The [install guide](install-linux.md) for your system explains
   how to get the GPU working.
