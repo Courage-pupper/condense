@@ -18,6 +18,13 @@
 - Codings are saved in the transcript, with backups and undo, and stay on their words through corrections, splits,
   merges and re-transcribed passages.
 
+### Fixed
+- **↑/↓ in the transcript on a Mac** move between segments again. The Mac sends arrow keys with its *fn* bit set, and
+  Condense took that for a shortcut and ignored them (the same happened on Windows with Num Lock on).
+- **Bigger windows on an external monitor:** the window can now grow beyond the size of the Mac's built-in screen, and
+  full screen fills the whole display without a dark band, also after switching to another app and back. Condense
+  reopens at its last size and place on that monitor when it is still connected.
+
 ### Under the hood: ready for coding
 - Every word now has a permanent id. Corrections, splits, merges, deleted or inserted segments and re-transcribed
   passages keep the ids of the words they don't change, so anything attached to words — codes, coming next — stays on

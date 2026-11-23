@@ -214,12 +214,10 @@ class EditorMixin:
         pt.bind("<Double-Button-1>", lambda e: (self._on_text_click(e), self._play_from_current_word(), "break")[-1])
         # A plain <Key-c> binding also fires for ⌘C / Ctrl+C: step aside when a modifier is held, so copy,
         # ⌘1–3 (tabs), ⌘R (start queue) and ⌃1–9 (Alt+1–9) keep working from the transcript. Shift, Caps Lock and
-        # Num Lock (Mod2 on Linux) are not modifiers here.
-        mods = 0x4 | 0x8 | 0x40 | 0x20000 | (0x10 if IS_MAC else 0)
-
+        # Num Lock are not modifiers here, nor the fn bit a Mac puts on ↑/↓ (see widgets.SHORTCUT_MODS).
         def brk(fn):
             def handler(event=None):
-                if event is not None and int(getattr(event, "state", 0) or 0) & mods:
+                if event is not None and is_shortcut(event):
                     return None
                 fn()
                 return "break"

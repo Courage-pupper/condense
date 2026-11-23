@@ -38,6 +38,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
 
         self._set_initial_geometry()
         self.minsize(900, 600)
+        # Tk's default maximum is the size of the main display: on a larger external monitor the window stopped
+        # growing there, and full screen left a dark band that came back after switching apps.
+        self.maxsize(16384, 16384)
 
         self.jobs: List[Dict] = []
         self.job_counter = 0
@@ -93,7 +96,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         m = re.match(r"^(\d+)x(\d+)\+(-?\d+)\+(-?\d+)$", saved)
         if m:
             w, h, x, y = (int(v) for v in m.groups())
-            if 900 <= w <= sw and 600 <= h <= sh and 0 <= x < sw - 100 and 0 <= y < sh - 100:
+            if geometry_fits(w, h, x, y, screen_rects(self)):  # also on an external monitor that is still connected
                 self.geometry(saved)
                 return
         w = max(900, min(1360, int(sw * 0.85)))
@@ -578,7 +581,12 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.settings["ui_scale"] = self.ui_scale
         self._remember_position()
         try:
-            self.settings["geometry"] = self.geometry()
+            try:
+                full = bool(int(self.attributes("-fullscreen")))
+            except Exception:
+                full = False
+            if not full:  # a full-screen size would reopen as an oversized ordinary window
+                self.settings["geometry"] = self.geometry()
             self.settings["sash_fraction"] = round(self.paned.sash_coord(0)[0] / max(1, self.paned.winfo_width()), 3)
         except Exception:
             pass

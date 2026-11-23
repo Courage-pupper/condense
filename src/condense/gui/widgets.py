@@ -11,6 +11,89 @@ MOD = "Command" if IS_MAC else "Control"
 EDIT_MOD = "Control" if IS_MAC else "Alt"
 EDIT_MOD_LABEL = "⌃" if IS_MAC else "Alt+"
 
+# Bits of a key event's state that make a key a shortcut (⌘C, Ctrl+1 …) rather than a plain key. Each platform
+# packs different things into those bits:
+#   Mac:     Control 0x4, ⌘ (Mod1) 0x8, ⌥ (Mod2) 0x10. Tk also sets Mod3 (keypad) and Mod4 (fn) on the arrow,
+#            forward-delete, Home/End and keypad keys, so those two must not count, or ↑/↓ stop working.
+#   Windows: Control 0x4, Alt 0x20000. Mod1 (0x8) there is Num Lock.
+#   Linux:   Control 0x4, Alt (Mod1) 0x8, Super (Mod4) 0x40. Num Lock is Mod2 (0x10).
+if IS_MAC:
+    SHORTCUT_MODS = 0x4 | 0x8 | 0x10
+elif sys.platform == "win32":
+    SHORTCUT_MODS = 0x4 | 0x20000
+else:
+    SHORTCUT_MODS = 0x4 | 0x8 | 0x40
+
+
+def is_shortcut(event) -> bool:
+    """True when Control, ⌘, ⌥ or Alt is held with the key (Shift, Caps Lock, Num Lock and the Mac's fn do not count)."""
+    try:
+        return bool(int(getattr(event, "state", 0) or 0) & SHORTCUT_MODS)
+    except (TypeError, ValueError):
+        return False
+
+
+def screen_rects(root) -> List[tuple]:
+    """(x, y, width, height) of every display, in the coordinates Tk uses for window positions. Tk itself only
+    knows the main display, which is why windows used to stop growing at its size on a larger external monitor."""
+    rects: List[tuple] = []
+    try:
+        if IS_MAC:
+            import ctypes
+            import ctypes.util
+
+            class _Point(ctypes.Structure):
+                _fields_ = [("x", ctypes.c_double), ("y", ctypes.c_double)]
+
+            class _Size(ctypes.Structure):
+                _fields_ = [("width", ctypes.c_double), ("height", ctypes.c_double)]
+
+            class _Rect(ctypes.Structure):
+                _fields_ = [("origin", _Point), ("size", _Size)]
+
+            path = (ctypes.util.find_library("CoreGraphics")
+                    or "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics")
+            cg = ctypes.cdll.LoadLibrary(path)
+            cg.CGGetActiveDisplayList.argtypes = [ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32),
+                                                  ctypes.POINTER(ctypes.c_uint32)]
+            cg.CGGetActiveDisplayList.restype = ctypes.c_int32
+            cg.CGDisplayBounds.argtypes = [ctypes.c_uint32]
+            cg.CGDisplayBounds.restype = _Rect
+            ids, n = (ctypes.c_uint32 * 16)(), ctypes.c_uint32(0)
+            if cg.CGGetActiveDisplayList(16, ids, ctypes.byref(n)) == 0:
+                for i in range(min(n.value, 16)):
+                    r = cg.CGDisplayBounds(ids[i])  # global points, main display at 0,0, y downwards, like Tk
+                    rects.append((int(r.origin.x), int(r.origin.y), int(r.size.width), int(r.size.height)))
+        elif sys.platform == "win32":
+            import ctypes
+            m = ctypes.windll.user32.GetSystemMetrics  # the virtual screen spanning every monitor
+            x, y, w, h = m(76), m(77), m(78), m(79)
+            if w > 0 and h > 0:
+                rects.append((x, y, w, h))
+        else:
+            w, h = root.winfo_vrootwidth(), root.winfo_vrootheight()  # X11: the root window covers every monitor
+            if w > 0 and h > 0:
+                rects.append((0, 0, w, h))
+    except Exception:
+        rects = []
+    rects = [r for r in rects if r[2] > 0 and r[3] > 0]
+    return rects or [(0, 0, root.winfo_screenwidth(), root.winfo_screenheight())]
+
+
+def geometry_fits(w: int, h: int, x: int, y: int, rects: List[tuple], min_w: int = 900, min_h: int = 600) -> bool:
+    """A saved window can be restored when it is big enough, no bigger than the screens put together, and its title
+    bar (the strip you drag it by) lies on a display that is still connected."""
+    if not rects or w < min_w or h < min_h:
+        return False
+    left = min(r[0] for r in rects)
+    top = min(r[1] for r in rects)
+    right = max(r[0] + r[2] for r in rects)
+    bottom = max(r[1] + r[3] for r in rects)
+    if w > right - left or h > bottom - top:
+        return False
+    grab_x, grab_y = x + min(w // 2, 200), y + 10
+    return any(rx <= grab_x < rx + rw and ry <= grab_y < ry + rh for rx, ry, rw, rh in rects)
+
 
 def kbd(text: str) -> str:
     """Shortcut labels are written with Mac symbols; on Linux and Windows they read Ctrl+S, Ctrl+Shift+O, Ctrl+Enter."""

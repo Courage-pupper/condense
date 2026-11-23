@@ -679,7 +679,7 @@ class CodingMixin:
     # ================================================================== selecting and coding
     def _cd_key(self, event):
         nav = {"Left", "Right", "Up", "Down", "Prior", "Next", "Home", "End", "Shift_L", "Shift_R", "Control_L", "Control_R"}
-        mods = event.state & (0x4 | 0x8 | 0x10 | 0x80000 if IS_MAC else 0x4)
+        mods = is_shortcut(event)
         if event.keysym in nav or (mods and event.keysym.lower() in ("c", "a")):
             return None  # moving and selecting with the keyboard, copy, select all
         if mods:

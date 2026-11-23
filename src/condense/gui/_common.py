@@ -26,7 +26,8 @@ from condense.core.exports import RTFConfidenceWriter
 from condense.core.transcript import TranscriptDocument
 from condense.core.util import *  # noqa: F401,F403
 from condense.gui.theme import *  # noqa: F401,F403
-from condense.gui.widgets import EDIT_MOD, EDIT_MOD_LABEL, IS_MAC, MOD, FlowFrame, ScrollFrame, kbd
+from condense.gui.widgets import (EDIT_MOD, EDIT_MOD_LABEL, IS_MAC, MOD, FlowFrame, ScrollFrame, geometry_fits,
+                                  is_shortcut, kbd, screen_rects)
 from condense.pipeline.worker import PipelineWorker
 from condense.platform import (APP_SUPPORT_DIR, DEFAULT_BACKEND, DEFAULT_ENCODER, GPU_DIARIZATION, HW_QUALITY_NAME, IS_MAC_PLATFORM,
                                PLATFORM, VIDEO_ENCODERS, WHISPER_BACKENDS, AppInstaller, KeychainSecret, MacAppInstaller,

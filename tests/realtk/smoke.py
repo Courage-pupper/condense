@@ -119,8 +119,9 @@ def _direct(app, sequence):
     pump(app, 0.1)
 
 
-def key(app, widget, sequence):
-    """A real key press. Key events go to the focused widget, so wait until it really has the focus."""
+def key(app, widget, sequence, state=None):
+    """A real key press. Key events go to the focused widget, so wait until it really has the focus. state: the
+    modifier bits the system adds to the key (the Mac's fn bit on arrows, Num Lock)."""
     for attempt in range(40):
         widget.focus_force()
         pump(app, 0.05)
@@ -135,7 +136,10 @@ def key(app, widget, sequence):
         _direct(app, sequence)
         return
     assert app.focus_get() is widget, f"{widget} did not get the keyboard focus"
-    widget.event_generate(sequence)
+    if state is None:
+        widget.event_generate(sequence)
+    else:
+        widget.event_generate(sequence, state=state)
     pump(app, 0.15)
 
 
@@ -237,6 +241,14 @@ def main():
         assert app.focus_get() is app.edit_text
         key(app, app.edit_text, "<Escape>")
         ok("Esc in the segment box → back to the transcript; ↓ moves on; Return edits again")
+        # A Mac sends ↑/↓ with its fn and keypad bits set, and Num Lock adds a bit on Linux; neither is a shortcut
+        extra = 0x40 | 0x20 if sys.platform == "darwin" else 0x10
+        before = app.edit_seg_idx
+        key(app, pt, "<Down>", state=extra)
+        assert app.edit_seg_idx == before + 1, (before, app.edit_seg_idx)
+        key(app, pt, "<Up>", state=extra)
+        assert app.edit_seg_idx == before, (before, app.edit_seg_idx)
+        ok("↑/↓ still move between segments with the Mac's fn bit / Num Lock set")
 
     print("[2] transcript editor with real key events")
     app._render_doc(TD.load(docs[0].path))
