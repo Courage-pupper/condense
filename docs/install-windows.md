@@ -3,7 +3,7 @@
 > **Preview.** Windows support is new in Condense 0.11.0. Whisper and speaker detection run on the GPU through
 > PyTorch — CUDA on NVIDIA, AMD's ROCm build for Windows on supported Radeon cards — and video is compressed on the
 > GPU (NVENC, AMF or Quick Sync). It is covered by automated tests on Windows but has seen little real-world use yet —
-> please [report problems](https://github.com/Courage-pupper/condense/issues).
+> please [report problems](https://github.com/s-hurtado26/condense/issues).
 
 Nothing is uploaded: recordings and transcripts stay on your computer.
 
@@ -14,7 +14,7 @@ Nothing is uploaded: recordings and transcripts stay on your computer.
 3. Paste this line and press Enter:
 
    ```powershell
-   irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1 | iex
+   irm https://raw.githubusercontent.com/s-hurtado26/condense/main/install.ps1 | iex
    ```
 
 It installs Python 3.12, FFmpeg and HandBrake with **winget**, detects your graphics card, installs the matching
@@ -24,7 +24,7 @@ may make changes — allow it. The whole installation takes 10–30 minutes, mos
 With options (they are remembered for updates):
 
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1))) -Gpu amd -WithPyannote
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/s-hurtado26/condense/main/install.ps1))) -Gpu amd -WithPyannote
 ```
 
 Updates: Condense offers new versions itself (see [Updating](#updating)).
@@ -89,7 +89,7 @@ If you already have a Python 3.12 environment where PyTorch uses your GPU, insta
 as it is:
 
 ```powershell
-& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1))) -Venv C:\path\to\env
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/s-hurtado26/condense/main/install.ps1))) -Venv C:\path\to\env
 ```
 
 To keep Condense separate but run Whisper from that environment, set a user environment variable
@@ -192,5 +192,5 @@ yourself in Settings ▸ Video (`nvenc_h265`, `amf_h265` or `qsv_h265`).
 **Condense does not start from the Start menu.** Look at `%LOCALAPPDATA%\Condense\Logs\condense.log`, or start it in
 PowerShell with `& "$HOME\.condense\env\Scripts\condense.exe"` to see the error.
 
-Still stuck? Open an [issue](https://github.com/Courage-pupper/condense/issues) — describe the problem with invented
+Still stuck? Open an [issue](https://github.com/s-hurtado26/condense/issues) — describe the problem with invented
 example text and never attach recordings or transcripts.

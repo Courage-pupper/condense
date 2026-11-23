@@ -1,9 +1,9 @@
 # Condense installer and updater for Windows 10/11 (64-bit).
 #
 # Install - paste into PowerShell (Start menu > type "PowerShell"):
-#   irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/s-hurtado26/condense/main/install.ps1 | iex
 # With options (see scripts\install-windows.ps1), e.g. AMD graphics and neural speaker detection:
-#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1))) -Gpu amd -WithPyannote
+#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/s-hurtado26/condense/main/install.ps1))) -Gpu amd -WithPyannote
 #
 # Update: Condense > Help > Check for Updates, or
 #   powershell -ExecutionPolicy Bypass -File "$HOME\.condense\install.ps1" -Update
@@ -24,7 +24,7 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"   # Windows PowerShell 5.1 downloads are very slow with the progress bar
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
-$Repo = if ($env:CONDENSE_REPO) { $env:CONDENSE_REPO } else { "Courage-pupper/condense" }
+$Repo = if ($env:CONDENSE_REPO) { $env:CONDENSE_REPO } else { "s-hurtado26/condense" }
 $Api = if ($env:CONDENSE_API) { $env:CONDENSE_API } else { "https://api.github.com/repos/$Repo" }
 $Download = if ($env:CONDENSE_DOWNLOAD) { $env:CONDENSE_DOWNLOAD } else { "https://github.com/$Repo/archive/refs" }
 $CHome = if ($env:CONDENSE_HOME) { $env:CONDENSE_HOME } else { Join-Path $HOME ".condense" }

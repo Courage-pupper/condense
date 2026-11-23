@@ -12,7 +12,7 @@ Thanks for helping! Bug reports, ideas and pull requests are welcome.
 ## Development setup
 
 ```bash
-git clone https://github.com/Courage-pupper/condense.git && cd condense
+git clone https://github.com/s-hurtado26/condense.git && cd condense
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/pytest -q            # needs ffmpeg; no GPU, display or real recordings
 ```

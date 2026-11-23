@@ -379,5 +379,5 @@ MAXQDA can also import the `.srt` subtitles together with the video.
   transcribing, or cut those segments.
 - **Speakers are mixed up:** enter the right number of speakers and use *Transcript ▾ ▸ Detect speakers…*, or fix stretches with
   multi-select and the number keys.
-- **Report a problem:** [GitHub issues](https://github.com/Courage-pupper/condense/issues). Never attach recordings or
+- **Report a problem:** [GitHub issues](https://github.com/s-hurtado26/condense/issues). Never attach recordings or
   transcripts of participants. Describe the problem, or reproduce it with a test video.

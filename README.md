@@ -1,6 +1,6 @@
 # Condense
 
-[![tests](https://github.com/Courage-pupper/condense/actions/workflows/ci.yml/badge.svg)](https://github.com/Courage-pupper/condense/actions/workflows/ci.yml)
+[![tests](https://github.com/s-hurtado26/condense/actions/workflows/ci.yml/badge.svg)](https://github.com/s-hurtado26/condense/actions/workflows/ci.yml)
 [![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
 Local video, audio and transcript processing for qualitative research. Everything runs on your own computer: no recordings or transcripts are uploaded anywhere.
@@ -32,13 +32,13 @@ Local video, audio and transcript processing for qualitative research. Everythin
 [Windows guide](docs/install-windows.md):
 
 ```powershell
-irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/s-hurtado26/condense/main/install.ps1 | iex
 ```
 
 **Mac and Linux:** open **Terminal** (Mac) or a terminal (Linux), paste this line and press Return:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/s-hurtado26/condense/main/install.sh | bash
 ```
 
 It downloads the latest release and installs everything Condense needs — on a Mac also [Homebrew](https://brew.sh) if
@@ -50,8 +50,8 @@ it is missing (it asks for your password once). Condense then appears in Launchp
 Options go after `bash -s --`, e.g. neural speaker detection or a specific Linux GPU type:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash -s -- --with-pyannote
-curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash -s -- --gpu rocm --venv ~/rocm_whisper_env    # Linux: reuse a PyTorch environment that already works
+curl -fsSL https://raw.githubusercontent.com/s-hurtado26/condense/main/install.sh | bash -s -- --with-pyannote
+curl -fsSL https://raw.githubusercontent.com/s-hurtado26/condense/main/install.sh | bash -s -- --gpu rocm --venv ~/rocm_whisper_env    # Linux: reuse a PyTorch environment that already works
 ```
 
 The guides cover requirements, GPU drivers, the Hugging Face token, manual installation, uninstalling and

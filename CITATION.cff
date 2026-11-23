@@ -5,9 +5,9 @@ type: software
 version: 0.11.0
 date-released: 2026-11-20
 license: MIT
-repository-code: "https://github.com/Courage-pupper/condense"
+repository-code: "https://github.com/s-hurtado26/condense"
 authors:
-  - name: "Courage-pupper"
+  - name: "s-hurtado26"
 keywords:
   - qualitative research
   - transcription

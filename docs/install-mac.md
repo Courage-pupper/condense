@@ -12,7 +12,7 @@ Setting up takes about 15 minutes, most of it downloads.
 Open **Terminal** (Applications ▸ Utilities), paste this line and press Return:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/s-hurtado26/condense/main/install.sh | bash
 ```
 
 That is all: it installs Homebrew if needed (it asks for your Mac password once — typing shows no dots, that is
@@ -47,7 +47,7 @@ brew --version
 
 ## 2. Get Condense
 
-**Option A — download a release.** On the [Releases page](https://github.com/Courage-pupper/condense/releases),
+**Option A — download a release.** On the [Releases page](https://github.com/s-hurtado26/condense/releases),
 download **Source code (zip)** of the latest release and double-click it to unzip. Move the folder somewhere permanent,
 for example your home folder, and open Terminal in it:
 
@@ -59,7 +59,7 @@ cd ~/condense-0.10.0        # the unzipped folder
 
 ```bash
 xcode-select --install      # only if git is not installed yet
-git clone https://github.com/Courage-pupper/condense.git ~/condense
+git clone https://github.com/s-hurtado26/condense.git ~/condense
 cd ~/condense
 ```
 
@@ -202,5 +202,5 @@ Settings ▸ Video, which needs only ffmpeg.
 
 **Everything is too small or too large.** View ▸ Larger / Smaller Text (⌘+ / ⌘− / ⌘0) scales the whole window.
 
-Still stuck? Open an [issue](https://github.com/Courage-pupper/condense/issues) — describe the problem with invented
+Still stuck? Open an [issue](https://github.com/s-hurtado26/condense/issues) — describe the problem with invented
 example text and never attach recordings or transcripts.

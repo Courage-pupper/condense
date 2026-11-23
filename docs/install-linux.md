@@ -3,7 +3,7 @@
 > **Preview.** Linux support is new in Condense 0.10.0. It runs Whisper and speaker detection on the GPU through
 > PyTorch (ROCm on AMD, CUDA on NVIDIA) and compresses video with VA-API on AMD and Intel GPUs. It is covered by the
 > automated tests but has seen less real-world use than the Mac version — please
-> [report problems](https://github.com/Courage-pupper/condense/issues).
+> [report problems](https://github.com/s-hurtado26/condense/issues).
 
 Nothing is uploaded: recordings and transcripts stay on your computer. The instructions use **Ubuntu 24.04**; other
 distributions work if you install the same packages with their package manager.
@@ -14,15 +14,15 @@ Prepare the GPU driver first if you have an AMD or NVIDIA card ([step 1](#1-prep
 this into a terminal:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/s-hurtado26/condense/main/install.sh | bash
 ```
 
 It asks for your password once (for `apt`), installs everything described in steps 2–3 below with the PyTorch build for
 your GPU, and adds **Condense** to your app menu. Add options after `-s --`, for example:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash -s -- --gpu rocm --venv ~/rocm_whisper_env   # reuse a PyTorch environment that already works
-curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash -s -- --with-pyannote                         # + neural speaker detection
+curl -fsSL https://raw.githubusercontent.com/s-hurtado26/condense/main/install.sh | bash -s -- --gpu rocm --venv ~/rocm_whisper_env   # reuse a PyTorch environment that already works
+curl -fsSL https://raw.githubusercontent.com/s-hurtado26/condense/main/install.sh | bash -s -- --with-pyannote                         # + neural speaker detection
 ```
 
 Options you give are remembered for updates. Updates: Condense offers new versions itself (see [Updating](#updating)).
@@ -70,7 +70,7 @@ nvidia-smi        # should list your GPU after the reboot
 
 ## 2. Get Condense
 
-**Option A — download a release.** On the [Releases page](https://github.com/Courage-pupper/condense/releases),
+**Option A — download a release.** On the [Releases page](https://github.com/s-hurtado26/condense/releases),
 download **Source code (tar.gz)** of the latest release, unpack it somewhere permanent and open a terminal there:
 
 ```bash
@@ -81,7 +81,7 @@ tar xzf condense-0.10.0.tar.gz -C ~ && cd ~/condense-0.10.0
 
 ```bash
 sudo apt install git
-git clone https://github.com/Courage-pupper/condense.git ~/condense
+git clone https://github.com/s-hurtado26/condense.git ~/condense
 cd ~/condense
 ```
 
@@ -277,5 +277,5 @@ hides the message.
 **Text is tiny on a high-resolution screen.** Tk does not follow the desktop's scaling everywhere. Use View ▸ Larger
 Text (Ctrl++) — the setting is remembered.
 
-Still stuck? Open an [issue](https://github.com/Courage-pupper/condense/issues) — describe the problem with invented
+Still stuck? Open an [issue](https://github.com/s-hurtado26/condense/issues) — describe the problem with invented
 example text and never attach recordings or transcripts.

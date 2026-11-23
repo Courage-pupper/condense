@@ -9,7 +9,7 @@ description = "Local video, audio and transcript processing for qualitative rese
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Courage-pupper" }]
+authors = [{ name = "s-hurtado26" }]
 keywords = ["qualitative research", "transcription", "whisper", "speaker diarization", "interviews"]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -25,9 +25,9 @@ classifiers = [
 dependencies = ["numpy"]
 
 [project.urls]
-Homepage = "https://github.com/Courage-pupper/condense"
-Issues = "https://github.com/Courage-pupper/condense/issues"
-Changelog = "https://github.com/Courage-pupper/condense/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/s-hurtado26/condense"
+Issues = "https://github.com/s-hurtado26/condense/issues"
+Changelog = "https://github.com/s-hurtado26/condense/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 # Apple Silicon: Whisper on the GPU via MLX, PyTorch (Metal) for speaker detection, openai-whisper as CPU fallback.

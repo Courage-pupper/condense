@@ -2,6 +2,10 @@
 
 ## 0.16.0 — unreleased
 
+### Moved to github.com/s-hurtado26/condense
+- The project's GitHub address changed. Update checks and the installers use the new one; installed copies find it
+  through GitHub's forwarding until they have updated to this version.
+
 ### Coding (first version)
 - A **Coding** tab (⌘4 / Ctrl+4): the project's **codebook** on the left, the transcript with a coloured **stripe** for
   every coding, and the transcript's codings below (time, code, speaker, text, memo).
@@ -156,7 +160,7 @@ by file as before.
 ## 0.11.0 — 2026-11-22
 
 Cut recordings down to what matters, review faster, keep a whole study in view — and Condense now runs on Windows.
-New here? The [user guide](https://github.com/Courage-pupper/condense/blob/main/docs/user-guide.md) walks through a
+New here? The [user guide](https://github.com/s-hurtado26/condense/blob/main/docs/user-guide.md) walks through a
 whole study, from recordings to a checked transcript in MAXQDA (also under *Help ▸ User Guide*).
 
 ### Highlights
@@ -253,7 +257,7 @@ whole study, from recordings to a checked transcript in MAXQDA (also under *Help
 ## 0.10.0 — 2026-11-20
 
 ### Installing and updating
-- One-line installer for macOS and Linux: `curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash`. It downloads the latest release, installs Homebrew on a Mac if needed, runs the platform installer and remembers its options.
+- One-line installer for macOS and Linux: `curl -fsSL https://raw.githubusercontent.com/s-hurtado26/condense/main/install.sh | bash`. It downloads the latest release, installs Homebrew on a Mac if needed, runs the platform installer and remembers its options.
 - Updates from inside the app: a daily check (Help ▸ Check for Updates Automatically, can be turned off) shows what is new; **Update now** installs it without a password and offers a restart. "Skip this version" is remembered. Also Help ▸ Check for Updates… and `~/.condense/install.sh --update`.
 - Help menu: installation guide, release notes, report a problem, About.
 

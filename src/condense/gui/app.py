@@ -670,7 +670,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         elif PLATFORM == "windows":
             guide = (
                 "# Install or update (PowerShell)\n"
-                "irm https://raw.githubusercontent.com/Courage-pupper/condense/main/install.ps1 | iex\n\n"
+                "irm https://raw.githubusercontent.com/s-hurtado26/condense/main/install.ps1 | iex\n\n"
                 "# Check what PyTorch sees\n"
                 f"& \"{MacAppInstaller.find_best_python()}\" -c \"import torch; print(torch.cuda.is_available(), torch.version.hip or torch.version.cuda)\"\n\n"
                 "Full guide: docs/install-windows.md\n")

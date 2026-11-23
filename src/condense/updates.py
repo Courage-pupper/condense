@@ -16,7 +16,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 from condense import __version__
 
-REPO = os.environ.get("CONDENSE_REPO", "Courage-pupper/condense")
+REPO = os.environ.get("CONDENSE_REPO", "s-hurtado26/condense")
 API = os.environ.get("CONDENSE_API", f"https://api.github.com/repos/{REPO}")
 RELEASES_PAGE = f"https://github.com/{REPO}/releases"
 CHECK_INTERVAL = 24 * 3600

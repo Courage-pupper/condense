@@ -2,9 +2,9 @@
 # Condense installer and updater (macOS on Apple Silicon, Linux).
 #
 # Install — paste into Terminal:
-#   curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/s-hurtado26/condense/main/install.sh | bash
 # With options for the platform installer, e.g. neural speaker detection or a Linux GPU type:
-#   curl -fsSL https://raw.githubusercontent.com/Courage-pupper/condense/main/install.sh | bash -s -- --with-pyannote
+#   curl -fsSL https://raw.githubusercontent.com/s-hurtado26/condense/main/install.sh | bash -s -- --with-pyannote
 #
 # Update: Condense ▸ Check for Updates…, or run
 #   ~/.condense/install.sh --update
@@ -16,7 +16,7 @@
 #   --check           only print the installed and the latest version
 set -euo pipefail
 
-REPO="${CONDENSE_REPO:-Courage-pupper/condense}"
+REPO="${CONDENSE_REPO:-s-hurtado26/condense}"
 API="${CONDENSE_API:-https://api.github.com/repos/$REPO}"
 DOWNLOAD="${CONDENSE_DOWNLOAD:-https://github.com/$REPO/archive/refs}"
 CONDENSE_HOME="${CONDENSE_HOME:-$HOME/.condense}"
