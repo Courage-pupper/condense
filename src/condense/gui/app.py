@@ -20,9 +20,11 @@ from condense.gui.episodes import EpisodesMixin
 from condense.gui.project_panel import ProjectPanelMixin
 from condense.gui.coding_tab import CodingMixin
 from condense.gui.video import VideoMixin
+from condense.gui.subtitles_ui import SubtitlesMixin
+from condense.gui.storage_ui import StorageMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, ProjectPanelMixin, CodingMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, ProjectPanelMixin, CodingMixin, SubtitlesMixin, StorageMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")
@@ -202,12 +204,12 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                 elif it[0] == "check":
                     menu.add_checkbutton(label=it[1], variable=it[2])
                 elif it[0] == "cascade":
-                    sub = tk.Menu(menu, tearoff=0)
+                    sub = PopupMenu(self, parent=menu)
                     build(sub, it[2])
                     menu.add_cascade(label=it[1], menu=sub)
                 else:
                     menu.add_command(label=it[0], command=it[1])
-        menu = tk.Menu(self, tearoff=0)
+        menu = PopupMenu(self)
         build(menu, items)
         btn = self._tool(parent, text, lambda: None)
         btn.configure(command=lambda: menu.tk_popup(btn.winfo_rootx(), btn.winfo_rooty() + btn.winfo_height()))

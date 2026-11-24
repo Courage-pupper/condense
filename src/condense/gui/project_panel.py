@@ -267,7 +267,7 @@ class ProjectPanelMixin:
         if iid and iid not in tree.selection():
             tree.selection_set(iid)
         sel = self._pp_selected()
-        m = tk.Menu(self, tearoff=0)
+        m = PopupMenu(self)
         first = sel[0] if sel else None
         if first and first.get("row"):
             m.add_command(label="Open Transcript", command=lambda: self._pp_activate(first))
@@ -279,6 +279,8 @@ class ProjectPanelMixin:
             m.add_command(label=f"Mark All Checked (100 %){'' if len(done) == 1 else f' — {len(done)} transcripts'}",
                           command=lambda: self._mark_transcripts_checked(done, True))
             m.add_command(label="Mark All Not Checked", command=lambda: self._mark_transcripts_checked(done, False))
+            m.add_command(label=f"Video with Subtitles…{'' if len(done) == 1 else f' — {len(done)} transcripts'}",
+                          command=lambda: self._subtitles_dialog(done))
         todo = [s["media"] for s in sel if s.get("media") and not s.get("row")]
         if todo:
             m.add_command(label=f"Transcribe {len(todo)} Recording(s)…", command=lambda: self._pp_transcribe(todo))

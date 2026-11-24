@@ -212,6 +212,17 @@ with a transcript timed to it, use *Transcript ▾ ▸ Export trimmed video & tr
 
 Use the trimmed video and the trimmed transcript **together** in MAXQDA (see below).
 
+**A video with subtitles:** *Transcript ▾ ▸ Video with subtitles…* (or right-click checked transcripts in the Project
+tab, several at once) saves `<name>_subtitled.mp4` next to the transcript. The subtitles are made from the words — two
+lines at most, a few seconds each, with the speaker's name when the speaker changes — and leave out what is cut. Choose:
+
+- **Subtitle track:** takes seconds and changes nothing in the picture; switch the subtitles on in the player (VLC,
+  QuickTime, IINA …).
+- **Burned into the picture:** always visible, in every player and wherever you share the file. The video is
+  re-encoded, which takes a few minutes per hour.
+
+The dialog tells you if a transcript is not 100 % checked yet.
+
 ## 8. Episodes: interviews and activity phases
 
 An **episode** labels a stretch of a recording without removing anything. Examples are the facilitator's interview with
@@ -356,6 +367,11 @@ and colours in every session of that group, on every day: in Group 1, **Facilita
 *Add names from transcripts* collects the names you have already used in that group.
 
 ![Project speakers](images/project-speakers.png)
+
+**Storage** (*Project ▸ Storage (Backups, Leftovers)…*): how much space the transcripts' backups, leftovers of
+interrupted exports and the audio cache take in the project. *Thin out…* keeps the newest few backups of each
+transcript (or none); leftovers and the cache can be cleared. Condense asks before deleting anything, and never
+deletes recordings, transcripts or the videos it made — those are listed for information only.
 
 ## 11. Into MAXQDA
 

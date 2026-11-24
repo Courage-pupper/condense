@@ -11,6 +11,25 @@
   the clip as transcribed.
 - Exporting the same episode again asks first and keeps the old transcript in `_backups`.
 
+### Video with subtitles
+- **Transcript ▾ ▸ Video with subtitles…** (and right-click transcripts in the Project tab, several at once): a copy of
+  the video with the transcript as subtitles, next to the transcript. As a **subtitle track** (seconds, nothing
+  re-encoded; switch it on in the player) or **burned into the picture** (always visible; re-encodes). Subtitles are
+  made from the words — two lines at most, a few seconds each, the speaker's name when the speaker changes — and leave
+  out cut parts.
+
+### Storage
+- **Project ▸ Storage (Backups, Leftovers)…** shows what backups, leftovers of interrupted exports and the audio cache
+  take, and clears them after asking: keep the newest 10 / 5 / 3 / 1 backups of each transcript, or none.
+
+### Playback speed
+- A **slider**, and the speed can be **typed** (1.3, 1.3×, 130 %; 0.5–3×). Playback restarts once when the slider
+  rests, not on every move. ⌘⇧. / ⌘⇧, still step through the usual speeds; a typed speed is remembered.
+
+### Menus
+- Right-click menus and the ▾ menus are drawn in Condense's own theme, and **close when you click elsewhere** (on
+  Linux they stayed open), press Esc or switch to another app. ↑/↓, Return, → and ← work in them.
+
 ## 0.19.0 — unreleased
 
 ### Long sessions (3–5 hours) stay responsive

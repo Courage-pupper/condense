@@ -55,7 +55,7 @@ class QueueMixin:
         self.queue_tree.grid(row=0, column=0, sticky="nsew")
         vsb.grid(row=0, column=1, sticky="ns")
 
-        self.ctx_menu = tk.Menu(self, tearoff=0)
+        self.ctx_menu = PopupMenu(self)
         self.ctx_menu.add_command(label="Open Transcript", command=self._open_selected_transcript)
         self.ctx_menu.add_command(label="Show in Finder" if IS_MAC else "Show in Folder", command=self._open_selected_job_folder)
         self.ctx_menu.add_command(label="Mark Transcript Checked (100 %)", command=lambda: self._mark_selected_tasks_checked(True))
@@ -774,6 +774,8 @@ class QueueMixin:
                     self._on_trim_msg(msg)
                 elif mtype == "episode":
                     self._on_episode_msg(msg)
+                elif mtype == "subtitles":
+                    self._on_subtitles_msg(msg)
                 elif mtype == "gpu_test":
                     self._on_gpu_test(msg)
                 elif mtype == "probe":

@@ -29,6 +29,7 @@ class EditorMixin:
             ("Episodes (interviews, phases)…", self._episodes_dialog),
             ("Find interview clips in this recording…", self._link_clips_dialog),
             ("Export trimmed video & transcript…", self._export_trimmed_dialog),
+            ("Video with subtitles…", self._subtitles_dialog),
             ("-",),
             ("Mark whole transcript checked (100 %)", lambda: self.active_doc is not None and self._mark_transcripts_checked([self.active_doc.path], True)),
             ("Mark whole transcript not checked", lambda: self.active_doc is not None and self._mark_transcripts_checked([self.active_doc.path], False)),
@@ -67,12 +68,22 @@ class EditorMixin:
         self.btn_play = self._tool(player, "▶ Play", self._toggle_play, primary=True)
         player.add(self.btn_play)
         player.add(self._tool(player, "5 s ⟳", lambda: self._seek_rel(+5)))
+        # speed: a slider, and the value can be typed (1.3, 1.3×, 130%)
         self.var_speed = tk.StringVar(value="1×")
         self._persist["speed"] = self.var_speed
-        self._combo_values["speed"] = ["0.5×", "0.6×", "0.75×", "0.9×", "1×", "1.1×", "1.25×", "1.4×", "1.5×", "1.75×", "2×"]
-        sp = ttk.Combobox(player, textvariable=self.var_speed, values=self._combo_values["speed"], state="readonly", width=6, font=self.f["small"])
-        sp.bind("<<ComboboxSelected>>", lambda e: self._on_speed_change())
-        player.add(sp)
+        self.var_speed_num = tk.DoubleVar(value=1.0)
+        speed = tk.Frame(player, bg=T["bg_card"])
+        self.speed_scale = ttk.Scale(speed, from_=self.SPEED_MIN, to=self.SPEED_SLIDER_MAX, orient=tk.HORIZONTAL, length=110,
+                                     variable=self.var_speed_num, command=self._on_speed_slide)
+        self.speed_scale.pack(side=tk.LEFT, padx=(2, 4))
+        self.speed_scale.bind("<ButtonRelease-1>", lambda e: self._speed_apply_now())
+        self.speed_entry = self._entry(speed, self.var_speed, width=6, font="small")
+        self.speed_entry.configure(justify=tk.CENTER)
+        self.speed_entry.pack(side=tk.LEFT)
+        for seq in ("<Return>", "<KP_Enter>", "<FocusOut>"):
+            self.speed_entry.bind(seq, lambda e: self._speed_typed())
+        self.var_speed.trace_add("write", lambda *a: self._speed_sync_slider())
+        player.add(speed)
         self.lbl_time = self._label(player, "0:00:00 / 0:00:00", font="mono_small", fg=T["fg_secondary"])
         player.add(self.lbl_time)
         self.var_follow = tk.BooleanVar(value=True)

@@ -212,6 +212,33 @@ class TranscriptDocument:
         else:
             self.data.pop("video_link", None)
 
+    def find_video(self) -> Optional[Path]:
+        """The video to show with the transcript: the one recorded at transcription time (or linked later), else (older
+        transcripts) the compressed/merged output next to it, else the original if no LosslessCut cuts were applied."""
+        p = self.media_path("video")
+        if p and p.exists():
+            return p
+        if "video" in (self.data.get("media") or {}):
+            return None  # recorded as "no video on this timeline" (or moved since)
+        for ext in (".mkv", ".mp4", ".mov"):
+            for name in (f"{self.base_name}_compressed{ext}", f"{self.base_name}{ext}"):
+                cand = self.out_dir / name
+                if cand.exists():
+                    return cand
+        prov = self.data.get("provenance") or {}
+        proc = prov.get("processing") or {}
+        inputs = prov.get("inputs") or []
+        if len(inputs) == 1 and not proc.get("losslesscut") and not proc.get("merge"):
+            cand = Path(inputs[0]["path"])
+            if cand.exists():
+                return cand
+        return None
+
+    def video_on_timeline(self) -> Optional[Path]:
+        """find_video, but only if its time is the transcript's time (what may be cut or subtitled with its times)."""
+        v = self.find_video()
+        return v if v is not None and not self.video_pieces() else None
+
     def video_pieces(self) -> Optional[List[List[float]]]:
         """How the video's time relates to the transcript's (None = the same)."""
         return (self.data.get("video_link") or {}).get("pieces") or None

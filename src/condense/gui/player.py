@@ -360,11 +360,69 @@ class PlayerMixin:
         media = doc.media_path("playback") if doc else None
         return media if media and media.exists() else None
 
-    def _speed(self) -> float:
+    # ----- playback speed -----
+    SPEED_STEPS = [0.5, 0.6, 0.75, 0.9, 1.0, 1.1, 1.25, 1.4, 1.5, 1.75, 2.0]  # ⌘⇧. / ⌘⇧, step through these
+    SPEED_MIN, SPEED_MAX, SPEED_SLIDER_MAX = 0.5, 3.0, 2.5
+
+    @staticmethod
+    def _fmt_speed(v: float) -> str:
+        return f"{v:.2f}".rstrip("0").rstrip(".") + "×"
+
+    @classmethod
+    def _parse_speed(cls, text: str) -> Optional[float]:
+        """'1.3', '1.3×', '1,3x' or '130%' -> 1.3 (kept between 0.5× and 3×); None if it is not a number."""
+        t = str(text or "").strip().lower().replace(",", ".").rstrip("×x ").strip()
+        pct = t.endswith("%")
         try:
-            return float(self.var_speed.get().rstrip("×"))
-        except Exception:
-            return 1.0
+            v = float(t.rstrip("% ")) / (100.0 if pct else 1.0)
+        except ValueError:
+            return None
+        if v <= 0:
+            return None
+        return round(max(cls.SPEED_MIN, min(cls.SPEED_MAX, v)), 2)
+
+    def _speed(self) -> float:
+        v = self._parse_speed(self.var_speed.get())
+        return v if v is not None else 1.0
+
+    def _speed_sync_slider(self):
+        """The typed or stepped speed moves the slider (not while the slider itself is being dragged)."""
+        if self.__dict__.get("_speed_sliding"):
+            return
+        v = self._parse_speed(self.var_speed.get())
+        if v is not None and self.__dict__.get("var_speed_num") is not None:
+            self.var_speed_num.set(min(v, self.SPEED_SLIDER_MAX))
+
+    def _on_speed_slide(self, value):
+        """Dragging: the value follows at once; playback picks it up when the slider rests or is released."""
+        v = round(round(float(value) / 0.05) * 0.05, 2)
+        self._speed_sliding = True
+        try:
+            self.var_speed.set(self._fmt_speed(v))
+        finally:
+            self._speed_sliding = False
+        job = self.__dict__.get("_speed_job")
+        if job is not None:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
+        self._speed_job = self.after(350, self._speed_apply_now)
+
+    def _speed_apply_now(self):
+        self._speed_job = None
+        if not self.playing or abs(self._speed() - float(self.__dict__.get("_play_speed", 1.0))) > 1e-3:
+            self._on_speed_change()
+
+    def _speed_typed(self):
+        v = self._parse_speed(self.var_speed.get())
+        if v is None:
+            v = float(self.__dict__.get("_play_speed", 0) or 0) if self.playing else 0.0
+            v = v or 1.0
+            self.lbl_status.config(text="Speed: type a number such as 1.3 (0.5–3).")
+        self.var_speed.set(self._fmt_speed(v))
+        self._speed_sync_slider()
+        self._speed_apply_now()
 
     def _duration(self) -> float:
         segs = self.active_doc.segments if self.active_doc else []
@@ -469,16 +527,18 @@ class PlayerMixin:
         self._update_time_label()
 
     def _speed_step(self, direction: int):
-        """⌘⇧. faster / ⌘⇧, slower — through the steps in the speed menu."""
-        steps = self._combo_values["speed"]
+        """⌘⇧. faster / ⌘⇧, slower — through the usual steps (from a typed speed: the next step that way)."""
+        values = self.SPEED_STEPS
         cur = self._speed()
-        values = [float(v.rstrip("×")) for v in steps]
-        i = min(range(len(values)), key=lambda k: abs(values[k] - cur))
-        j = max(0, min(len(steps) - 1, i + direction))
-        if j != i:
-            self.var_speed.set(steps[j])
+        if direction > 0:
+            nxt = next((v for v in values if v > cur + 1e-6), None)
+        else:
+            nxt = next((v for v in reversed(values) if v < cur - 1e-6), None)
+        if nxt is not None:
+            self.var_speed.set(self._fmt_speed(nxt))
+            self._speed_sync_slider()
             self._on_speed_change()
-            self.lbl_status.config(text=f"Playback speed {steps[j]}")
+            self.lbl_status.config(text=f"Playback speed {self._fmt_speed(nxt)}")
 
     def _schedule_tick(self):
         if self._tick_job is not None:

@@ -16,7 +16,7 @@ class W:
         if name in ints:
             return lambda *a, **k: ints[name]
         consts = {"selection": (), "get_children": (), "geometry": "1200x800+40+40", "sash_coord": (480, 0),
-                  "bbox": (0, 0, 1, 1), "identify_row": "", "winfo_pointerx": 10, "winfo_pointery": 10, "yview": (0.0, 1.0), "exists": True, "winfo_containing": None, "poll": 0}
+                  "bbox": (0, 0, 1, 1), "identify_row": "", "winfo_pointerx": 10, "winfo_pointery": 10, "yview": (0.0, 1.0), "exists": True, "winfo_containing": None, "poll": 0, "winfo_children": ()}
         if name in consts:
             return lambda *a, **k: consts[name]
         return lambda *a, **k: W()
