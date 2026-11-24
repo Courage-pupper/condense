@@ -57,7 +57,9 @@ for (ts, vs, ln), (s, e) in zip(link["pieces"], rec["segments_s"]):
     assert abs(vs - kf) < 0.2, (vs, kf)
     assert abs((vs + ln) - e) < 0.25, (vs + ln, e)
 assert abs(sum(p[2] for p in link["pieces"]) - tdur) < 0.01
-assert vl.to_video_time(link["pieces"], 15.0)[0] == link["pieces"][1][1] + 15.0 - link["pieces"][1][0]
+ts1, vs1, ln1 = link["pieces"][1]
+mid1 = ts1 + ln1 / 2
+assert abs(vl.to_video_time(link["pieces"], mid1)[0] - (vs1 + ln1 / 2)) < 1e-9
 ok("one piece per kept segment, each starting at the keyframe the cut snapped to (±0.2 s)")
 assert vl.to_video_time(None, 7.5) == (7.5, None) and vl.is_same_timeline(None)
 assert vl.to_video_time([[10, 0, 5]], 3) == (None, 10) and vl.to_video_time([[10, 0, 5]], 12) == (2, 15)
