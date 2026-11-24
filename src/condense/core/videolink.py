@@ -1,7 +1,7 @@
 """Link a video to a transcript afterwards, without re-encoding anything.
 
 For when the editor has no video on the transcript's timeline: the recording was trimmed in LosslessCut and
-transcribed without the Compress step (versions before 0.17 did not keep the trimmed file), the video was moved or
+transcribed without the Compress step (older versions did not keep the trimmed file), the video was moved or
 renamed, or the picture comes from a separate camera that started earlier or later than the audio.
 
 A link is a list of pieces [transcript_start, video_start, length]: inside a piece, transcript time t shows the video

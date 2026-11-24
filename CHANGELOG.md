@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.17.0 — unreleased
+## 0.18.0 — unreleased
 
 ### Long sessions (3–5 hours) stay responsive
 - **Corrections no longer redraw the whole transcript.** After saving a segment, changing a speaker, splitting,
@@ -25,6 +25,8 @@
   later. Condense lines it up with the transcript by its sound (each kept LosslessCut part separately, to a few
   hundredths of a second) and saves the link in the transcript; the video file is not changed. *Unlink the video*
   removes the link, and undo works.
+
+## 0.17.0 — 2026-11-23
 
 ### Fixed
 - **↑/↓ in the transcript on a Mac** move between segments again. The Mac sends arrow keys with its *fn* bit set, and

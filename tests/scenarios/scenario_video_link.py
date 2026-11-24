@@ -130,7 +130,7 @@ ok("unlink (the file stays), and undo brings the link back")
 
 print("[4] other videos")
 same = W / "moved" / "P07 trimmed copy.mp4"; same.parent.mkdir()
-# the transcript's own trimmed video (as Condense ≥ 0.17 keeps it), moved somewhere else
+# the transcript's own trimmed video (as newer versions keep it), moved somewhere else
 parts = []
 for i, (s, e) in enumerate(rec["segments_s"]):
     pp = W / f"part{i}.mp4"; parts.append(pp)
