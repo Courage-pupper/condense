@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.21.0 — unreleased
+## 0.21.0 — 2026-11-24
 
 ### Video while you work
 - **The Coding tab shows the video** next to the transcript, with its own play/pause and ⤢ — for coding what happens,
