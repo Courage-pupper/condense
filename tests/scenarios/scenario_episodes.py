@@ -236,6 +236,47 @@ assert app._next_interview_name() == "G1D1_I6"            # counts across the gr
 app._set_multi_selection([12, 13])
 win, ed = app._mark_episode()
 assert ed["type"].get() == "Interview" and ed["label"].get() == "G1D1_I6", (ed["type"].get(), ed["label"].get())
+# typing only the number (or I7) gives the full name; the preview shows it, saving completes it
+seg_a, seg_b = app.active_doc.segments[12]["start"], app.active_doc.segments[13]["end"]
+ed["label"].set("7")
+id7 = ed["apply"]()
+assert app.active_doc.get_episode(id7)["label"] == "G1D1_I7"
+assert app._complete_episode_label("Interview", "I12") == "G1D1_I12" and app._complete_episode_label("Interview", "_I3") == "G1D1_I3"
+assert app._complete_episode_label("Interview", "G1D1_I3") is None and app._complete_episode_label("Interview", "Robin") is None
+assert app._complete_episode_label("Phase", "3") is None  # no pattern for phases (yet)
+# a label typed earlier (I9) is completed with one click, and that is one undo step
+id9 = app.active_doc.add_episode("Interview", "I9", seg_a, seg_b, False)
+app._commit("old label")
+ed["fill"]()
+assert [(e["label"], full) for e, full in ed["completable"]()] == [("I9", "G1D1_I9")] and "I9 → G1D1_I9" in ed["fix"].cget("text")
+assert ed["complete_all"]() == 1 and app.active_doc.get_episode(id9)["label"] == "G1D1_I9" and ed["completable"]() == []
+app._undo(); assert app.active_doc.get_episode(id9)["label"] == "I9"
+app._redo(); assert app.active_doc.get_episode(id9)["label"] == "G1D1_I9"
+# the export dialog offers the completed name too (an I9 left in older transcripts)
+app.active_doc.update_episode(id9, label="I9")
+assert app._name_structure("Interview")[1].complete_name({"group": 1, "day": 1, "Group": "Group 1", "Day": "Day 1"}, "I9") == "G1D1_I9"
+# other kinds of episodes get their own names (Project Settings ▸ Episode names), numbered the same way
+win, ps = app._project_settings_dialog()
+ps["names"].set("Phase: P")
+assert ps["save"]() is None and "needs {n}" in ps["error"].cget("text"), ps["error"].cget("text")
+ps["names"].set("Phase: G{group}D{day}_P{n}; Plenary: Plenum {n}")
+assert ps["save"]() is True
+cfg = proj.project_settings(study)
+assert cfg["episode_names"] == {"Phase": "G{group}D{day}_P{n}", "Plenary": "Plenum {n}"} and "Phase" in cfg["episode_types"]
+ed["load"](None)
+assert ed["label"].get() == "G1D1_I10"  # a new one: the next free interview number (I7, I9 are taken)
+ed["type"].set("Phase"); ed["suggest"]()
+assert ed["label"].get() == "G1D1_P1", ed["label"].get()
+ed["start"].set(pipe.short_ts(seg_a)); ed["end"].set(pipe.short_ts(seg_b))
+ed["label"].set("2"); idp = ed["apply"]()
+assert app.active_doc.get_episode(idp)["label"] == "G1D1_P2" and app._next_episode_name("Phase") == "G1D1_P3"
+ed["load"](None); ed["label"].set("my own name"); ed["type"].set("Plenary"); ed["suggest"]()
+assert ed["label"].get() == "my own name"  # a label typed by hand is kept
+for i in (id7, id9, idp):  # leave the transcript as it was for the next sections
+    ed["load"](app.active_doc.get_episode(i)); ed["delete"]()  # (the stub's list keeps no selection)
+assert [e["label"] for e in app.active_doc.episodes] == [e["label"] for e in TD.load(doc.path).episodes]
+assert not {"G1D1_I7", "I9", "G1D1_P2"} & {e.get("label") for e in app.active_doc.episodes}
+win, ed = app._mark_episode()
 win, ps = app._project_settings_dialog()
 assert ps["preset"].get() == "Workshops: Day ▸ Group"
 ps["interviews"].set("{Day}/{Group}/Interviews/I"); ps["preview"].cget("text")
@@ -245,7 +286,7 @@ assert ps["sessions"].get() == "{Participant}/{Session}" and ps["preset"].get() 
 ps["detect"]()
 assert ps["interviews"].get() == st.interviews, (ps["interviews"].get(), st.interviews)
 assert ps["save"]() is True
-ok("structure suggested from the folders; next name G1D1_I6 (numbers count across days); E names a new interview; presets, checks")
+ok("structure suggested from the folders; next name G1D1_I6 (numbers count across days); E names a new interview; typing 7 or I9 gives the full name (also for older labels, in one click); names for other episode types; presets, checks")
 
 print("[8] tidy: a plan first; moves only when confirmed; undo")
 uns = study / "Day 2 2026-08-11" / "Semi-structured Interviews Unsorted"

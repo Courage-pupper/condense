@@ -21,6 +21,14 @@
   keep a little sound from before the keyframe, and a timestamp shift added up to another 0.5 s; both are now measured
   from the written clip. Lossless is now as accurate as the re-encoded export (within a frame or two).
 
+### Episode names
+- **A new episode's label starts with its name:** for an interview in Group 4 on Day 3, *G4D3_I14* with the number
+  selected, so you only type the number. `14` or `I14` is completed to `G4D3_I14` when saved (with a preview while you
+  type), and when exporting. Before, a typed `I14` stayed like that until the clip was exported. Short labels from
+  before can be completed with one click in the Episodes dialog, and they count as taken numbers.
+- **Names for other episode types** (Project Settings ▸ Episode names, e.g. `Phase: G{group}D{day}_P{n}`), numbered
+  per group like interviews — for workshops and studies that mark more than interviews.
+
 ### Attributes
 - **Describe transcripts with attributes** (activity, site, consent, …): set them for several transcripts at once from
   the overview, or define them in *Project ▸ Attributes…*, optionally with a list of values. Renaming or deleting one

@@ -135,6 +135,31 @@ class Structure:
     def clip_name(self, vals: Dict, n: int) -> str:
         return _fill(self.name_alts[0], dict(vals, n=str(n)))
 
+    def for_names(self, pattern: str) -> "Structure":
+        """The same folders with another name pattern (e.g. for Phase episodes: G{group}D{day}_P{n})."""
+        return Structure(self.sessions, "/".join(_segments(self.interviews)[:-1] + [pattern.strip()]))
+
+    def name_with_number(self, vals: Dict, n: int) -> Tuple[str, int, int]:
+        """The name for number n, and where the number sits in it (to select it, so typing replaces just the number)."""
+        alt = self.name_alts[0]
+        i = alt.index("{n}") if "{n}" in alt else len(alt)
+        start = len(_fill(alt[:i], vals))
+        return self.clip_name(vals, n), start, start + len(str(n))
+
+    def complete_name(self, vals: Dict, label: str) -> Optional[str]:
+        """A short label made whole: "14", "I14" or "_I14" → "G4D3_I14" (in Group 4, Day 3). None if the label is
+        already a full name, or doesn't look like the end of one."""
+        label = (label or "").strip()
+        if not label or not self.name_alts or (self.levels and not vals) or self.parse_clip_name(label):
+            return None
+        m = re.search(r"(\d+)$", label)
+        if not m:
+            return None
+        full = self.clip_name(vals, int(m.group(1)))
+        if label.isdigit() or full.lower().endswith(label.lower()):
+            return full if self.parse_clip_name(full) else None
+        return None
+
     # ----- numbering -----
     def used_numbers(self, project: Path, group_value: Dict, extra_labels: List[str] = ()) -> List[int]:
         """Interview numbers already used by this group (the last level) on any day: clip names anywhere in the project

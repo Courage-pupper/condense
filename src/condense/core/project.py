@@ -78,7 +78,23 @@ def project_settings(folder: Path) -> Dict:
     levels = st.levels if st is not None and st.levels else list(data.get("levels") or [])
     return {"name": data.get("name") or Path(folder).name, "levels": levels, "structure": st,
             "skip": list(data.get("skip") if data.get("skip") is not None else DEFAULT_SKIP),
-            "episode_types": list(data.get("episode_types") or DEFAULT_TYPES), "speakers": list(data["speakers"])}
+            "episode_types": list(data.get("episode_types") or DEFAULT_TYPES), "speakers": list(data["speakers"]),
+            "episode_names": {str(k): str(v) for k, v in (data.get("episode_names") or {}).items() if k and v}}
+
+
+def parse_episode_names(text: str) -> Dict[str, str]:
+    """ "Phase: G{group}D{day}_P{n}; Plenary: Plenum{n}" → {"Phase": "G{group}D{day}_P{n}", "Plenary": "Plenum{n}"}."""
+    out: Dict[str, str] = {}
+    for part in re.split(r"[;\n]", text or ""):
+        if ":" in part:
+            k, v = part.split(":", 1)
+            if k.strip() and v.strip():
+                out[k.strip()] = v.strip()
+    return out
+
+
+def format_episode_names(names: Dict[str, str]) -> str:
+    return "; ".join(f"{k}: {v}" for k, v in names.items())
 
 
 def skipped(name: str, patterns) -> bool:

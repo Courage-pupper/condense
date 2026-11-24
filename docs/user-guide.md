@@ -337,6 +337,14 @@ Interview clips:  {Day}/{Group}/Semi-structured Interviews/G{group}D{day}_I{n}
 Condense only *reads* your structure. It uses it to find interview clips, to name new ones (`G1D2_I14`) when you mark an
 interview with **E** or export one, and to save them in the right folder.
 
+- **Naming an episode:** a new interview's *Label* already holds the next name of its group, with the number selected —
+  type another number to replace it. A short label is completed from the pattern: `14` or `I14` becomes `G1D2_I14`
+  (shown next to the field while you type, saved that way). Labels from before (e.g. an `I14` that was never exported)
+  are listed in the Episodes dialog with a *Complete* button.
+- **Names for other kinds of episodes:** *Episode names* in the project settings, e.g.
+  `Phase: G{group}D{day}_P{n}; Plenary: G{group}D{day}_Plenum{n}` — numbered per group like interviews. Leave it empty
+  if phases need no numbered names.
+
 ![Project settings](images/project-settings.png)
 
 **Tidy unsorted folders** (*Project ▸ Tidy Unsorted Folders…*) shows, for each file in a …Unsorted folder, where it

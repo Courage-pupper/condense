@@ -396,13 +396,17 @@ class ProjectMixin:
         v_int = tk.StringVar(value=cur.get("interviews", ""))
         v_skip = tk.StringVar(value=", ".join(cfg["skip"]))
         v_types = tk.StringVar(value=", ".join(cfg["episode_types"]))
+        v_names = tk.StringVar(value=proj.format_episode_names(cfg.get("episode_names") or {}))
         lbl_preview = self._label(win, "", font="mono_small", fg=T["fg_secondary"], bg=T["bg_panel"], justify=tk.LEFT)
         grid_rows = [("Name", v_name, ""),
                      ("Session folders", v_sess, "Where session recordings are. {Day}, {Group} … are your folder levels."),
                      ("Interview clips", v_int, "Folder and name of cut-out interviews. {group}, {day} … are the levels' numbers; "
                                                 "{n} counts a group's interviews across all days."),
                      ("Skip folders", v_skip, "Never opened or listed (consent forms, unsorted material). * matches anything."),
-                     ("Episode types", v_types, "Kinds of episodes, e.g. Interview, Phase, Plenary. Each gets its own colour.")]
+                     ("Episode types", v_types, "Kinds of episodes, e.g. Interview, Phase, Plenary. Each gets its own colour."),
+                     ("Episode names", v_names, "Optional: names for other types, numbered per group like interviews, e.g. "
+                                                "Phase: G{group}D{day}_P{n}; Plenary: G{group}D{day}_Plenum{n}. "
+                                                "Interviews are named like their clips (above).")]
         r = 1
         self._label(win, "Structure", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=r, column=0, sticky="w", padx=(0, 8), pady=(8, 0))
         cmb = ttk.Combobox(win, textvariable=v_preset, values=list(stlib.PRESETS) + [stlib.CUSTOM], state="readonly", width=40, font=self.f["small"])
@@ -461,8 +465,15 @@ class ProjectMixin:
                 lbl_err.config(text="Fix the structure first (see the warnings above).")
                 return None
             split = (lambda v: [x.strip() for x in v.get().split(",") if x.strip()])
+            names = proj.parse_episode_names(v_names.get())
+            bad = [f"{k}: {p}" for k, v in names.items() for p in st.for_names(v).problems()]
+            if bad:
+                lbl_err.config(text="Episode names: " + "; ".join(bad).replace("Interview clips: ", ""))
+                return None
+            types = split(v_types) or ["Interview"]
+            types += [k for k in names if k not in types]  # a type given a name is a type
             proj.update_project(folder, name=v_name.get().strip() or folder.name, levels=st.levels, skip=split(v_skip),
-                                episode_types=split(v_types) or ["Interview"],
+                                episode_types=types, episode_names=names,
                                 structure={"sessions": st.sessions, "interviews": st.interviews})
             self._refresh_project_ui()
             self._append_log(f"Project settings saved: {folder / proj.PROJECT_FILE}", "INFO")
@@ -479,7 +490,7 @@ class ProjectMixin:
         win.bind("<Escape>", lambda e: (win.destroy(), "break")[-1])
         preview()
         return win, {"name": v_name, "preset": v_preset, "sessions": v_sess, "interviews": v_int, "skip": v_skip, "types": v_types,
-                     "save": save, "on_preset": on_preset, "detect": detect, "preview": lbl_preview, "error": lbl_err}
+                     "names": v_names, "save": save, "on_preset": on_preset, "detect": detect, "preview": lbl_preview, "error": lbl_err}
 
     # ================================================================== tidy: a plan first, moves only when confirmed
     def _tidy_dialog(self, folder: Optional[Path] = None):
