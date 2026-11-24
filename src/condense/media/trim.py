@@ -99,8 +99,8 @@ def output_path(src: Path, out_dir: Path, base_name: str, mode: str, has_video: 
 
 
 def _run(cmd: List[str], total: float, on_progress: Optional[Callable[[float], None]], stop: Optional[threading.Event],
-         base: float = 0.0, span: float = 1.0) -> None:
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace")
+         base: float = 0.0, span: float = 1.0, cwd: Optional[str] = None) -> None:
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace", cwd=cwd)
     err_lines: List[str] = []
 
     def read_err():

@@ -32,6 +32,26 @@ assert app.var_speed.get() == "1.75×" and "atempo=1.75" in " ".join(launched[-1
 app._player_pause()
 for _ in range(20): app._speed_step(-1)
 assert app.var_speed.get() == "0.5×"
+print("✓ steps 0.5×–2×, playback restarts at the right position with the new tempo")
+assert [app._parse_speed(t) for t in ("1.3", "1.3×", "1,3x", "130%", " 2 ", "9", "0.1", "abc", "-1")] == [1.3, 1.3, 1.3, 1.3, 2.0, 3.0, 0.5, None, None]
+app._toggle_play()
+n = len(launched)
+app.var_speed.set("1.3"); app._speed_typed()
+assert app.var_speed.get() == "1.3×" and "atempo=1.3" in " ".join(launched[-1]) and len(launched) > n
+app.var_speed.set("fast please"); app._speed_typed()
+assert app.var_speed.get() == "1.3×" and "type a number" in app.lbl_status.cget("text")
+n = len(launched)
+for v in (1.31, 1.42, 1.58, 1.66):  # dragging the slider: the value follows, playback is not restarted for each move
+    app._on_speed_slide(v)
+assert app.var_speed.get() == "1.65×" and len(launched) == n
+app._speed_apply_now()  # the slider rests / is released
+assert "atempo=1.65" in " ".join(launched[-1]) and len(launched) == n + 1
+app._speed_apply_now()
+assert len(launched) == n + 1  # same speed: not restarted again
+app._speed_step(-1)
+assert app.var_speed.get() == "1.5×"
+app._player_pause()
+app.var_speed.set("1.3×")
 app._save_settings()
-holder.clear(); pipe.subprocess.Popen = subprocess.Popen; pipe.launch_gui(); assert holder["app"].var_speed.get() == "0.5×"
-print("✓ steps 0.5×–2×, playback restarts at the right position with the new tempo, speed remembered")
+holder.clear(); pipe.subprocess.Popen = subprocess.Popen; pipe.launch_gui(); assert holder["app"].var_speed.get() == "1.3×"
+print("✓ typed speeds (1.3, 130 %), nonsense refused, slider restarts playback once when it rests, a typed speed is remembered")

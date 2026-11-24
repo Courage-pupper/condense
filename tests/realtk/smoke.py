@@ -517,7 +517,7 @@ def main():
                 dropdowns[c.cget("text")] = c.menu
             collect(c)
     collect(app.tab_preview)
-    labels = lambda m: [m.entrycget(i, "label") for i in range(m.index("end") + 1) if m.type(i) != "separator"]
+    labels = lambda m: m.labels()
     assert {"Transcript ▾", "Playback ▾", "More ▾"} <= set(dropdowns), sorted(dropdowns)
     assert "Speakers…" in labels(dropdowns["Transcript ▾"]) and "Skip cut parts" in labels(dropdowns["Playback ▾"])
     assert "Re-transcribe this passage…" in labels(dropdowns["More ▾"])
@@ -541,6 +541,57 @@ def main():
     pump(app, 0.1)
     edit_secs = time.perf_counter() - t0
     ok(f"{n} segments rendered in {secs:.1f}s; an edit near the end takes {edit_secs:.2f}s")
+
+    print("[4b] popup menus")
+    from condense.gui.popup import PopupMenu
+    on_mac = str(app.tk.call("tk", "windowingsystem")) == "aqua"
+    if on_mac:
+        # macOS keeps the system's own menus (their tk_popup waits for a choice, so only build one here)
+        m = PopupMenu(app)
+        m.add_command(label="First", command=lambda: None)
+        m.add_separator()
+        sub = PopupMenu(app)
+        sub.add_command(label="Inner", command=lambda: None)
+        m.add_cascade(label="More", menu=sub)
+        native = m.native_menu()
+        assert m.native() and native.index("end") == 2 and native.type(2) == "cascade"
+        ok("popup menus: the system's own on macOS")
+    else:
+        chosen = []
+        m = PopupMenu(app)
+        m.add_command(label="First", command=lambda: chosen.append(1))
+        m.add_separator()
+        sub = PopupMenu(app)
+        sub.add_command(label="Inner", command=lambda: chosen.append(2))
+        m.add_cascade(label="More", menu=sub)
+        m.add_command(label="Off", state="disabled", command=lambda: chosen.append(3))
+        x0, y0 = app.winfo_rootx() + 60, app.winfo_rooty() + 60
+        m.tk_popup(x0, y0)
+        pump(app, 0.3)
+        assert m.is_open and m.win.winfo_ismapped() and len(m.rows) == 2  # the disabled entry cannot be chosen
+        shot(app, "popup-menu", m.win)
+        m.win.event_generate("<ButtonPress-1>", x=-40, y=-40, rootx=m.win.winfo_rootx() - 40, rooty=m.win.winfo_rooty() - 40)
+        pump(app, 0.2)
+        assert not m.is_open, "a click outside did not close the menu"
+        assert app.grab_current() is None, "the menu kept its grab after closing"
+        m.tk_popup(x0, y0)
+        pump(app, 0.2)
+        m.rows[0][2][1].event_generate("<ButtonRelease-1>")
+        pump(app, 0.2)
+        assert chosen == [1] and not m.is_open
+        m.tk_popup(x0, y0)
+        pump(app, 0.2)
+        m.rows[1][2][1].event_generate("<Enter>")
+        pump(app, 0.2)
+        assert sub.is_open, "hovering a submenu entry did not open it"
+        sub.rows[0][2][1].event_generate("<ButtonRelease-1>")
+        pump(app, 0.2)
+        assert chosen == [1, 2] and not sub.is_open and not m.is_open and app.grab_current() is None
+        pp = app._pp_menu(type("E", (), {"y": 0, "x_root": x0, "y_root": y0})())
+        pump(app, 0.2)
+        assert pp.is_open and "Refresh" in pp.labels()
+        pp.unpost()
+        ok("popup menus: themed, a click outside closes them, rows and submenus choose, the grab is released")
 
     print("[5] close")
     app._on_close()

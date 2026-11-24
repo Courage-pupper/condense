@@ -88,6 +88,7 @@ class ProjectMixin:
         pm.add_command(label="Speakers (Project and Groups)…", command=lambda: self._project_speakers_dialog())
         pm.add_command(label="Project Settings…", command=lambda: self._project_settings_dialog())
         pm.add_command(label="Tidy Unsorted Folders…", command=lambda: self._tidy_dialog())
+        pm.add_command(label="Storage (Backups, Leftovers)…", command=lambda: self._storage_dialog())
         mb.add_cascade(label="Project", menu=pm)
         self.project_menu = pm
 

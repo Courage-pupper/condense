@@ -255,7 +255,7 @@ class CodingMixin:
         iid = self.cd_tree.identify_row(event.y)
         if iid:
             self.cd_tree.selection_set(iid)
-        m = tk.Menu(self, tearoff=0)
+        m = PopupMenu(self)
         if iid:
             m.add_command(label="Code the selected text with it", command=lambda: self._cd_apply(iid))
             m.add_command(label="New subcode…", command=lambda: self._cd_new_code(parent=iid))
@@ -989,7 +989,7 @@ class CodingMixin:
         return kid
 
     def _cd_text_menu(self, event):
-        m = tk.Menu(self, tearoff=0)
+        m = PopupMenu(self)
         sel = self._cd_selection_words()
         code = self._cd_selected_code()
         cb = self._cd_codebook()

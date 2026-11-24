@@ -204,7 +204,7 @@ class ReviewMarksMixin:
         return n
 
     def _speaker_chip_menu(self, event, name: str):
-        m = tk.Menu(self, tearoff=0)
+        m = PopupMenu(self)
         others = [n for n in self._roster() if n != name]
         named = [n for n in others if not n.startswith(("SPEAKER_", "Speaker "))]
         generic = [n for n in others if n.startswith(("SPEAKER_", "Speaker "))]

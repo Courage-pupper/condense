@@ -46,29 +46,9 @@ class VideoMixin:
             self._video_panel_shown = False
 
     def _video_media(self) -> Optional[Path]:
-        """A video on the transcript's timeline: the one recorded at transcription time, else (older transcripts)
-        the compressed/merged output next to the transcript, else the original if no LosslessCut cuts were applied."""
+        """A video for the open transcript (see TranscriptDocument.find_video)."""
         doc = self.active_doc
-        if doc is None:
-            return None
-        p = doc.media_path("video")
-        if p and p.exists():
-            return p
-        if "video" in (doc.data.get("media") or {}):
-            return None  # recorded as "no video on this timeline"
-        for ext in (".mkv", ".mp4", ".mov"):
-            for name in (f"{doc.base_name}_compressed{ext}", f"{doc.base_name}{ext}"):
-                cand = doc.out_dir / name
-                if cand.exists():
-                    return cand
-        prov = doc.data.get("provenance") or {}
-        proc = prov.get("processing") or {}
-        inputs = prov.get("inputs") or []
-        if len(inputs) == 1 and not proc.get("losslesscut") and not proc.get("merge"):
-            cand = Path(inputs[0]["path"])
-            if cand.exists():
-                return cand
-        return None
+        return doc.find_video() if doc is not None else None
 
     def _video_pieces(self) -> Optional[List[List[float]]]:
         doc = self.active_doc
