@@ -219,13 +219,11 @@ class OverviewMixin:
             if not sel or sel[0] not in state["iids"]:
                 return
             r = state["iids"][sel[0]]
-            self._autosave_edit(rerender=False)
-            self._render_doc(TranscriptDocument.load(r["path"]))
-            self.notebook.select(self.tab_preview)
-            if r.get("episode"):
+            self._open_at(r["path"])
+            if r.get("episode") and self.active_doc is not None:
                 idx = self.active_doc.episode_segments(r["episode"])
                 if idx:
-                    self._goto_segment(idx[0])
+                    self._open_at(r["path"], idx[0])
 
         def export_csv():
             if not state["rows"]:

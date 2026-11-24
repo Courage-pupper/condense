@@ -70,6 +70,19 @@ class NavigationMixin:
             self._set_multi_selection(segs, segs[0])
             self.lbl_status.config(text=f"Selected all {len(segs)} segments — press 1–9 to assign them all, click a word to cancel.")
 
+    def _open_at(self, path, seg: Optional[int] = None):
+        """Open a transcript in the Transcript tab (kept as it is when it is the one already open: no reload, undo and
+        view stay) and, if seg is given, go there. A chosen place wins over "resume where you left off", which
+        otherwise jumps back to the last position a moment after opening."""
+        self._autosave_edit(rerender=False)
+        doc = self.active_doc
+        if doc is None or Path(doc.path).resolve() != Path(path).resolve():
+            self._render_doc(TranscriptDocument.load(Path(path)))
+        self.notebook.select(self.tab_preview)
+        if seg is not None and self.active_doc is not None and 0 <= seg < len(self.active_doc.segments):
+            self._pending_resume = None
+            self._goto_segment(seg)
+
     def _goto_segment(self, si: int):
         first = self.span_lookup.get((si, 0))
         if first is not None:

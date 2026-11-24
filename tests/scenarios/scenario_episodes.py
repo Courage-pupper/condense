@@ -301,13 +301,38 @@ n_jobs = len(app.jobs)
 assert app._pp_activate(fv) == "queued" and [Path(p).resolve() for p in app.jobs[-1]["inputs"]] == [(g3 / "Session Recordings" / "final_video.mp4").resolve()]
 assert app._pp_status(fv) == ("in Tasks", "queued")
 assert app._pp_activate(by_name["G1D1_session.mp4"]) == "opened" and app.active_doc.base_name == "G1D1_session"
+# An episode row goes to the episode, also when the transcript has a place to resume ("where you left off"). Tk
+# applies that a moment after opening (after_idle), and it used to jump back there; the stub runs idle callbacks at
+# once, so here they are held and run afterwards, as in Tk.
+idle = []
+app.after_idle = lambda fn, *a: idle.append((fn, a))
+def settle():
+    while idle:
+        fn, a = idle.pop(0)
+        fn(*a)
+sess = Path(gs["transcript"]).resolve()
+ep_rows = [it for it in app.pp_items.values() if it.get("episode") and Path(it["transcript"]).resolve() == sess]
+assert len(ep_rows) == 2, ep_rows
+first_seg = {id(it): app.active_doc.episode_segments(it["episode"])[0] for it in ep_rows}
+last = len(app.active_doc.segments) - 1
+app._goto_segment(last); settle()
+other = next(it for it in items if it.get("row") and "error" not in it["row"] and Path(it["transcript"]).resolve() != sess)
+assert app._pp_activate(other) == "opened" and app.active_doc.base_name != "G1D1_session"  # remembers `last`
+settle()
+for it in ep_rows:  # from another transcript, then within the open one
+    undo_before = len(app.__dict__.get("undo_stack") or [])
+    assert app._pp_activate(it) == "opened"
+    settle()
+    assert app.active_doc.base_name == "G1D1_session" and app.edit_seg_idx == first_seg[id(it)] != last, (app.edit_seg_idx, first_seg[id(it)])
+assert app.__dict__.get("_pending_resume") is None
+del app.after_idle
 # names like D1G3_I1 next to G1D1_I1: both patterns are learned; the most used is first
 sug = proj.suggest_settings(study)["structure"]["interviews"]
 assert sug.endswith("G{group}D{day}_I{n} | D{day}G{group}_I{n}") or sug.endswith("D{day}G{group}_I{n} | G{group}D{day}_I{n}"), sug
 st2 = stlib.Structure("{Day}/{Group}/Session Recordings", sug)
 assert st2.parse_clip_name("D2G4_I13") == {"day": 2, "group": 4, "n": 13} and st2.parse_clip_name("G1D2_I4")["n"] == 4
 assert proj._level_word(["Session Recordings"] * 3 + ["Leica"]) is None and proj._level_word(["Group 3"]) == "Group"
-ok("untranscribed session listed and queued from the panel; transcripts open; ._ and unsorted ignored; mixed names learned")
+ok("untranscribed session listed and queued from the panel; transcripts open; episode rows go to the episode (not back to 'where you left off'); ._ and unsorted ignored; mixed names learned")
 
 print("[10] mark whole transcripts checked (100 %) from the menus, with undo")
 d2_path = next(it["transcript"] for it in proj.inventory(study) if it.get("row") and it["row"]["name"] == "G1D2_session")

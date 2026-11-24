@@ -10,6 +10,12 @@
 - **Faster with many transcripts:** each row is remembered and only re-read when its transcript changed — also for the
   Project tab.
 
+### Fixed
+- **Clicking an episode or interview in the Project tab goes there**, also in a transcript you were already working
+  in. It used to jump there and then straight back to where you had left off. The same for episodes in the overview
+  and results of Find in all transcripts. Clicking one in the transcript that is already open no longer reloads it, so
+  it is instant (also for long sessions) and undo is kept.
+
 ### Attributes
 - **Describe transcripts with attributes** (activity, site, consent, …): set them for several transcripts at once from
   the overview, or define them in *Project ▸ Attributes…*, optionally with a list of values. Renaming or deleting one
