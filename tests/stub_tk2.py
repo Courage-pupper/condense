@@ -64,6 +64,10 @@ class Text(W):
         marks = self.__dict__.get("marks", {})
         if index in marks and marks[index] != index:
             return self._pos(marks[index])
+        if index in ("sel.first", "sel.last"):
+            if "sel" not in self.tags:
+                raise ValueError('text doesn\'t contain any characters tagged with "sel"')  # as Tk's TclError
+            return self._pos(self.tags["sel"][0 if index == "sel.first" else 1])
         if index in ("insert", "insert-1c"):
             l, c = self._pos("end-1c")
             return (l, max(0, c - 1)) if index == "insert-1c" else (l, c)

@@ -89,12 +89,18 @@ class RerunMixin:
         if msg["type"] == "rerun_failed":
             self.lbl_status.config(text=f"{label} failed — see the console.")
             self._append_log(f"{label} failed: {msg['error']}", "ERROR")
-            messagebox.showerror(f"{label} failed", msg["error"][-800:], parent=self)
+            if self.__dict__.get("_gap_queue"):
+                self._gap_finished(None)  # untranscribed stretches: note it and go on with the next
+            else:
+                messagebox.showerror(f"{label} failed", msg["error"][-800:], parent=self)
             return
         p = msg["params"]
         doc = self.active_doc
         if doc is None or str(doc.path) != p["doc_path"]:
-            messagebox.showinfo("Transcript changed", "You switched to another transcript while this was running; the result was not applied.", parent=self)
+            if not p.get("quiet"):
+                messagebox.showinfo("Transcript changed", "You switched to another transcript while this was running; the result was not applied.", parent=self)
+            if self.__dict__.get("_gap_queue"):
+                self._gap_finished(None)
             return
         self._autosave_edit(rerender=False)
         if kind == "retranscribe":
@@ -103,7 +109,8 @@ class RerunMixin:
             self._apply_rediarization(doc, msg["result"], p)
 
     # --- re-transcribe a passage
-    def _retranscribe_dialog(self):
+    def _retranscribe_dialog(self, rng: Optional[Tuple[float, float]] = None):
+        """rng: the times to suggest (what is highlighted in the transcript); else the open segment."""
         doc = self.active_doc
         if doc is None:
             self.lbl_status.config(text="Open a transcript first.")
@@ -114,7 +121,9 @@ class RerunMixin:
         if self.playing:
             self._player_pause()
         T = THEME
-        if self.edit_seg_idx is not None and self.edit_seg_idx < len(doc.segments):
+        if rng is not None:
+            start, end = float(rng[0]), float(rng[1])
+        elif self.edit_seg_idx is not None and self.edit_seg_idx < len(doc.segments):
             seg = doc.segments[self.edit_seg_idx]
             start, end = float(seg["start"]), float(seg["end"])
         else:
@@ -189,7 +198,8 @@ class RerunMixin:
         self._tool(btns, "Cancel", win.destroy).pack(side=tk.RIGHT, padx=(6, 0))
         self._tool(btns, "Re-transcribe", run, primary=True).pack(side=tk.RIGHT)
 
-    def _launch_retranscription(self, start_text, end_text, model, lang_label, task_label, speaker_label, prompt) -> Optional[str]:
+    def _launch_retranscription(self, start_text, end_text, model, lang_label, task_label, speaker_label, prompt,
+                                quiet: bool = False) -> Optional[str]:
         start, end = self._parse_time(start_text), self._parse_time(end_text)
         if start is None or end is None or end <= start:
             return "Check the times: From must be before To (e.g. 1:23.4)."
@@ -205,6 +215,7 @@ class RerunMixin:
             "task": "translate" if translate else "transcribe", "prompt": prompt.strip(),
             "speaker": "" if speaker_label.startswith("(") else speaker_label,
             "backend": self._doc_setting("backend_setting", self.var_whisper_backend.get()), "diarize_mode": "Disabled",
+            "quiet": quiet,
         }
         self._start_rerun("retranscribe", params, clip=(params["clip_start"], end + pad))
         what = "Translating" if translate else "Re-transcribing"
@@ -230,8 +241,11 @@ class RerunMixin:
             new.append(seg)
         new, _ = drop_empty_segments(new)
         if not new:
-            messagebox.showinfo("Nothing recognised", "Whisper found no speech in that range, so the transcript was left unchanged.", parent=self)
+            if not p.get("quiet"):
+                messagebox.showinfo("Nothing recognised", "Whisper found no speech in that range, so the transcript was left unchanged.", parent=self)
             self.lbl_status.config(text="Re-transcription found no speech; nothing changed.")
+            if self.__dict__.get("_gap_queue"):
+                self._gap_finished(0)
             return
         if p.get("task") == "translate" and p.get("language") != "en":
             src = self.LANG_NAMES.get(p.get("language"), "another language") if p.get("language") != "auto" else "another language"
@@ -241,6 +255,8 @@ class RerunMixin:
                 seg["text"] = "".join(str(w.get("word", "")) for w in seg["words"])
         n_old, n_new = doc.replace_range(start, end, new, p)
         if self._commit(f"Re-transcribed {short_ts(start)[:-2]}–{short_ts(end)[:-2]}: {n_old} segment(s) → {n_new}.") is None:
+            if self.__dict__.get("_gap_queue"):
+                self._gap_finished(None)
             return
         self.edit_original = ("", "")
         self._rerender()
@@ -251,6 +267,8 @@ class RerunMixin:
             if idx is not None:
                 self._select_span(idx, load_editor=False)
         self._append_log(kbd(f"Re-transcribed {short_ts(start)}–{short_ts(end)} with {p['model']} ({p['task']}): {n_old} → {n_new} segment(s). ⌘Z undoes it."), "SUCCESS")
+        if self.__dict__.get("_gap_queue"):
+            self._gap_finished(n_new)
 
     # --- re-run speaker detection
     def _rediarize_dialog(self):

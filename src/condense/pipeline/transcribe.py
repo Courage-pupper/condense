@@ -30,6 +30,15 @@ class TranscribeMixin:
                          f"Converting {src.name} to 16 kHz WAV" + (" (with audio cleanup)" if audio_filter else ""))
         return dst
 
+    def chunking_mode(self) -> str:
+        """Settings ▸ Long recordings -> the runner's PIPELINE_CHUNKING: auto (over an hour), on, or off."""
+        s = str(self.config.get("whisper_chunking") or "auto").lower()
+        if s.startswith("always") or s == "on":
+            return "on"
+        if s.startswith("in one go") or s == "off":
+            return "off"
+        return "auto"
+
     def persistent_playback_media(self, candidates: List[Optional[Path]], temp_dir: Path, out_dir: Path, base_name: str) -> Optional[Path]:
         """The transcript editor needs media on the SAME timeline as the transcript that survives the run.
         Use the extracted audio or the (compressed/original) video if they are kept; otherwise save a small M4A."""
@@ -127,6 +136,8 @@ class TranscribeMixin:
         env["PIPELINE_TASK"] = "transcribe"
         env["PIPELINE_PROMPT"] = str(self.config.get("whisper_prompt") or "")
         env["PIPELINE_MODE"] = "full"
+        env["PIPELINE_CHUNKING"] = self.chunking_mode()
+        env["PIPELINE_CHUNK_SECONDS"] = str(self.config.get("whisper_chunk_seconds") or 240)
 
         env["PYTHONIOENCODING"] = "utf-8"
         self.current_proc = subprocess.Popen(
@@ -179,6 +190,10 @@ class TranscribeMixin:
             raise RuntimeError("Whisper transcription failed:\n" + "\n".join(tail_lines[-5:]))
 
         result_data = json.loads(raw_json_path.read_text(encoding="utf-8"))
+        pieces = (result_data.get("chunking") or {}).get("pieces") or []
+        if pieces:
+            self.log(f"Transcribed in {len(pieces)} pieces split at pauses "
+                     f"({result_data['chunking'].get('silence_left_out_s', 0):.0f} s of silence left out).", "INFO")
         synced = sync_text_with_words(result_data.get("segments") or [])
         kept, removed = drop_empty_segments(result_data.get("segments") or [])
         result_data["segments"] = kept
@@ -197,6 +212,7 @@ class TranscribeMixin:
             "num_speakers_hint": num_speakers,
             "pyannote_token_supplied": bool(hf_token),
             "vocabulary_prompt": str(self.config.get("whisper_prompt") or "") or None,
+            "long_recordings": self.chunking_mode(),
         }
         provenance = self.build_provenance(source_media, media_path, processing, result_data, whisper_settings)
         doc = TranscriptDocument.create(

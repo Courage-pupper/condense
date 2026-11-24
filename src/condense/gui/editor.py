@@ -28,6 +28,7 @@ class EditorMixin:
             ("-",),
             ("Episodes (interviews, phases)…", self._episodes_dialog),
             ("Find interview clips in this recording…", self._link_clips_dialog),
+            ("Find untranscribed stretches…", self._gaps_dialog),
             ("Export trimmed video & transcript…", self._export_trimmed_dialog),
             ("Video with subtitles…", self._subtitles_dialog),
             ("-",),
@@ -228,6 +229,8 @@ class EditorMixin:
             pt.tag_config(f"EPC{i}", foreground=color, font=self.f["small_bold"], spacing1=6, spacing3=2)
         pt.tag_config("MULTISEL", background="#3a2f5c")
         pt.bind("<ButtonRelease-1>", self._on_text_click)
+        for seq in ("<Button-3>",) + (("<Button-2>", "<Control-Button-1>") if IS_MAC else ()):
+            pt.bind(seq, lambda e: (self._transcript_menu(e), "break")[-1])  # re-transcribe / play what is highlighted
         pt.bind("<Shift-ButtonRelease-1>", self._on_shift_click)
         pt.bind("<Double-Button-1>", lambda e: (self._on_text_click(e), self._play_from_current_word(), "break")[-1])
         # A plain <Key-c> binding also fires for ⌘C / Ctrl+C: step aside when a modifier is held, so copy,
