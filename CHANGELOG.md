@@ -27,8 +27,9 @@
   rests, not on every move. ⌘⇧. / ⌘⇧, still step through the usual speeds; a typed speed is remembered.
 
 ### Menus
-- Right-click menus and the ▾ menus are drawn in Condense's own theme, and **close when you click elsewhere** (on
-  Linux they stayed open), press Esc or switch to another app. ↑/↓, Return, → and ← work in them.
+- Right-click menus and the ▾ menus are drawn in Condense's own theme on Linux and Windows, and **close when you click
+  elsewhere** (on Linux they stayed open), press Esc or switch to another app. ↑/↓, Return, → and ← work in them. On
+  macOS they stay the system's own menus.
 
 ## 0.19.0 — unreleased
 
