@@ -22,15 +22,30 @@ class PlayerMixin:
         for ep in doc.episodes:  # drawn first, behind everything: like the coloured blocks of a session plan
             items.append(("episode", ep["start"] * sx, max(ep["start"] * sx + 2, ep["end"] * sx), self._episode_color(ep["type"]),
                           bool(ep.get("approx"))))
+        # A long session has thousands of segments on a few hundred pixels: shapes that touch (≤ 1 px apart) and look
+        # the same are drawn as one, so the strip has hundreds of items instead of tens of thousands.
+        colors = {spk: SPEAKER_COLORS[i % len(SPEAKER_COLORS)] for i, spk in enumerate(roster)}
+        bands: List[List] = []
+        checks: List[List] = []
         for seg in doc.segments:
             x0, x1 = float(seg.get("start", 0.0)) * sx, max(float(seg.get("start", 0.0)) * sx + 1, float(seg.get("end", 0.0)) * sx)
-            spk = seg.get("speaker")
-            color = SPEAKER_COLORS[roster.index(spk) % len(SPEAKER_COLORS)] if spk in roster else "#64748b"
-            items.append(("band", x0, x1, color))
+            color = colors.get(seg.get("speaker"), "#64748b")
+            if bands and bands[-1][3] == color and x0 <= bands[-1][2] + 1:
+                bands[-1][2] = max(bands[-1][2], x1)
+            else:
+                bands.append(["band", x0, x1, color])
             if seg.get("checked"):
-                items.append(("check", x0, x1))
+                if checks and x0 <= checks[-1][2] + 1:
+                    checks[-1][2] = max(checks[-1][2], x1)
+                else:
+                    checks.append(["check", x0, x1])
+        items += [tuple(b) for b in bands] + [tuple(c) for c in checks]
+        tick_px = set()
         for i in self.low_conf:
-            items.append(("tick", self.word_spans[i]["start"] * sx))
+            x = self.word_spans[i]["start"] * sx
+            if int(x) not in tick_px:
+                tick_px.add(int(x))
+                items.append(("tick", x))
         for s, e in doc.cuts:
             items.append(("cut", s * sx, max(s * sx + 2, e * sx)))
         return items
@@ -58,9 +73,12 @@ class PlayerMixin:
             else:
                 tl.create_line(item[1], 1, item[1], 7, fill="#f87171")
         self._tl_playhead = tl.create_line(0, 0, 0, height, fill="#ffffff", width=2)
+        self._tl_hover = tl.create_text(0, height // 2, text="", anchor="w", fill="#ffffff", font=self.f["mono_small"])
         self._timeline_playhead()
 
     def _timeline_playhead(self):
+        if self.__dict__.get("_scrub_target") is not None:
+            return  # being dragged: the playhead is under the mouse
         tl, ph = self.__dict__.get("timeline"), self.__dict__.get("_tl_playhead")
         dur = self._duration() if self.active_doc else 0
         if tl is None or ph is None or dur <= 0:
@@ -68,14 +86,83 @@ class PlayerMixin:
         x = self._current_pos() / dur * tl.winfo_width()
         tl.coords(ph, x, 0, x, int(tl.cget("height") or 30))
 
-    def _timeline_click(self, event):
+    def _timeline_pos(self, x: float) -> Optional[float]:
         dur = self._duration()
         width = self.timeline.winfo_width()
         if self.active_doc is None or dur <= 0 or width <= 2:
+            return None
+        return max(0.0, min(dur, x / width * dur))
+
+    def _timeline_hover(self, event):
+        """The time under the mouse, next to it: on a 5-hour session one pixel of the strip is ~20 seconds."""
+        tl, item = self.__dict__.get("timeline"), self.__dict__.get("_tl_hover")
+        if tl is None or item is None:
             return
+        pos = self._timeline_pos(event.x) if event is not None else None
+        if pos is None:
+            tl.itemconfigure(item, text="")
+            return
+        width = tl.winfo_width()
+        left = event.x > width - 90  # near the right end: the label goes left of the mouse
+        tl.itemconfigure(item, text=short_ts(pos)[:-2], anchor="e" if left else "w")
+        tl.coords(item, event.x - 8 if left else event.x + 8, int(tl.cget("height") or 30) // 2)
+        tl.tag_raise(item)
+
+    def _timeline_scrub(self, event):
+        """Dragging along the strip: move the playhead and the time only. Jumping (editor, transcript, video frame,
+        restarting playback) waits until the mouse rests or is released, so a drag over hours does not start dozens
+        of ffmpeg/ffplay processes."""
+        pos = self._timeline_pos(event.x)
+        if pos is None:
+            return
+        self._timeline_hover(event)
+        self._scrub_target = pos
+        tl, ph = self.timeline, self.__dict__.get("_tl_playhead")
+        if ph is not None:
+            tl.coords(ph, event.x, 0, event.x, int(tl.cget("height") or 30))
+        self.lbl_time.configure(text=f"{short_ts(pos)[:-2]} / {short_ts(self._duration())[:-2]}")
+        job = self.__dict__.get("_scrub_job")
+        if job is not None:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
+        self._scrub_job = self.after(180, self._timeline_settle)
+
+    def _timeline_settle(self):
+        self._scrub_job = None
+        pos = self.__dict__.get("_scrub_target")
+        self._scrub_target = None
+        if pos is not None:
+            self._timeline_jump(pos)
+
+    def _timeline_click(self, event):
+        pos = self._timeline_pos(event.x)
+        if pos is not None:
+            self._scrub_target = None
+            self._timeline_jump(pos)
+
+    def _goto_time_dialog(self, text: Optional[str] = None):
+        """⌘J / Ctrl+J: jump to a time typed as 2:15:30, 135:30 or 8130 (seconds)."""
+        if self.active_doc is None:
+            self.lbl_status.config(text="Open a transcript first.")
+            return
+        if text is None:
+            text = simpledialog.askstring("Go to time", "Time (h:mm:ss, m:ss or seconds):",
+                                          initialvalue=short_ts(self._current_pos())[:-2], parent=self)
+            if text is None:
+                return
+        pos = self._parse_time(text)
+        if pos is None:
+            self.lbl_status.config(text=f"“{text}” is not a time — type e.g. 2:15:30.")
+            return
+        pos = min(pos, self._duration())
+        self._timeline_jump(pos)
+        self.lbl_status.config(text=f"Went to {short_ts(pos)[:-2]}.")
+
+    def _timeline_jump(self, pos: float):
         import bisect
 
-        pos = max(0.0, min(dur, event.x / width * dur))
         i = max(0, bisect.bisect_right(self.span_starts, pos) - 1) if self.span_starts else None
         if i is not None and i < len(self.word_spans):
             self._select_span(i)
@@ -434,6 +521,8 @@ class PlayerMixin:
         self._cd_follow(pos)
 
     def _update_time_label(self):
+        if self.__dict__.get("_scrub_target") is not None:
+            return
         speed = self._speed()
         extra = f"  ·  {self.var_speed.get()}" if abs(speed - 1.0) > 1e-3 else ""
         self.lbl_time.configure(text=f"{short_ts(self._current_pos())[:-2]} / {short_ts(self._duration())[:-2]}{extra}")
@@ -460,7 +549,7 @@ class PlayerMixin:
             return
         self._autosave_edit()
         doc.data["export_formats"] = self._export_formats()
-        created = self._commit(f"Re-exported {doc.base_name} with the current export settings.", undoable=False)
+        created = self._commit(f"Re-exported {doc.base_name} with the current export settings.", undoable=False, export_now=True)
         if created is not None:
             self._append_log(f"Re-exported {', '.join(p.name for p in created.values()) or 'nothing (all formats off)'}", "SUCCESS")
 

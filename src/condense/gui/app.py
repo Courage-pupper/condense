@@ -51,7 +51,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self._combo_values: Dict[str, List[str]] = {}
 
         self.active_doc: Optional[TranscriptDocument] = None
-        self._undo_stacks: Dict[str, Tuple[List, List]] = {}  # per transcript path: (undo, redo) of (label, file text)
+        self._undo_stacks: Dict[str, Tuple[List, List]] = {}  # per transcript path: (undo, redo) of (label, zlib-packed file text)
         self.word_spans: List[Dict] = []
         self.line_spans: Dict[int, List[int]] = {}
         self.low_conf: List[int] = []
@@ -390,6 +390,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         pm.add_command(label="Play / Pause", accelerator="Esc", command=self._toggle_play)
         pm.add_command(label="Back 5 Seconds", accelerator=f"{acc}[", command=lambda: self._seek_rel(-5))
         pm.add_command(label="Forward 5 Seconds", accelerator=f"{acc}]", command=lambda: self._seek_rel(+5))
+        pm.add_command(label="Go to Time…", accelerator=f"{acc}J", command=self._goto_time_dialog)
         pm.add_separator()
         pm.add_command(label="Faster", accelerator=f"{acc}Shift-." if IS_MAC else "Ctrl+Shift+.", command=lambda: self._speed_step(+1))
         pm.add_command(label="Slower", accelerator=f"{acc}Shift-," if IS_MAC else "Ctrl+Shift+,", command=lambda: self._speed_step(-1))
@@ -427,6 +428,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             "1": lambda: self.notebook.select(self.tab_settings), "2": lambda: self.notebook.select(self.tab_console),
             "3": lambda: self.notebook.select(self.tab_preview), "4": lambda: self.notebook.select(self.tab_coding),
             "bracketleft": lambda: self._seek_rel(-5), "bracketright": lambda: self._seek_rel(+5),
+            "j": self._goto_time_dialog,
             "s": self._save_segment_edit,
             "i": self._insert_segment_dialog,
             "slash": self._show_shortcuts,
@@ -612,6 +614,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         proc = self.__dict__.get("_rerun_proc")
         if proc is not None and proc.poll() is None:
             proc.terminate()
+        self._wait_for_exports()
         self.destroy()
 
     # ================================================================== dialogs

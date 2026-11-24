@@ -10,6 +10,7 @@ import bisect
 from condense.core import coding as cod
 from condense.core import episodes as eplib
 from condense.core import project as proj
+from condense.gui import textrender
 from condense.gui._common import *  # noqa: F401,F403
 
 STRIPE_W, STRIPE_GAP, MAX_COLS = 5, 3, 8
@@ -194,6 +195,7 @@ class CodingMixin:
         if doc is None:
             self.lbl_cd_doc.config(text="Open a transcript (Project tab, or Transcript ▸ Open…) to code it.")
             self.cd_text.delete("1.0", tk.END)
+            self._cd["shown_lines"] = None
             return
         self._cd_render(doc)
 
@@ -372,9 +374,7 @@ class CodingMixin:
         previous = doc.path.read_text(encoding="utf-8") if doc.path.exists() else None
         doc.save(backup=True)
         if previous is not None:
-            undo, redo = self._undo_stacks.setdefault(str(doc.path), ([], []))
-            undo.append((message, previous))
-            redo.clear()
+            self._push_undo(doc.path, message, previous)
 
     def _cd_merge_dialog(self, cid: Optional[str], target: Optional[str] = None):
         cb = self._cd_codebook()
@@ -466,7 +466,6 @@ class CodingMixin:
         t = self.cd_text
         self._cd["doc"] = doc
         y = t.yview()[0] if self._cd.get("rendered_for") == str(doc.path) else 0.0
-        t.delete("1.0", tk.END)
         words: List[Tuple] = []  # (line, c0, c1, seg, wi, wid)
         line_words: Dict[int, List[int]] = {}
         roster = self._roster()
@@ -480,8 +479,8 @@ class CodingMixin:
         next_ep, mi = 0, 0
         last_spk = None
 
-        def put(text, *tags):
-            t.insert(tk.END, text, tags)
+        out = textrender.Lines()  # built in Python, then only what changed goes to Tk
+        put = out.put
 
         for i, seg in enumerate(doc.segments):
             if doc.is_segment_cut(i) or is_blank_text(seg.get("text")):
@@ -499,7 +498,7 @@ class CodingMixin:
                 last_spk = None
             spk = seg.get("speaker") or ""
             if spk != last_spk:
-                put(("\n" if t.index("end-1c") != "1.0" else ""))
+                put("" if out.empty else "\n")
                 put(f"{spk or '—'}", "SPK", f"SPKC{roster.index(spk)}" if spk in roster else "TS")
                 put(f"  {short_ts(s0)[:-2]}\n", "TS")
                 last_spk = spk
@@ -507,13 +506,16 @@ class CodingMixin:
                 token = str(w.get("word", "")).strip()
                 if not token:
                     continue
-                line, col = map(int, t.index("end-1c").split("."))
+                line, col = out.line, out.col
                 put(token)
                 words.append((line, col, col + len(token), i, k, w.get("wid")))
                 line_words.setdefault(line, []).append(len(words) - 1)
                 put(" ")
         for r in moments[mi:]:
             self._cd_put_moment(put, r, cb)
+        self._cd["shown_lines"] = textrender.show_lines(t, self._cd.get("shown_lines"), out.lines)
+        for tag in ("sel", "KSEL", "PLAYING", "CODED"):  # as after a full redraw; painted again below where needed
+            t.tag_remove(tag, "1.0", tk.END)
         self._cd.update(words=words, line_words=line_words, resolved=res, rendered_for=str(doc.path), starts=None)
         self._cd["wid_index"] = {w[5]: n for n, w in enumerate(words) if w[5]}
         self._cd["pos_index"] = {(w[3], w[4]): n for n, w in enumerate(words)}
@@ -817,10 +819,7 @@ class CodingMixin:
             messagebox.showerror("Could not save transcript", str(exc), parent=self)
             return
         if previous is not None:
-            undo, redo = self._undo_stacks.setdefault(str(doc.path), ([], []))
-            undo.append((message, previous))
-            del undo[:-100]
-            redo.clear()
+            self._push_undo(doc.path, message, previous)
         self.lbl_status.config(text=message)
 
     def _cd_count(self, code_id: str, delta: int):

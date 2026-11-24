@@ -108,6 +108,8 @@ class FakeProc:
     def poll(self): return None if self.alive else 0
     def terminate(self): self.alive = False
 pipe.subprocess.Popen = FakeProc
+# the last audio-player launch (background threads, e.g. the project panel's ffprobe, launch other commands meanwhile)
+played = lambda: next(c for c in reversed(launched) if c and c[0] in ("ffplay", "afplay"))
 clock = [100.0]
 pipe.time.monotonic = lambda: clock[0]
 
@@ -137,7 +139,7 @@ ok("split before word / merge with next from the editor")
 app._select_span(app.span_lookup[(1, 0)])
 assert abs(app.play_pos - 1.0) < 1e-6
 app._toggle_play()
-assert app.playing and "-ss" in launched[-1] and launched[-1][launched[-1].index("-ss") + 1] == "1.00"
+assert app.playing and "-ss" in played() and played()[played().index("-ss") + 1] == "1.00"
 clock[0] += 0.25 + 2.0
 assert abs(app._current_pos() - 3.0) < 1e-6
 app._follow(app._current_pos())
@@ -145,18 +147,18 @@ assert txt.get(*txt.tags["PLAYING"]) == "geht's?"; app._follow(3.3); assert txt.
 app._toggle_play()
 assert not app.playing and abs(app.play_pos - 3.0) < 1e-6
 app._toggle_play()
-assert launched[-1][launched[-1].index("-ss") + 1] == "3.00"
+assert played()[played().index("-ss") + 1] == "3.00"
 ok("play → pause remembers position → play resumes there; follow highlight on the spoken word")
 app.var_speed.set("0.75×"); app._on_speed_change()
-assert "atempo=0.75" in " ".join(launched[-1])
+assert "atempo=0.75" in " ".join(played())
 clock[0] += 0.25 + 4.0
 assert abs(app._current_pos() - 6.0) < 1e-6
 app._seek_rel(-5)
-assert launched[-1][launched[-1].index("-ss") + 1] == "1.00"
+assert played()[played().index("-ss") + 1] == "1.00"
 app._player_pause()
 ok("slower playback (atempo), position math honours speed, ⟲5 s seeks")
 app._jump_low_conf(+1)
-c = launched[-1]
+c = played()
 assert "-t" in c and app.playing
 ok("jump to uncertain word plays a short snippet")
 app._player_pause()

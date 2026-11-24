@@ -3,22 +3,62 @@ from condense.gui._common import *  # noqa: F401,F403
 
 
 class HistoryMixin:
-    def _commit(self, message: str, undoable: bool = True) -> Optional[Dict[str, Path]]:
-        """Save the master file (with a throttled backup) and regenerate every export.
-        The file as it was before is pushed on the undo stack. Returns the files written, or None."""
+    # From about an hour of conversation on, writing the six exports takes long enough to be felt after every
+    # correction, so they are written by a worker thread from the file just saved. The master file (.transcript.json)
+    # is always saved at once; several saves in a row give one export of the newest state.
+    BACKGROUND_EXPORT_SEGMENTS = 1500
+
+    def _export(self, doc: TranscriptDocument, now: bool = False) -> Dict[str, Path]:
+        if now or len(doc.segments) < self.BACKGROUND_EXPORT_SEGMENTS:
+            self._wait_for_exports()  # never two writers on the same files
+            return doc.export_all()
+        st = self.__dict__.get("_bg_export")
+        if st is None:
+            st = self._bg_export = {"lock": threading.Lock(), "pending": {}, "thread": None}
+        with st["lock"]:
+            st["pending"][str(doc.path)] = doc.path
+            if st["thread"] is None:
+                st["thread"] = threading.Thread(target=self._export_worker, args=(st,), daemon=True)
+                st["thread"].start()
+        return {}
+
+    def _export_worker(self, st: Dict):
+        while True:
+            with st["lock"]:
+                if not st["pending"]:
+                    st["thread"] = None
+                    return
+                path = st["pending"].pop(next(iter(st["pending"])))
+            try:
+                TranscriptDocument.load(path).export_all()  # the saved state; the editor's copy keeps changing
+            except Exception as exc:
+                self.msg_queue.put({"type": "log", "text": f"Could not update the exports of {path.name}: {exc}", "level": "ERROR"})
+
+    def _wait_for_exports(self, timeout: float = 60.0):
+        """Before quitting: let exports that are being written finish."""
+        st = self.__dict__.get("_bg_export")
+        deadline = time.monotonic() + timeout
+        while st is not None and time.monotonic() < deadline:
+            with st["lock"]:
+                thread = st["thread"]
+            if thread is None:
+                return
+            thread.join(timeout=max(0.1, deadline - time.monotonic()))
+
+    def _commit(self, message: str, undoable: bool = True, export_now: bool = False) -> Optional[Dict[str, Path]]:
+        """Save the master file (with a throttled backup) and regenerate every export (long sessions: in the
+        background, see _export). The file as it was before is pushed on the undo stack. Returns the files written
+        now (empty when they are written in the background), or None."""
         doc = self.active_doc
         try:
             previous = doc.path.read_text(encoding="utf-8") if (undoable and doc.path.exists()) else None
             doc.save(backup=True)
-            created = doc.export_all()
+            created = self._export(doc, now=export_now)
         except Exception as exc:
             messagebox.showerror("Could not save transcript", str(exc), parent=self)
             return None
         if previous is not None:
-            undo, redo = self._undo_stacks.setdefault(str(doc.path), ([], []))
-            undo.append((message, previous))
-            del undo[:-100]
-            redo.clear()
+            self._push_undo(doc.path, message, previous)
         self.lbl_status.config(text=message)
         self._update_task_progress(doc)
         self._timeline_redraw()
@@ -41,15 +81,35 @@ class HistoryMixin:
         self._redo()
         return "break"
 
+    # An undo step is the whole transcript file as it was. For a 5-hour session that is ~6.5 MB, so 100 steps held
+    # ~650 MB of memory; zlib (fastest level) makes a step ~1 MB in ~30 ms.
+    UNDO_STEPS = 100
+
+    @staticmethod
+    def _pack_state(text: str) -> bytes:
+        return zlib.compress(text.encode("utf-8"), 1)
+
+    @staticmethod
+    def _unpack_state(packed) -> str:
+        return packed if isinstance(packed, str) else zlib.decompress(packed).decode("utf-8")
+
+    def _push_undo(self, path, message: str, previous_text: str):
+        """A new undo step (the file as it was before a change); clears redo."""
+        undo, redo = self._undo_stacks.setdefault(str(path), ([], []))
+        undo.append((message, self._pack_state(previous_text)))
+        del undo[:-self.UNDO_STEPS]
+        redo.clear()
+
     def _swap_state(self, from_stack: List, to_stack: List, verb: str):
         doc = self.active_doc
-        label, text = from_stack.pop()
-        to_stack.append((label, doc.path.read_text(encoding="utf-8")))
+        label, packed = from_stack.pop()
+        text = self._unpack_state(packed)
+        to_stack.append((label, self._pack_state(doc.path.read_text(encoding="utf-8"))))
         keep_seg = self.edit_seg_idx
         doc.data = json.loads(text)
         try:
             doc.save(backup=True)
-            doc.export_all()
+            self._export(doc)
         except Exception as exc:
             messagebox.showerror("Could not save transcript", str(exc), parent=self)
             return

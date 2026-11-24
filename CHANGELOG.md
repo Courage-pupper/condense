@@ -2,6 +2,22 @@
 
 ## 0.19.0 — unreleased
 
+### Long sessions (3–5 hours) stay responsive
+- **Corrections no longer redraw the whole transcript.** After saving a segment, changing a speaker, splitting,
+  merging, undo …, only the lines that changed are redrawn; the rest stays as it is (also in the Coding tab when you
+  code). On a 5-hour session that is one or two lines instead of ~30 000 words. Opening a transcript sends the text in
+  a few large pieces instead of one piece per word.
+- **Exports of long sessions are written in the background** (from about an hour of conversation): the transcript
+  itself is saved at once, the `.srt`, `.vtt`, `.txt` and `.rtf` files a moment later. Quitting waits for them.
+  Exports are also faster to write.
+- **Dragging along the timeline** moves only the playhead; Condense jumps there once you stop or let go, instead of
+  starting a video frame and the player for every mouse movement. The timeline shows the **time under the mouse**.
+- **Go to time** (⌘J / Ctrl+J, *Playback ▸ Go to Time…*): type `2:15:30`.
+- Video frames are taken one at a time; moving quickly through the transcript only asks for the newest one.
+- The timeline draws segments that fall on the same pixels as one shape.
+- **Undo needs far less memory:** each undo step is kept compressed. On a 5-hour transcript, 100 steps took ~650 MB;
+  now ~110 MB.
+
 ### Link a video to a transcript
 - **Playback ▾ ▸ Link a video…** (also a button in the empty video panel) shows a video with a transcript that has
   none, without compressing anything again: the original recording of a transcript made from a LosslessCut-trimmed
