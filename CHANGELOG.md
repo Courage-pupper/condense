@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.20.0 — unreleased
+
+### Episode clips get their own transcript folder
+- **Export clip…** now lays a clip out like transcribing it: `Semi-structured Interviews/G3D1_I1.mp4` and, next to it,
+  the folder `G3D1_I1/` with the clip's transcript, its exports and the `.episode.json` record. Before, the exports of
+  every clip landed loose in the interviews folder.
+- The folder holds a real **`.transcript.json`** timed to the clip: it keeps the corrections, speakers, checked marks
+  and notes made in the session transcript, and opens, edits and codes like any transcript. The project overview shows
+  the clip as transcribed.
+- Exporting the same episode again asks first and keeps the old transcript in `_backups`.
+
 ## 0.19.0 — unreleased
 
 ### Long sessions (3–5 hours) stay responsive

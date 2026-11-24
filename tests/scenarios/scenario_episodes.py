@@ -167,12 +167,48 @@ app._on_episode_msg(msg)
 from condense.media import trim as trimlib
 dur = trimlib.probe(out / "G1D1_I1_new.mp4")["duration"]
 assert abs(dur - (ep["end"] - ep["start"])) < 0.3, dur
-srt = (out / "G1D1_I1_new.srt").read_text()
+res = out / "G1D1_I1_new"  # like transcribing the clip: Interviews/G1D1_I1_new.mp4 → Interviews/G1D1_I1_new/
+assert not (out / "G1D1_I1_new.srt").exists() and not (out / "G1D1_I1_new.episode.json").exists()
+srt = (res / "G1D1_I1_new.srt").read_text()
 assert srt.splitlines()[1].startswith("00:00:0"), srt[:200]  # starts at the clip's beginning
 assert "segment 9 says" in srt and "segment 3 says" not in srt
-rec = json.loads((out / "G1D1_I1_new.episode.json").read_text())
+rec = json.loads((res / "G1D1_I1_new.episode.json").read_text())
 assert rec["episode"]["label"] == "G1D1_I1" and rec["mode"] == "exact"
-ok(f"clip {dur:.1f} s, its SRT starts at 0, only the interview's segments; .episode.json record")
+ok(f"clip {dur:.1f} s in the interviews folder; its SRT (starts at 0, only the interview's segments) and .episode.json "
+   "in a folder named like the clip")
+cd = TD.load(res / "G1D1_I1_new.transcript.json")
+session_doc = TD.load(doc.path)
+inside = [session_doc.segments[i] for i in session_doc.episode_segments(ep) if not session_doc.is_segment_cut(i)]
+assert inside and [sg["text"] for sg in cd.segments] == [sg["text"] for sg in inside], ([sg["text"] for sg in cd.segments], [sg["text"] for sg in inside])
+assert all(abs(max(0.0, a["start"] - ep["start"]) - b["start"]) < 0.1 for a, b in zip(inside, cd.segments))
+assert cd.media_path("playback").resolve() == (out / "G1D1_I1_new.mp4").resolve() == cd.media_path("video").resolve()
+assert cd.data["provenance"]["episode_of"]["transcript"] == str(doc.path) and cd.data["next_wid"] == session_doc.data["next_wid"]
+assert {sg.get("speaker") for sg in cd.segments} <= set(cd.roster())
+inv = proj.inventory(study)
+item = next(i for i in inv if i.get("media") is not None and i["media"].name == "G1D1_I1_new.mp4")
+assert item["role"] == "interview" and item["transcript"].resolve() == (res / "G1D1_I1_new.transcript.json").resolve(), item
+assert not any(i.get("media") is None and i["transcript"] == item["transcript"] for i in inv)
+ok("the clip has a real transcript (.transcript.json, timed to the clip, playback = the clip); the project lists the "
+   "clip as a transcribed interview")
+cd.segments[0]["text"] = " edited in the clip transcript"
+cd.save()
+asked = []
+real_ask = pipe.messagebox.askyesno
+pipe.messagebox.askyesno = lambda *a, **k: asked.append(a) or False  # "No": nothing is replaced
+win, dlg = app._export_episode_dialog(ep)
+dlg["name"].set("G1D1_I1_new"); dlg["dir"].set(str(out))
+assert dlg["go"]() is None and asked and "its transcript" in asked[0][1]
+assert "edited in the clip transcript" in (res / "G1D1_I1_new.transcript.json").read_text()
+pipe.messagebox.askyesno = real_ask
+app._start_episode_export(session, ep, "G1D1_I1_new", out, "exact", wait=True)
+msg = app.msg_queue.get_nowait()
+while msg.get("type") != "episode":
+    msg = app.msg_queue.get_nowait()
+app._on_episode_msg(msg)
+backups = list((res / "_backups").glob("G1D1_I1_new.*.transcript.json"))
+assert backups and "edited in the clip transcript" in backups[0].read_text()
+assert "edited in the clip transcript" not in (res / "G1D1_I1_new.transcript.json").read_text()
+ok("exporting again replaces the clip's transcript and keeps the old one as a backup")
 
 print("[6] project settings: episode types become filters")
 win, ps = app._project_settings_dialog()

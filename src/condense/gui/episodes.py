@@ -250,9 +250,10 @@ class EpisodesMixin:
         win.configure(bg=T["bg_panel"], padx=16, pady=14)
         win.transient(self)
         self._label(win, eplib.describe(ep, short_ts), font="body_bold", bg=T["bg_panel"]).pack(anchor="w")
-        self._label(win, "Writes the clip and a transcript timed to it (subtitles, TXT, paragraphs for MAXQDA). Import the two "
-                         "together.", font="small", fg=T["fg_secondary"], bg=T["bg_panel"], wraplength=520, justify=tk.LEFT
-                    ).pack(anchor="w", pady=(4, 8))
+        self._label(win, "Writes the clip into the folder and, next to it, a folder of the same name with the clip's transcript "
+                         "and its exports — the same layout as transcribing the clip (Interviews/G3D1_I1.mp4 → Interviews/G3D1_I1/). "
+                         "The transcript keeps your corrections and speakers, and opens and codes like any other.", font="small",
+                    fg=T["fg_secondary"], bg=T["bg_panel"], wraplength=520, justify=tk.LEFT).pack(anchor="w", pady=(4, 8))
         project, st = self._structure_ctx()
         if st is not None and ep["type"] == "Interview" and not st.parse_clip_name(ep.get("label") or ""):
             default_name = self._next_interview_name() or f"{doc.base_name}_{ep['type']}"
@@ -283,7 +284,10 @@ class EpisodesMixin:
             if target.resolve() == Path(src).resolve():
                 lbl.config(text="That would overwrite the recording itself. Choose another name or folder.")
                 return None
-            if target.exists() and not messagebox.askyesno("Export clip", f"{target.name} already exists. Replace it?", parent=win):
+            old_transcript = out / name / f"{name}{TranscriptDocument.SUFFIX}"
+            if (target.exists() or old_transcript.exists()) and not messagebox.askyesno(
+                    "Export clip", f"{name} was exported before. Replace the clip and its transcript?\n\nChanges made to that "
+                    "transcript since are replaced too (a backup of it is kept in its _backups folder).", parent=win):
                 return None
             self.settings["episode_mode"] = v_mode.get()
             self.settings.setdefault("episode_dirs", {})[ep["type"]] = str(out)
@@ -326,12 +330,22 @@ class EpisodesMixin:
         if doc is None or str(doc.path) != msg["doc"]:
             doc = TranscriptDocument.load(Path(msg["doc"]))
         kept = [tuple(k) for k in msg["kept"]]
-        out_dir = Path(msg["out_dir"])
-        created = doc.export_episode(msg["ep"], kept, msg["name"], out_dir)
+        clip = Path(msg["dst"])
+        res_dir = Path(msg["out_dir"]) / msg["name"]  # like transcribing the clip: Interviews/G3D1_I1.mp4 → Interviews/G3D1_I1/
+        res_dir.mkdir(parents=True, exist_ok=True)
+        previous = res_dir / f"{msg['name']}{TranscriptDocument.SUFFIX}"
+        if previous.exists():
+            try:
+                TranscriptDocument.load(previous).backup_now()
+            except Exception as exc:
+                self._append_log(f"Could not back up {previous.name} before replacing it: {exc}", "WARN")
+        clip_doc = doc.episode_document(msg["ep"], kept, msg["name"], res_dir, clip)
+        clip_doc.save()
+        created = clip_doc.export_all()
         record = {"created": now_iso(), "app": {"name": "Condense", "version": __version__}, "source": msg["src"],
                   "transcript": msg["doc"], "episode": msg["ep"], "mode": msg["mode"], "kept_as_written": [list(k) for k in kept],
                   "note": "Times in 'episode' are on the source recording; the clip's transcript starts at 0."}
-        (out_dir / f"{msg['name']}.episode.json").write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+        (res_dir / f"{msg['name']}.episode.json").write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
         doc.log_edit("export_episode", id=msg["ep"]["id"], output=Path(msg["dst"]).name, mode=msg["mode"])
         if msg["ep"]["type"] == "Interview":  # the episode now carries the clip's name and knows its clip
             doc.update_episode(msg["ep"]["id"], label=msg["name"], source={"clip": msg["dst"], "exported": now_iso()})
@@ -339,9 +353,11 @@ class EpisodesMixin:
         if self.active_doc is not None and str(self.active_doc.path) == msg["doc"]:
             self.active_doc = doc
             self._rerender()
-        line = f"Clip: {msg['dst']} — transcript: {', '.join(p.name for p in created.values())}"
+        line = f"Clip: {msg['dst']} — transcript and exports in {res_dir}: {clip_doc.path.name}, " \
+               f"{', '.join(p.name for p in created.values())}"
         self._append_log(line, "SUCCESS")
-        self.lbl_status.config(text=f"Exported {Path(msg['dst']).name} with its transcript.")
+        self.lbl_status.config(text=f"Exported {clip.name}; its transcript is in the folder {res_dir.name} next to it.")
+        self._forget_project_cache()
 
     # ================================================================== find cut-out clips in the recording
     def _candidate_clips(self) -> List[Path]:

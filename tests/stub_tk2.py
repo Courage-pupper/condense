@@ -123,7 +123,7 @@ class Text(W):
 
 
 tk = types.ModuleType("tkinter")
-for n in ["Tk", "Frame", "Label", "Entry", "Scale", "Spinbox", "Checkbutton", "Toplevel", "Canvas", "PanedWindow",
+for n in ["Tk", "Frame", "Label", "Entry", "Scale", "Spinbox", "Checkbutton", "Radiobutton", "Toplevel", "Canvas", "PanedWindow",
           "StringVar", "BooleanVar", "IntVar", "DoubleVar"]:
     setattr(tk, n, type(n, (W,), {}))
 tk.Text = Text
