@@ -11,6 +11,20 @@
   the clip as transcribed.
 - Exporting the same episode again asks first and keeps the old transcript in `_backups`.
 
+### Long recordings: fewer stretches Whisper skips
+- **Settings ▸ Long recordings — Split at pauses if over 1 hour** (the default; also *Always* or *In one go*): Whisper
+  transcribes long recordings in pieces of about 4 minutes, cut in the quietest moment, each started fresh with the
+  vocabulary. Over hours Whisper otherwise loses track after one bad window and skips or repeats long stretches; now
+  such an error stays inside its piece. Long silences are left out (Whisper invents text there); anything with sound
+  is transcribed. The pieces are recorded in the transcript's provenance.
+- **Transcript ▾ ▸ Find untranscribed stretches…** lists where the recording has voices as loud as the transcribed
+  talk but the transcript has nothing, to listen to and re-transcribe one after another (also for transcripts made
+  before).
+- **Right-click in the transcript ▸ Re-transcribe this passage…** with the times of what you highlighted (or of the
+  segment under the mouse); *Play this passage* too.
+- Reading a recording's sound (finding clips, linking a video, untranscribed stretches) no longer holds it all in
+  memory: 5 hours took ~600 MB.
+
 ### Video with subtitles
 - **Transcript ▾ ▸ Video with subtitles…** (and right-click transcripts in the Project tab, several at once): a copy of
   the video with the transcript as subtitles, next to the transcript. As a **subtitle track** (seconds, nothing

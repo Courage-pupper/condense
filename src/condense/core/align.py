@@ -71,6 +71,39 @@ def _ncc(long: np.ndarray, short: np.ndarray) -> np.ndarray:
     return corr / (m * std)
 
 
+def stream_envelope(path: Path, stop=None, on_progress: Optional[Callable[[float], None]] = None,
+                    total: Optional[float] = None) -> np.ndarray:
+    """envelope(_decode(path)) without holding the decoded sound in memory (5 hours at 8 kHz would be ~600 MB)."""
+    cmd = ["ffmpeg", "-hide_banner", "-nostdin", "-loglevel", "error", "-i", str(path), "-vn", "-ac", "1", "-ar", str(RATE),
+           "-f", "s16le", "-"]
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, rest, got = [], np.zeros(0, np.float32), 0
+    try:
+        while True:
+            if stop is not None and stop.is_set():
+                proc.kill()
+                raise InterruptedError("Cancelled.")
+            buf = proc.stdout.read(RATE * 2 * 30)
+            if not buf:
+                break
+            x = np.concatenate([rest, np.frombuffer(buf[: len(buf) // 2 * 2], dtype="<i2").astype(np.float32) / 32768.0])
+            got += len(buf) // 2
+            k = len(x) // HOP
+            if k:
+                fr = x[: k * HOP].reshape(k, HOP)
+                out.append(np.log10(np.mean(fr * fr, axis=1) + 1e-8).astype(np.float32))
+            rest = x[k * HOP:]
+            if on_progress and total:
+                on_progress(min(1.0, got / RATE / total))
+    finally:
+        proc.stdout.close()
+        err = proc.stderr.read().decode("utf-8", "replace")
+        proc.wait()
+    if proc.returncode != 0:
+        raise RuntimeError(f"ffmpeg could not read {Path(path).name}: {err.strip()[-300:]}")
+    return np.concatenate(out) if out else np.zeros(0, np.float32)
+
+
 class SessionAudio:
     """The full recording, decoded once (and cached on disk) so several clips can be matched against it."""
 
@@ -82,7 +115,7 @@ class SessionAudio:
         if cached is not None and cached.exists():
             self.env = np.load(cached)
         else:
-            self.env = envelope(_decode(self.path, stop=stop, on_progress=on_progress, total=duration))
+            self.env = stream_envelope(self.path, stop=stop, on_progress=on_progress, total=duration)
             if cached is not None:
                 cached.parent.mkdir(parents=True, exist_ok=True)
                 np.save(cached, self.env)

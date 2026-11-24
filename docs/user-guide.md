@@ -50,6 +50,9 @@ The install guides cover one-line installation for [macOS](install-mac.md), [Lin
      speech.
    - **Language:** set it for single-language sessions. *Auto* only listens to the first 30 seconds.
    - **Vocabulary:** names, places and activity words Whisper should expect (`Robin, Sam, Riverside Club, papier-mâché`).
+   - **Long recordings:** Whisper can lose track over hours and skip or repeat long stretches. *Split at pauses if over
+     1 hour* (the default) transcribes such recordings in pieces of a few minutes, cut in pauses, each started fresh with
+     your vocabulary, so an error stays inside its piece. Long silences are left out; anything with sound is transcribed.
    - **Clean up for Whisper:** *Level quiet voices* helps with soft-spoken children. *Reduce noise + level voices* also
      helps in noisy rooms. Only what Whisper hears is cleaned; your video and audio stay as they are.
    - **Diarization / Speakers:** detects who speaks when. You get `SPEAKER_00`, `SPEAKER_01`, … and give them names
@@ -145,8 +148,14 @@ percentage for each task. Condense remembers where you stopped in each transcrip
 and Ctrl+Shift+L, I, U, C, P, G, N on Linux and Windows. They insert `[laughs]`, `[inaudible 0:12:31]`, `[unclear: ]`,
 `[crosstalk]`, `[pause]`, `[German]` and `[gestures]`.
 
-**When Whisper got a passage badly wrong** (mumbling, a switch of language): select it and use *Edit ▸ Re-transcribe
-Passage…* (⌘⇧R / Ctrl+Shift+R) with a bigger model or a forced language. *Split (S)*, *Merge (M)*, *+ Insert (I)* and *Delete* in the editor fix
+**When Whisper got a passage badly wrong** (mumbling, a switch of language): highlight it and right-click ▸
+*Re-transcribe this passage…* (the times of what you highlighted are filled in), or use *Edit ▸ Re-transcribe
+Passage…* (⌘⇧R / Ctrl+Shift+R), with a bigger model or a forced language.
+
+**When Whisper skipped something:** *Transcript ▾ ▸ Find untranscribed stretches…* lists the stretches where the
+recording has voices as loud as the transcribed talk but the transcript has nothing. Listen to them, then
+*Re-transcribe selected (or all)*: they are transcribed one after another with the transcript's model, language and
+vocabulary, each one undo step. *Split (S)*, *Merge (M)*, *+ Insert (I)* and *Delete* in the editor fix
 the segmentation; *More ▾* reverts your changes.
 
 ![All keyboard shortcuts](images/shortcuts.png)

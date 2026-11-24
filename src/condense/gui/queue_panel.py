@@ -215,6 +215,7 @@ class QueueMixin:
             "whisper_backend": self.var_whisper_backend.get(), "whisper_model": self.var_whisper_model.get(),
             "whisper_lang": self.var_whisper_lang.get(), "diarize_mode": self.var_diarize_mode.get(), "num_speakers": num_speakers,
             "whisper_prompt": self.var_whisper_prompt.get().strip(),
+            "whisper_chunking": self.var_whisper_chunking.get(),
             **{f"fmt_{k}": v for k, v in self._export_formats().items()},
         }
 

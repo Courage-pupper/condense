@@ -1,12 +1,17 @@
 """The script Condense runs in the Whisper Python: `python -c WHISPER_RUNNER <args>`."""
 
 # Script run in the Whisper Python (the one with mlx-whisper / torch), as `python -c WHISPER_RUNNER <args>`.
-# Options via environment: PIPELINE_HF_TOKEN, PIPELINE_TASK, PIPELINE_PROMPT, PIPELINE_MODE, PIPELINE_SEGMENTS_JSON.
-WHISPER_RUNNER = """
+# Options via environment: PIPELINE_HF_TOKEN, PIPELINE_TASK, PIPELINE_PROMPT, PIPELINE_MODE, PIPELINE_SEGMENTS_JSON,
+# PIPELINE_CHUNKING (off | auto | on: transcribe in pieces split at pauses; auto = recordings over an hour),
+# PIPELINE_CHUNK_SECONDS (target length of a piece). The source of chunking.py is put in where #@CHUNKING@ stands.
+from pathlib import Path as _Path
+
+_RUNNER_TEMPLATE = """
 import json, math, os, sys, wave
 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")  # must be set before torch is imported
 
 import numpy as np
+#@CHUNKING@
 
 audio_path = sys.argv[1]
 wav_16k_path = sys.argv[2]
@@ -38,9 +43,68 @@ prompt = os.environ.get("PIPELINE_PROMPT", "").strip()
 if prompt:
     kwargs["initial_prompt"] = prompt  # vocabulary: names, places, activity words
 MODE = os.environ.get("PIPELINE_MODE", "full")  # "full" or "diarize_only" (speakers for existing segments)
+CHUNKING = os.environ.get("PIPELINE_CHUNKING", "off").strip().lower()
+CHUNK_SECONDS = float(os.environ.get("PIPELINE_CHUNK_SECONDS", "240") or 240)
+EXTRA = {"hallucination_silence_threshold": 2.0}  # dropped for older versions that do not know it
+chunk_info = None
+
+def call_whisper(fn, audio, kw):
+    global EXTRA
+    if EXTRA:
+        try:
+            return fn(audio, **EXTRA, **kw)
+        except TypeError:  # older mlx-whisper / openai-whisper without this option
+            EXTRA = {}
+    return fn(audio, **kw)
+
+def plan_pieces():
+    \"\"\"The pieces to transcribe (None: the whole file in one go).\"\"\"
+    if CHUNKING not in ("auto", "on") or not os.path.exists(wav_16k_path):
+        return None
+    try:
+        with wave.open(wav_16k_path, "rb") as wf:
+            if wf.getframerate() != 16000 or wf.getsampwidth() != 2:
+                print("Audio is not 16 kHz PCM: transcribing in one go.", flush=True)
+                return None
+        db, dur = wav_loudness(wav_16k_path)
+    except Exception as exc:
+        print(f"Could not measure the audio ({exc}): transcribing in one go.", flush=True)
+        return None
+    if CHUNKING == "auto" and dur <= 3600:
+        return None
+    plan = plan_chunks(db, dur, target_s=CHUNK_SECONDS, max_s=CHUNK_SECONDS * 1.5)
+    if len(plan) == 1 and plan[0][0] <= 0.05 and plan[0][1] >= dur - 0.05:
+        return None
+    return plan, dur
+
+def transcribe_recording(fn):
+    global chunk_info
+    planned = plan_pieces()
+    if planned is None:
+        return call_whisper(fn, audio_path, dict(kwargs))
+    plan, dur = planned
+    total = sum(b - a for a, b in plan)
+    print(f"Transcribing in {len(plan)} pieces split at pauses ({dur - total:.0f} s of silence left out); "
+          "each piece starts fresh, so an error stays inside its piece.", flush=True)
+    segs, lang_found, done = [], None, 0.0
+    for k, (a, b) in enumerate(plan):
+        kw = dict(kwargs)
+        kw["verbose"] = None  # no progress bar per piece: the overall progress is printed below
+        if lang_found and "language" not in kw:
+            kw["language"] = lang_found  # the language found in the first piece, for all of them
+        r = call_whisper(fn, read_wav_slice(wav_16k_path, a, b), kw)
+        lang_found = lang_found or r.get("language")
+        segs += shift_result(r, a)
+        done += b - a
+        print(f"{int(100 * done / total)}%| piece {k + 1}/{len(plan)} ({a:.0f}-{b:.0f} s)", flush=True)
+    for i, sg in enumerate(segs):
+        sg["id"] = i
+    chunk_info = {"pieces": [[a, b] for a, b in plan], "target_s": CHUNK_SECONDS, "silence_left_out_s": round(dur - total, 1)}
+    return {"text": "".join(str(sg.get("text", "")) for sg in segs), "segments": segs, "language": lang_found}
 
 result = None
 backend_label = ""
+transcribe_fn = None
 if MODE == "diarize_only":
     with open(os.environ["PIPELINE_SEGMENTS_JSON"], encoding="utf-8") as fh:
         result = {"segments": json.load(fh)}
@@ -55,17 +119,13 @@ elif backend.startswith("MLX"):
     if mlx_whisper is not None:
         repo = MLX_REPOS.get(model_name, model_name)
         print(f"Running MLX Whisper ({repo}) on the Apple Silicon GPU. First run downloads the model.", flush=True)
-        try:
-            result = mlx_whisper.transcribe(audio_path, path_or_hf_repo=repo, hallucination_silence_threshold=2.0, **kwargs)
-            kwargs["hallucination_silence_threshold"] = 2.0
-        except TypeError:  # older mlx-whisper without this option
-            result = mlx_whisper.transcribe(audio_path, path_or_hf_repo=repo, **kwargs)
+        transcribe_fn = lambda audio, **kw: mlx_whisper.transcribe(audio, path_or_hf_repo=repo, **kw)
         backend_label = "MLX on Apple Silicon GPU"
 
 def gpu_api_label(torch_mod):
     return "ROCm" if getattr(torch_mod.version, "hip", None) else "CUDA"
 
-if result is None:
+if result is None and transcribe_fn is None:
     # openai-whisper on a CUDA device: NVIDIA (CUDA) or AMD (ROCm builds of PyTorch use the same torch.cuda API).
     # Apple's MPS stays off: openai-whisper is unreliable there (sparse alignment-head tensors, fp16 NaNs).
     whisper_device, gpu_label = "cpu", ""
@@ -84,12 +144,14 @@ if result is None:
         print(f"Running openai-whisper '{model_name}' on the {gpu_label}. First run downloads the model.", flush=True)
     model = whisper.load_model(model_name, device=whisper_device)
     use_fp16 = whisper_device == "cuda"
-    try:
-        result = model.transcribe(audio_path, fp16=use_fp16, hallucination_silence_threshold=2.0, **kwargs)
-        kwargs["hallucination_silence_threshold"] = 2.0
-    except TypeError:
-        result = model.transcribe(audio_path, fp16=use_fp16, **kwargs)
+    transcribe_fn = lambda audio, **kw: model.transcribe(audio, fp16=use_fp16, **kw)
     backend_label = f"openai-whisper on {gpu_label}" if gpu_label else "openai-whisper on CPU"
+
+if result is None:
+    result = transcribe_recording(transcribe_fn)
+    kwargs.update(EXTRA)  # recorded in the provenance with the other options
+    if chunk_info is not None:
+        result["chunking"] = chunk_info
 
 segments = result.get("segments", [])
 result["diarization_method"] = "Disabled"
@@ -365,12 +427,15 @@ result["runtime"] = {
     "packages": {d: _pkg_version(d) for d in ("mlx-whisper", "mlx", "openai-whisper", "torch", "pyannote.audio", "numpy")},
     "mlx_repo": MLX_REPOS.get(model_name, model_name) if backend_label.startswith("MLX") else None,
     "transcribe_options": {k: v for k, v in kwargs.items() if k != "verbose"},
+    "chunking": chunk_info,
 }
 
 with open(out_json, "w", encoding="utf-8") as f:
     json.dump(result, f, ensure_ascii=False, indent=2)
 print("WHISPER_DONE=1", flush=True)
 """
+
+WHISPER_RUNNER = _RUNNER_TEMPLATE.replace("#@CHUNKING@\n", (_Path(__file__).with_name("chunking.py")).read_text(encoding="utf-8") + "\n")
 
 
 def runner_command(python: str, temp_dir) -> list:

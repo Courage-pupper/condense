@@ -23,6 +23,8 @@ class SettingsTabMixin:
         card.row += 1
         return widget
 
+    CHUNKING_CHOICES = ("Split at pauses if over 1 hour", "Always split at pauses", "In one go (Whisper's default)")
+
     def _row_combo(self, card, label: str, var, values: List[str], key: str):
         cb = ttk.Combobox(card.form, textvariable=var, values=values, state="readonly", font=self.f["body"], width=18)
         self._persist[key] = var
@@ -113,6 +115,11 @@ class SettingsTabMixin:
         self._row_combo(aw, "Model", self.var_whisper_model, ["tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"], "whisper_model")
         self.var_whisper_lang = tk.StringVar(value="auto (Auto-Detect)")
         self._row_combo(aw, "Language", self.var_whisper_lang, WHISPER_LANGUAGES, "whisper_lang")
+        self.var_whisper_chunking = tk.StringVar(value=self.CHUNKING_CHOICES[0])
+        self._row_combo(aw, "Long recordings", self.var_whisper_chunking, list(self.CHUNKING_CHOICES), "whisper_chunking")
+        self._row_full(aw, self._wrapping_label(aw.form, "Split at pauses: Whisper transcribes pieces of a few minutes, each started "
+                                                          "fresh, so it cannot lose track for long stretches; long silences are left out.",
+                                                font="small", fg=T["fg_dim"]), pady=(0, 4))
         self.var_whisper_prompt = tk.StringVar(value="")
         self._persist["whisper_prompt"] = self.var_whisper_prompt
         self._row_widget(aw, "Vocabulary", self._entry(aw.form, self.var_whisper_prompt, font="small"))
