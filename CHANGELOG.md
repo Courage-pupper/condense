@@ -2,6 +2,14 @@
 
 ## 0.17.0 — unreleased
 
+### Link a video to a transcript
+- **Playback ▾ ▸ Link a video…** (also a button in the empty video panel) shows a video with a transcript that has
+  none, without compressing anything again: the original recording of a transcript made from a LosslessCut-trimmed
+  video without *Compress*, a video that was moved or renamed, or a separate camera's video that started earlier or
+  later. Condense lines it up with the transcript by its sound (each kept LosslessCut part separately, to a few
+  hundredths of a second) and saves the link in the transcript; the video file is not changed. *Unlink the video*
+  removes the link, and undo works.
+
 ### Fixed
 - **↑/↓ in the transcript on a Mac** move between segments again. The Mac sends arrow keys with its *fn* bit set, and
   Condense took that for a shortcut and ignored them (the same happened on Windows with Num Lock on).

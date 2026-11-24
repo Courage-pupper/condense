@@ -106,6 +106,15 @@ tab opens:
 player); in the segment editor *Mark checked*, *Split*, *Merge*, *+ Insert*, *Delete*, *More ▾* (re-transcribe, revert,
 markers), *Save* and *Save & next*.
 
+**No video next to the transcript?** That happens when the recording was trimmed (LosslessCut) and transcribed without
+*Compress* in an older version, when the video was moved or renamed, or when the picture comes from a separate camera.
+Choose *Link a video…* in the empty video panel (or *Playback ▾ ▸ Link a video…*) and pick the video. Condense finds
+where the transcript's sound is in it and shows the matching picture: for a LosslessCut-trimmed transcript, the parts of
+the original recording that were kept; for a camera that started earlier or later, the same moment. Nothing is
+re-encoded and the video file is not changed; the link is saved in the transcript (undo works, *Unlink the video* removes
+it). Where the linked video has no picture for a moment, the panel says so. *Export trimmed video & transcript…* only
+uses a linked video if it is on the transcript's own timeline; otherwise it cuts the transcript's audio.
+
 **A fast review loop:** click into the transcript, then
 
 | Key | |
