@@ -64,6 +64,8 @@ edit("speaker", lambda: (app._select_span(app.span_lookup[(mid + 3, 0)]), app._a
 edit("checked", app._toggle_checked)
 edit("split", lambda: (app._select_span(app.span_lookup[(mid + 5, 2)]), app._split_at_current_word()))
 edit("merge", lambda: (app._select_span(app.span_lookup[(mid + 8, 0)]), app._merge_with_next()))
+packed = app._undo_stacks[str(doc.path)][0][-1][1]
+assert isinstance(packed, bytes) and len(packed) * 4 < doc.path.stat().st_size, len(packed)
 edit("undo", app._undo)
 edit("redo", app._redo)
 app.var_view_mode.set("Segments")

@@ -374,9 +374,7 @@ class CodingMixin:
         previous = doc.path.read_text(encoding="utf-8") if doc.path.exists() else None
         doc.save(backup=True)
         if previous is not None:
-            undo, redo = self._undo_stacks.setdefault(str(doc.path), ([], []))
-            undo.append((message, previous))
-            redo.clear()
+            self._push_undo(doc.path, message, previous)
 
     def _cd_merge_dialog(self, cid: Optional[str], target: Optional[str] = None):
         cb = self._cd_codebook()
@@ -821,10 +819,7 @@ class CodingMixin:
             messagebox.showerror("Could not save transcript", str(exc), parent=self)
             return
         if previous is not None:
-            undo, redo = self._undo_stacks.setdefault(str(doc.path), ([], []))
-            undo.append((message, previous))
-            del undo[:-100]
-            redo.clear()
+            self._push_undo(doc.path, message, previous)
         self.lbl_status.config(text=message)
 
     def _cd_count(self, code_id: str, delta: int):

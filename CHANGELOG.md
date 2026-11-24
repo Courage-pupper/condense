@@ -15,6 +15,8 @@
 - **Go to time** (⌘J / Ctrl+J, *Playback ▸ Go to Time…*): type `2:15:30`.
 - Video frames are taken one at a time; moving quickly through the transcript only asks for the newest one.
 - The timeline draws segments that fall on the same pixels as one shape.
+- **Undo needs far less memory:** each undo step is kept compressed. On a 5-hour transcript, 100 steps took ~650 MB;
+  now ~110 MB.
 
 ### Link a video to a transcript
 - **Playback ▾ ▸ Link a video…** (also a button in the empty video panel) shows a video with a transcript that has

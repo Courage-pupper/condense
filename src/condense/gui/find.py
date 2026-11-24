@@ -202,9 +202,7 @@ class FindMixin:
                 doc.export_all()
                 changed[str(path)] = n
                 if active is not None and Path(active.path).resolve() == path.resolve():
-                    undo, redo = self._undo_stacks.setdefault(str(active.path), ([], []))
-                    undo.append((f"Replaced {n} occurrence(s) in all transcripts", previous))
-                    redo.clear()
+                    self._push_undo(active.path, f"Replaced {n} occurrence(s) in all transcripts", previous)
             except Exception as exc:
                 self._append_log(f"Could not change {path.name}: {exc}", "ERROR")
         if active is not None and any(Path(p).resolve() == Path(active.path).resolve() for p in changed):

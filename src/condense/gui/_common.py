@@ -13,6 +13,7 @@ import sys
 import tempfile
 import threading
 import time
+import zlib
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple

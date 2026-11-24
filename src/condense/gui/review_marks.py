@@ -71,9 +71,7 @@ class ReviewMarksMixin:
                     n = doc.set_all_checked(checked)
                     if n:
                         doc.save(backup=True)
-                        undo, redo = self._undo_stacks.setdefault(str(doc.path), ([], []))
-                        undo.append((f"Marked the whole transcript {what}", previous))
-                        redo.clear()
+                        self._push_undo(doc.path, f"Marked the whole transcript {what}", previous)
                 except Exception as exc:
                     self._append_log(f"Could not mark {path.name}: {exc}", "ERROR")
                     continue

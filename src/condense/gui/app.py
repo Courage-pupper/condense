@@ -51,7 +51,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self._combo_values: Dict[str, List[str]] = {}
 
         self.active_doc: Optional[TranscriptDocument] = None
-        self._undo_stacks: Dict[str, Tuple[List, List]] = {}  # per transcript path: (undo, redo) of (label, file text)
+        self._undo_stacks: Dict[str, Tuple[List, List]] = {}  # per transcript path: (undo, redo) of (label, zlib-packed file text)
         self.word_spans: List[Dict] = []
         self.line_spans: Dict[int, List[int]] = {}
         self.low_conf: List[int] = []

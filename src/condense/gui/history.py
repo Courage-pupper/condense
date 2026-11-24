@@ -58,10 +58,7 @@ class HistoryMixin:
             messagebox.showerror("Could not save transcript", str(exc), parent=self)
             return None
         if previous is not None:
-            undo, redo = self._undo_stacks.setdefault(str(doc.path), ([], []))
-            undo.append((message, previous))
-            del undo[:-100]
-            redo.clear()
+            self._push_undo(doc.path, message, previous)
         self.lbl_status.config(text=message)
         self._update_task_progress(doc)
         self._timeline_redraw()
@@ -84,10 +81,30 @@ class HistoryMixin:
         self._redo()
         return "break"
 
+    # An undo step is the whole transcript file as it was. For a 5-hour session that is ~6.5 MB, so 100 steps held
+    # ~650 MB of memory; zlib (fastest level) makes a step ~1 MB in ~30 ms.
+    UNDO_STEPS = 100
+
+    @staticmethod
+    def _pack_state(text: str) -> bytes:
+        return zlib.compress(text.encode("utf-8"), 1)
+
+    @staticmethod
+    def _unpack_state(packed) -> str:
+        return packed if isinstance(packed, str) else zlib.decompress(packed).decode("utf-8")
+
+    def _push_undo(self, path, message: str, previous_text: str):
+        """A new undo step (the file as it was before a change); clears redo."""
+        undo, redo = self._undo_stacks.setdefault(str(path), ([], []))
+        undo.append((message, self._pack_state(previous_text)))
+        del undo[:-self.UNDO_STEPS]
+        redo.clear()
+
     def _swap_state(self, from_stack: List, to_stack: List, verb: str):
         doc = self.active_doc
-        label, text = from_stack.pop()
-        to_stack.append((label, doc.path.read_text(encoding="utf-8")))
+        label, packed = from_stack.pop()
+        text = self._unpack_state(packed)
+        to_stack.append((label, self._pack_state(doc.path.read_text(encoding="utf-8"))))
         keep_seg = self.edit_seg_idx
         doc.data = json.loads(text)
         try:
