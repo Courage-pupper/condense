@@ -4,6 +4,9 @@ Tk's popup menus look dated on Linux, and the app released their grab straight a
 elsewhere did not close them. PopupMenu takes the calls Condense makes on tk.Menu (add_command, add_separator,
 add_checkbutton, add_cascade, tk_popup, grab_release) and draws a themed popup that closes on a click outside it, Esc,
 or when the app loses the focus. ↑/↓, Return, → and ← work as in a menu. The menu bar stays the system's own.
+
+On macOS Tk's popup menus are the system's own menus, which look and behave as Mac users expect: there PopupMenu
+builds and shows a native menu instead.
 """
 import tkinter as tk
 from typing import Callable, Dict, List, Optional
@@ -44,7 +47,32 @@ class PopupMenu:
         self.items.append({"kind": "cascade", "label": label, "menu": menu, "state": "normal"})
 
     def tk_popup(self, x: int, y: int, entry=None):
+        if self.native():
+            self.native_menu().tk_popup(int(x), int(y))  # macOS: the system's own menu
+            return
         self.post(x, y)
+
+    def native(self) -> bool:
+        try:
+            return str(self.master.tk.call("tk", "windowingsystem")) == "aqua"
+        except Exception:
+            return False
+
+    def native_menu(self, master=None) -> tk.Menu:
+        """The same entries as a Tk (on macOS: system) menu."""
+        menu = tk.Menu(master if master is not None else self.master, tearoff=0)
+        for it in self.items:
+            if it["kind"] == "separator":
+                menu.add_separator()
+            elif it["kind"] == "check":
+                menu.add_checkbutton(label=it["label"], variable=it.get("variable"), command=it.get("command"))
+            elif it["kind"] == "cascade":
+                if it.get("menu") is not None:
+                    menu.add_cascade(label=it["label"], menu=it["menu"].native_menu(menu))
+            else:
+                menu.add_command(label=it["label"], command=it.get("command"), state=it.get("state", "normal"),
+                                 accelerator=it.get("accel", ""))
+        return menu
 
     def grab_release(self):
         pass  # the popup keeps its grab until it closes (releasing it at once is what left Tk's menus open)
