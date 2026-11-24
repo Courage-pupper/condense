@@ -106,6 +106,10 @@ tab opens:
 player); in the segment editor *Mark checked*, *Split*, *Merge*, *+ Insert*, *Delete*, *More ▾* (re-transcribe, revert,
 markers), *Save* and *Save & next*.
 
+**Long sessions:** hover over the timeline to see the time under the mouse, drag along it to scrub (Condense jumps
+when you let go), or press ⌘J / Ctrl+J and type a time such as `2:15:30`. For sessions over about an hour the
+exports are updated in the background a moment after each change.
+
 **No video next to the transcript?** That happens when the recording was trimmed (LosslessCut) and transcribed without
 *Compress* in an older version, when the video was moved or renamed, or when the picture comes from a separate camera.
 Choose *Link a video…* in the empty video panel (or *Playback ▾ ▸ Link a video…*) and pick the video. Condense finds

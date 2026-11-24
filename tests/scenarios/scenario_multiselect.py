@@ -75,7 +75,7 @@ dd = TD.load(d.path)
 assert [bool(s.get("checked")) for s in dd.segments] == [False, False, False, True, True, True]
 key("<Key-C>")
 assert not any(s.get("checked") for s in TD.load(d.path).segments)
-pt.tags.pop("sel")
+pt.tags.pop("sel", None)  # a redraw clears the selection, as in Tk
 app._span_at = lambda e: app.span_lookup[(0, 0)]
 app._on_text_click(None)
 assert app.sel_segs == [] and app.edit_seg_idx == 0 and chips()[0] == "Assign:"

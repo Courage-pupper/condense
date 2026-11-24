@@ -160,6 +160,7 @@ class NavigationMixin:
             "Anywhere\n"
             "  Esc              play / pause (outside the text boxes)\n"
             f"  {c}[ / {c}]          back / forward 5 s\n"
+            f"  {c}J               go to a time (2:15:30)\n"
             f"  {c}⇧. / {c}⇧,        faster / slower\n"
             f"  {c}Z / {c}⇧Z         undo / redo a transcript change\n"
             f"  {c}⇧R              re-transcribe a passage\n"

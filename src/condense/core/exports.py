@@ -20,9 +20,14 @@ from typing import Callable, Dict, List, Optional, Tuple
 from condense.core.util import *  # noqa: F401,F403
 
 
+_RTF_PLAIN = re.compile(r"[\x20-\x5b\x5d-\x7a\x7c\x7e]*")  # printable ASCII except \ { }: written as it is
+
+
 class RTFConfidenceWriter:
     @staticmethod
     def _escape_rtf(text: str) -> str:
+        if _RTF_PLAIN.fullmatch(text):
+            return text  # most words: nothing to escape
         out = []
         for ch in text:
             code = ord(ch)
@@ -59,10 +64,12 @@ class RTFConfidenceWriter:
         clean = [max(0.0, min(1.0, float(p))) for p in probs if p is not None]
         if not clean:
             return (0.0, 0.0, 0.0, 0.0)
-        mean_val = statistics.mean(clean)
-        if len(clean) < 2:
+        # plain float sums (statistics.mean/stdev compute with exact fractions: ~40x slower, same result to 1e-15)
+        n = len(clean)
+        mean_val = math.fsum(clean) / n
+        if n < 2:
             return (mean_val, mean_val, mean_val, 0.0)
-        stdev_val = statistics.stdev(clean)
+        stdev_val = math.sqrt(math.fsum((x - mean_val) ** 2 for x in clean) / (n - 1))
         se = stdev_val / math.sqrt(len(clean))
         margin = 1.96 * se
         ci_low = max(0.0, mean_val - margin)

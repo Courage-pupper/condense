@@ -26,6 +26,8 @@ class VideoMixin:
         self._video_next = None
         self._still_q: "queue.Queue" = queue.Queue()
         self._still_req = 0
+        self._still_busy = False      # one frame grab at a time …
+        self._still_pending = None    # … and only the newest request waits (holding ↓ or scrolling fast)
         self._video_img = None
         self._video_panel_shown = False
         self.after(40, self._video_pump)
@@ -161,6 +163,13 @@ class VideoMixin:
             self._show_no_picture_here()
             return
         cmd = self._video_ffmpeg(media, vpos, single=True)
+        if self.__dict__.get("_still_busy"):
+            self._still_pending = (req, pos, cmd)  # replaces any older waiting request
+            return
+        self._still_grab(req, pos, cmd)
+
+    def _still_grab(self, req: int, pos: float, cmd: List[str]):
+        self._still_busy = True
 
         def grab():
             try:
@@ -169,8 +178,7 @@ class VideoMixin:
                 frame = read_ppm_frame(io.BytesIO(res.stdout))
             except Exception:
                 frame = None
-            if frame is not None:
-                self._still_q.put((req, pos, frame))
+            self._still_q.put((req, pos, frame))  # also when it failed: the pump starts the next one
 
         threading.Thread(target=grab, daemon=True).start()
 
@@ -241,8 +249,14 @@ class VideoMixin:
                     req, pos, frame = self._still_q.get_nowait()
                 except queue.Empty:
                     break
-                if req == self._still_req and not (self.playing and self._video_proc is not None):
+                self._still_busy = False
+                if frame is not None and req == self._still_req and not (self.playing and self._video_proc is not None):
                     self._show_frame(pos, frame)
+            pending = self.__dict__.get("_still_pending")
+            if pending is not None and not self._still_busy:
+                self._still_pending = None
+                if pending[0] == self._still_req:
+                    self._still_grab(*pending)
         finally:
             self.after(40, self._video_pump)
 

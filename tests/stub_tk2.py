@@ -61,6 +61,9 @@ class Text(W):
         self.tags = {}
 
     def _pos(self, index):
+        marks = self.__dict__.get("marks", {})
+        if index in marks and marks[index] != index:
+            return self._pos(marks[index])
         if index in ("insert", "insert-1c"):
             l, c = self._pos("end-1c")
             return (l, max(0, c - 1)) if index == "insert-1c" else (l, c)
@@ -75,14 +78,26 @@ class Text(W):
         lines = self.content.split("\n")
         return sum(len(l) + 1 for l in lines[: line - 1]) + col
 
-    def insert(self, index, chars, *tags):
-        self.content += chars
+    def insert(self, index, chars, *rest):
+        """Like Tk: chars, tags, chars, tags, … inserted in order at index (a mark moves along when it is the index)."""
+        args = (chars,) + rest
+        text = "".join(args[0::2])
         used = self.__dict__.setdefault("used_tags", set())
-        for t in tags:
+        for t in args[1::2]:
             used.update(t if isinstance(t, (tuple, list)) else (t,))
+        if index == "end":
+            self.content += text
+            return
+        at = self._offset(index)
+        self.content = self.content[:at] + text + self.content[at:]
+        marks = self.__dict__.get("marks", {})
+        if index in marks:  # right gravity: the mark stays after the inserted text
+            before = self.content[: at + len(text)]
+            marks[index] = f"{before.count(chr(10)) + 1}.{len(before.rsplit(chr(10), 1)[-1])}"
 
     def mark_set(self, name, index):
-        self.marks = self.__dict__.get("marks", {}); self.marks[name] = index
+        self.marks = self.__dict__.get("marks", {})
+        self.marks[name] = index
 
     def delete(self, a, b=None):
         if a == "1.0" and b in ("end", None):

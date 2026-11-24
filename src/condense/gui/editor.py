@@ -2,6 +2,7 @@
 navigation.py, history.py and review_marks.py."""
 from condense.core import cuts as cutlib
 from condense.core import episodes as eplib
+from condense.gui import textrender
 from condense.gui._common import *  # noqa: F401,F403
 
 
@@ -85,6 +86,7 @@ class EditorMixin:
             ("check", "Play a snippet when jumping to a segment", self.var_autoplay),
             ("check", "Skip cut parts", self.var_skip_cuts),
             ("check", "Show the video", self.var_show_video),
+            ("Go to time…", self._goto_time_dialog),
             ("Link a video…", self._link_video_dialog),
             ("Unlink the video", self._unlink_video),
             ("-",),
@@ -96,7 +98,10 @@ class EditorMixin:
         self.timeline.pack(fill=tk.X, pady=(4, 0))
         self.timeline.bind("<Configure>", lambda e: self._timeline_redraw())
         self.timeline.bind("<Button-1>", self._timeline_click)
-        self.timeline.bind("<B1-Motion>", self._timeline_click)
+        self.timeline.bind("<B1-Motion>", self._timeline_scrub)  # dragging: only the playhead follows …
+        self.timeline.bind("<ButtonRelease-1>", lambda e: self._timeline_settle())  # … the jump happens once
+        self.timeline.bind("<Motion>", self._timeline_hover)
+        self.timeline.bind("<Leave>", lambda e: self._timeline_hover(None))
         self._tl_playhead = None
 
         info = tk.Frame(tab, bg=T["bg_panel"])
@@ -412,26 +417,13 @@ class EditorMixin:
             groups = [[i] for i in range(len(rsegs)) if not is_blank_text(rsegs[i].get("text"))]
 
         txt = self.preview_text
-        txt.configure(state=tk.NORMAL)
-        txt.delete("1.0", tk.END)
         spans: List[Dict] = []
         line_spans: Dict[int, List[int]] = {}
         low: List[int] = []
         seg_ranges: Dict[int, Tuple[str, str]] = {}
-        pos = {"line": 1, "col": 0}
-
-        def put(s: str, *tags):
-            if tags:
-                txt.insert(tk.END, s, tags)
-            else:
-                txt.insert(tk.END, s)
-            n = s.count("\n")
-            if n:
-                pos["line"] += n
-                pos["col"] = len(s.rsplit("\n", 1)[1])
-            else:
-                pos["col"] += len(s)
-
+        # built in Python first, then only what changed is sent to Tk (gui/textrender.py)
+        out = textrender.Lines()
+        put = out.put
         eps, next_ep, open_eps = doc.episodes, 0, []
         for group in groups:
             first, last = rsegs[group[0]], rsegs[group[-1]]
@@ -458,15 +450,15 @@ class EditorMixin:
             put(f"{short_ts(first['start'])} – {short_ts(last['end'])}\n", "SEG_HDR")
             for si in group:
                 seg = rsegs[si]
-                seg_start = f"{pos['line']}.{pos['col']}"
+                seg_start = f"{out.line}.{out.col}"
                 words = seg["words"]
                 if doc.segments[si].get("checked"):
-                    put((" " if pos["col"] > 0 else "") + "✓", "CHECKMARK")
+                    put((" " if out.col > 0 else "") + "✓", "CHECKMARK")
                 in_marker = False
                 if words:
                     for wi, w in enumerate(words):
                         w_str = str(w.get("word", ""))
-                        if wi == 0 and pos["col"] > 0 and not w_str.startswith(" "):
+                        if wi == 0 and out.col > 0 and not w_str.startswith(" "):
                             put(" ")
                         prob = float(w.get("probability", w.get("prob", 0.85)))
                         tag = "HIGH" if prob >= high_t else ("MED" if prob >= med_t else ("LOW" if prob >= poor_t else "POOR"))
@@ -477,28 +469,31 @@ class EditorMixin:
                             tag = "MARKER"
                             if token.endswith("]"):
                                 in_marker = False
-                        c0 = pos["col"] + (len(w_str) - len(w_str.lstrip()))
+                        c0 = out.col + (len(w_str) - len(w_str.lstrip()))
                         if si in cut_set:
                             put(w_str, tag, "CUT")
                         else:
                             put(w_str, tag)
-                        c1 = pos["col"]
+                        c1 = out.col
                         if show_pct and prob < poor_t:
                             put(f"{int(round(prob * 100))}%", "PCT")
-                        spans.append({"line": pos["line"], "c0": c0, "c1": c1, "start": float(w.get("start", seg["start"])),
+                        spans.append({"line": out.line, "c0": c0, "c1": c1, "start": float(w.get("start", seg["start"])),
                                       "end": float(w.get("end", seg["end"])), "prob": prob, "word": w_str.strip(),
                                       "speaker": seg.get("speaker"), "seg": si, "w": wi})
-                        line_spans.setdefault(pos["line"], []).append(len(spans) - 1)
+                        line_spans.setdefault(out.line, []).append(len(spans) - 1)
                         if prob < med_t:
                             low.append(len(spans) - 1)
                 else:
-                    put((" " if pos["col"] > 0 else "") + (seg["text"] or "…"), *(("HIGH", "CUT") if si in cut_set else ("HIGH",)))
-                seg_ranges[si] = (seg_start, f"{pos['line']}.{pos['col']}")
+                    put((" " if out.col > 0 else "") + (seg["text"] or "…"), *(("HIGH", "CUT") if si in cut_set else ("HIGH",)))
+                seg_ranges[si] = (seg_start, f"{out.line}.{out.col}")
                 note = doc.segments[si].get("note")
                 if note:
                     put(f"  ✎ {note}", "NOTE")
             put("\n")
+        self._shown_lines = textrender.show_lines(txt, self.__dict__.get("_shown_lines"), out.lines)
         txt.configure(state=tk.DISABLED)
+        for tag in ("sel", "FOUND", "MULTISEL", "EDITSEG", "PLAYING", "CURRENT"):  # as after a full redraw; repainted below
+            txt.tag_remove(tag, "1.0", tk.END)
         for tag in ("CUT", "FOUND", "MULTISEL", "EDITSEG", "PLAYING", "CURRENT"):
             txt.tag_raise(tag)
 
