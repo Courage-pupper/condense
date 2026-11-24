@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.18.0 — unreleased
+## 0.19.0 — unreleased
 
 ### Long sessions (3–5 hours) stay responsive
 - **Corrections no longer redraw the whole transcript.** After saving a segment, changing a speaker, splitting,
@@ -25,6 +25,11 @@
   later. Condense lines it up with the transcript by its sound (each kept LosslessCut part separately, to a few
   hundredths of a second) and saves the link in the transcript; the video file is not changed. *Unlink the video*
   removes the link, and undo works.
+
+## 0.18.0 — 2026-11-24
+
+- Published before the changes of 0.19.0 were merged: the same as 0.17.0 (and it still reports itself as 0.17.0).
+  Update to 0.19.0.
 
 ## 0.17.0 — 2026-11-23
 
