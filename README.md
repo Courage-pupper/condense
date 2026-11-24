@@ -19,7 +19,7 @@ Local video, audio and transcript processing for qualitative research. Everythin
 | Platform | Transcription & speakers | Video compression | Status |
 |---|---|---|---|
 | macOS, Apple Silicon | MLX Whisper and PyTorch on the GPU (Metal) | Media Engine (VideoToolbox) | ✅ main platform |
-| Linux, AMD GPU | openai-whisper and PyTorch on the GPU (ROCm) | GPU (VA-API) | 🧪 preview |
+| Linux, AMD GPU | openai-whisper and PyTorch on the GPU (ROCm) | GPU (VA-API) | ✅ main platform |
 | Linux, NVIDIA GPU | openai-whisper and PyTorch on the GPU (CUDA) | CPU (HandBrake); NVENC planned | 🧪 preview |
 | Linux, no GPU | CPU | CPU | 🧪 preview (slow) |
 | Windows, NVIDIA GPU | openai-whisper and PyTorch on the GPU (CUDA) | GPU (NVENC) | 🧪 preview |

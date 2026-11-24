@@ -2,6 +2,10 @@
 
 ## 0.22.0 — 2026-11-24
 
+### Platforms
+- **Linux with an AMD GPU is now a main platform**, next to macOS on Apple Silicon. NVIDIA, CPU-only Linux and Windows
+  stay a preview.
+
 ### Study overview
 - **Project overview is a table:** one row per transcript with Day, Group, Type (session / interview) and Date read
   from the folders and file names, length, % checked, codings and speakers; episodes under their transcript.
