@@ -122,9 +122,27 @@ for step in range(12):                 # advance the playback clock 0.25 s at a 
 print("    frames shown at:", shown[:6], "…", shown[-3:], " | clock at", round(app._current_pos(), 2))
 assert shown == sorted(shown) and abs(shown[-1] - app._current_pos()) <= 0.11 and len(shown) >= 8
 ok("playing: frames are paced by the player clock (never ahead, ≤ 1 frame behind)")
+vp = app._video_proc
 app._player_pause()
 assert app._video_proc is None
-ok("pause stops the stream and shows a still at the pause position")
+# the stopped ffmpeg really ends — it used to stay, blocked on its full pipe, holding its decoder's memory
+started = []
+def track(cmd, *a, **k):
+    p = popen(cmd, *a, **k)
+    if cmd and cmd[0] == "ffmpeg" and "-frames:v" not in cmd:
+        started.append(p)
+    return p
+pipe.subprocess.Popen = track
+for t in (1.0, 2.0, 0.5, 2.5, 1.5):  # jumping around while playing
+    app._video_start(t)
+    time.sleep(0.3)
+app._video_stop()
+t_end = time.time() + 5
+while time.time() < t_end and (vp.poll() is None or any(p.poll() is None for p in started)):
+    time.sleep(0.05)
+assert vp.poll() is not None and len(started) == 5 and all(p.poll() is not None for p in started), [p.poll() for p in started]
+pipe.subprocess.Popen = popen
+ok("pause stops the stream and shows a still at the pause position; stopped video streams end (none left running)")
 pipe.subprocess.Popen = REAL_POPEN
 app.var_show_video.set(False); app._toggle_video_panel()
 assert not app._video_panel_shown

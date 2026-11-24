@@ -23,9 +23,11 @@ from condense.gui.video import VideoMixin
 from condense.gui.subtitles_ui import SubtitlesMixin
 from condense.gui.storage_ui import StorageMixin
 from condense.gui.gaps_ui import GapsMixin
+from condense.gui.overview_ui import OverviewMixin
+from condense.gui.memory_ui import MemoryMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, ProjectPanelMixin, CodingMixin, SubtitlesMixin, StorageMixin, GapsMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, ProjectPanelMixin, CodingMixin, SubtitlesMixin, StorageMixin, GapsMixin, OverviewMixin, MemoryMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")
@@ -75,6 +77,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self._set_zoom(float(self.settings.get("ui_scale", 1.0)), save=False)
         self._set_transcript_size(float(self.settings.get("transcript_scale", 1.0)), save=False)
         self._load_queue()
+        self.after(400, self._reopen_after_restart)  # after Restart (Memory window): the transcript, where you were
 
         self.bind_all("<MouseWheel>", self._on_mousewheel, add="+")
         self.bind_class("TCombobox", "<MouseWheel>", self._on_mousewheel)  # scrolling must not change values
@@ -506,6 +509,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.btn_stop.pack(side=tk.RIGHT, padx=(6, 0))
         self.btn_run = self._tool(row, "▶  Run Pending Tasks", self._start_pipeline, primary=True)
         self.btn_run.pack(side=tk.RIGHT)
+        self._build_memory_meter(row)
         self.lbl_status = self._wrapping_label(row, kbd("Ready. Add videos (⌘O) or a merge task, check the task details, then Run (⌘R)."),
                                                font="small", fg=THEME["fg_secondary"], bg=THEME["bg_panel"])
         self.lbl_status.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 12))

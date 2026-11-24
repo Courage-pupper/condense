@@ -75,12 +75,12 @@ class ProjectPanelMixin:
         self.lbl_pp_name.config(text=proj.project_name(project))
         stop = self._pp_state["stop"] = threading.Event()
         if not background:
-            items = proj.inventory(project, stop=stop)
+            items = proj.inventory(project, stop=stop, cache=self._overview_cache(project))
             self._pp_show(project, items)
             return items
         self.lbl_pp_info.config(text="Looking through the study's folders…")
         results: "_queue.Queue" = _queue.Queue()
-        threading.Thread(target=lambda: results.put(proj.inventory(project, stop=stop)), daemon=True).start()
+        threading.Thread(target=lambda: results.put(proj.inventory(project, stop=stop, cache=self._overview_cache(project))), daemon=True).start()
 
         def poll():
             if stop.is_set():
@@ -237,14 +237,11 @@ class ProjectPanelMixin:
             return None
         it = sel[0]
         if it.get("row") and "error" not in it["row"]:
-            self._autosave_edit(rerender=False)
-            self._render_doc(TranscriptDocument.load(it["transcript"]))
-            self.notebook.select(self.tab_preview)
+            self._open_at(it["transcript"])
             ep = it.get("episode")
-            if ep is not None:
-                idx = self.active_doc.episode_segments(ep)
-                if idx:
-                    self._goto_segment(idx[0])
+            idx = self.active_doc.episode_segments(ep) if ep is not None and self.active_doc is not None else []
+            if idx:
+                self._open_at(it["transcript"], idx[0])
             return "opened"
         media = [s["media"] for s in sel if s.get("media") and not s.get("row")]
         if media:

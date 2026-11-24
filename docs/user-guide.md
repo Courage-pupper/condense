@@ -337,6 +337,14 @@ Interview clips:  {Day}/{Group}/Semi-structured Interviews/G{group}D{day}_I{n}
 Condense only *reads* your structure. It uses it to find interview clips, to name new ones (`G1D2_I14`) when you mark an
 interview with **E** or export one, and to save them in the right folder.
 
+- **Naming an episode:** a new interview's *Label* already holds the next name of its group, with the number selected —
+  type another number to replace it. A short label is completed from the pattern: `14` or `I14` becomes `G1D2_I14`
+  (shown next to the field while you type, saved that way). Labels from before (e.g. an `I14` that was never exported)
+  are listed in the Episodes dialog with a *Complete* button.
+- **Names for other kinds of episodes:** *Episode names* in the project settings, e.g.
+  `Phase: G{group}D{day}_P{n}; Plenary: G{group}D{day}_Plenum{n}` — numbered per group like interviews. Leave it empty
+  if phases need no numbered names.
+
 ![Project settings](images/project-settings.png)
 
 **Tidy unsorted folders** (*Project ▸ Tidy Unsorted Folders…*) shows, for each file in a …Unsorted folder, where it
@@ -370,10 +378,38 @@ show in folder.
 
 ![The Project tab](images/project-panel.png)
 
-**Project overview** (click the project's name, or *Project ▸ Project Overview…*) shows the study as a tree — Day ▸
-Group ▸ transcript ▸ its episodes — with totals per day and group. For each transcript it lists its length, how much is checked, the share of uncertain words, speakers (and how many still have no name), cut time,
-notes and the last change. Double-click opens a transcript, or goes straight to an episode. *Save as CSV* writes `condense-overview.csv`, for your records or
-your supervisor.
+**Project overview** (click the project's name, or *Project ▸ Project Overview…*) is a table with one row per
+transcript: Day, Group, Type (session or interview) and Date (taken from the folder and file names), its length, how
+much is checked, codings, speakers, and any attributes you add. Episodes are listed under their transcript.
+
+- **Filter** by typing in the box: every word has to match, so `group 3 interview` shows the interviews of Group 3,
+  and `day 2` only Day 2 (not Day 12). The line below the table adds up what is shown: recorded time, % checked,
+  codings, speakers.
+- **Sort** by clicking a column's heading; click again for the other direction.
+- Double-click opens a transcript, or goes straight to an episode. *Save as CSV* writes `condense-overview.csv` with
+  every column, for your records or your supervisor.
+- The table loads quickly even for large studies: Condense remembers each transcript's row and only reads the ones that
+  changed since.
+
+**Attributes** describe a transcript as a whole — the activity, the material used, the site, whether consent for video
+was given. Select rows in the overview and click *Set attribute…* (several at once is fine), or define them first with
+*Project ▸ Attributes…*, where you can also give an attribute a fixed list of values to choose from, rename it, or
+delete it — in every transcript at once. Each attribute becomes a column you can filter, sort and export. (MAXQDA calls
+these *document variables*.)
+
+**Names & pseudonyms** (*Project ▸ Names & Pseudonyms…*) keeps one list of the people in the study: the speakers of
+every transcript, plus anyone you add with *Add name…* — e.g. a teacher who is only talked about, or someone's full
+name as it is said.
+
+- **Rename throughout:** select a name and give the new one; Condense tells you how many transcripts, speaker labels
+  and mentions in the text will change, and asks first. Speaker labels, the text, the project's speaker lists and
+  exports all follow; codings stay on their words; each transcript keeps a backup, and the open one can be undone.
+  Only whole words are replaced (renaming *Robin* leaves *Robinson* alone), and so are names of other people on the
+  list that contain it — renaming *Robin* leaves *Robin Meyer* alone once *Robin Meyer* is on the list.
+- **Pseudonyms:** give each person a pseudonym (*Set*), or let *Suggest* number them (P01, P02, … — change the prefix
+  if you like, e.g. *Child*). Two people can't share one.
+- **Export with pseudonyms** writes copies of the transcripts (text, subtitles, Word, …) with every name replaced, into
+  a folder you choose, one subfolder per transcript. Your transcripts themselves keep the real names.
 
 ![Project overview](images/project-overview.png)
 
@@ -430,5 +466,9 @@ MAXQDA can also import the `.srt` subtitles together with the video.
   transcribing, or cut those segments.
 - **Speakers are mixed up:** enter the right number of speakers and use *Transcript ▾ ▸ Detect speakers…*, or fix stretches with
   multi-select and the number keys.
+- **The computer runs low on memory** (other programs close): the **Memory** meter at the bottom right shows what
+  Condense and the programs it started (ffmpeg for the video, Whisper) use. It turns amber at a quarter of the
+  computer's memory and red at 40 %. Click it for the details, *Free memory* (drops the undo history of transcripts that
+  aren't open, and caches), or *Restart Condense…* — everything is saved and the transcript reopens where you were.
 - **Report a problem:** [GitHub issues](https://github.com/s-hurtado26/condense/issues). Never attach recordings or
   transcripts of participants. Describe the problem, or reproduce it with a test video.

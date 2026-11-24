@@ -33,12 +33,44 @@ class EpisodesMixin:
         st = proj.project_settings(f.parent)["structure"] if f else None
         return (f.parent, st) if st is not None else (None, None)
 
-    def _next_interview_name(self) -> Optional[str]:
+    def _name_structure(self, type_: str):
+        """(project, Structure) whose name pattern names episodes of this type: Interview uses the interview clips'
+        pattern, other types the one set for them in Project Settings (Episode names). (None, None) if there is none."""
         project, st = self._structure_ctx()
         if st is None:
+            return None, None
+        if type_ == "Interview":
+            return (project, st) if st.name_alts else (None, None)
+        pattern = (proj.project_settings(project).get("episode_names") or {}).get(type_)
+        if not pattern:
+            return None, None
+        named = st.for_names(pattern)
+        return (project, named) if named.name_alts and not named.problems() else (None, None)
+
+    def _next_episode_name(self, type_: str, with_number: bool = False):
+        """The next free name for an episode of this type in this group ("G4D3_I14"), or None. with_number: also where
+        the number is in it, (name, start, end)."""
+        project, st = self._name_structure(type_)
+        if st is None or self.active_doc is None:
             return None
-        labels = [e.get("label") or "" for e in self.active_doc.episodes if e["type"] == "Interview"]
-        return st.next_clip_name(project, self.active_doc.path, labels)
+        vals = st.values_for(project, self.active_doc.path)
+        if st.levels and not vals:
+            return None
+        labels = [e.get("label") or "" for e in self.active_doc.episodes if e["type"] == type_]
+        labels = [st.complete_name(vals, lb) or lb for lb in labels]  # "I9" takes number 9 too
+        used = st.used_numbers(project, vals, labels)
+        named = st.name_with_number(vals, (max(used) + 1) if used else 1)
+        return named if with_number else named[0]
+
+    def _next_interview_name(self) -> Optional[str]:
+        return self._next_episode_name("Interview")
+
+    def _complete_episode_label(self, type_: str, label: str) -> Optional[str]:
+        """ "14" or "I14" → "G4D3_I14" for this type's name pattern (None if nothing to complete)."""
+        project, st = self._name_structure(type_)
+        if st is None or self.active_doc is None:
+            return None
+        return st.complete_name(st.values_for(project, self.active_doc.path), label)
 
     def _episode_tag(self, type_: str) -> str:
         types = self._episode_types()
@@ -60,8 +92,7 @@ class EpisodesMixin:
         start = min(float(doc.segments[i]["start"]) for i in segs)
         end = max(float(doc.segments[i]["end"]) for i in segs)
         type_ = self._episode_types()[0]
-        label = (self._next_interview_name() or "") if type_ == "Interview" else ""
-        return self._episodes_dialog(preset={"type": type_, "label": label, "start": start, "end": end})
+        return self._episodes_dialog(preset={"type": type_, "label": "", "start": start, "end": end})
 
     def _episodes_dialog(self, preset: Optional[Dict] = None):
         doc = self.active_doc
@@ -94,7 +125,10 @@ class EpisodesMixin:
         cmb = ttk.Combobox(row1, textvariable=v_type, values=self._episode_types(), width=12, font=self.f["small"])
         cmb.pack(side=tk.LEFT, padx=(4, 10))
         self._label(row1, "Label", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).pack(side=tk.LEFT)
-        self._entry(row1, v_label, font="small", width=16).pack(side=tk.LEFT, padx=(4, 10))
+        ent_label = self._entry(row1, v_label, font="small", width=16)
+        ent_label.pack(side=tk.LEFT, padx=(4, 2))
+        lbl_full = self._label(row1, "", font="small", fg=T["fg_dim"], bg=T["bg_panel"])  # "→ G4D3_I14" while typing 14
+        lbl_full.pack(side=tk.LEFT, padx=(0, 10))
         self._label(row1, "From", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).pack(side=tk.LEFT)
         self._entry(row1, v_start, font="small", width=10).pack(side=tk.LEFT, padx=(4, 4))
         self._label(row1, "to", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).pack(side=tk.LEFT)
@@ -106,7 +140,67 @@ class EpisodesMixin:
         self._entry(row2, v_note, font="small", width=60).pack(side=tk.LEFT, padx=(4, 0), fill=tk.X, expand=True)
         lbl_msg = self._label(win, "", font="small", fg=T["warn"], bg=T["bg_panel"])
         lbl_msg.pack(anchor="w", pady=(4, 0))
-        st: Dict = {"id": None}
+        fix_row = tk.Frame(win, bg=T["bg_panel"])  # shown when labels like "I14" can be completed
+        lbl_fix = self._label(fix_row, "", font="small", fg=T["fg_secondary"], bg=T["bg_panel"])
+        lbl_fix.pack(side=tk.LEFT)
+        st: Dict = {"id": None, "auto": ""}
+
+        def completable():
+            out = []
+            for ep in self.active_doc.episodes:
+                full = self._complete_episode_label(ep["type"], ep.get("label") or "")
+                if full and full != ep.get("label"):
+                    out.append((ep, full))
+            return out
+
+        def complete_all():
+            todo = completable()
+            if not todo:
+                return 0
+            for ep, full in todo:
+                self.active_doc.update_episode(ep["id"], label=full)
+            self._commit(f"Completed {len(todo)} episode name(s): " + ", ".join(f"{ep.get('label')} → {full}" for ep, full in todo[:4])
+                         + (" …" if len(todo) > 4 else ""))
+            self._rerender()
+            fill()
+            if st["id"]:
+                load(self.active_doc.get_episode(st["id"]))
+            return len(todo)
+
+        btn_fix = self._tool(fix_row, "Complete", complete_all)
+        btn_fix.pack(side=tk.LEFT, padx=(8, 0))
+
+        def show_fixes():
+            todo = completable()
+            if todo:
+                lbl_fix.config(text=f"{len(todo)} name(s) can be completed from the project's pattern: "
+                                    + ", ".join(f"{ep.get('label')} → {full}" for ep, full in todo[:3]) + (" …" if len(todo) > 3 else ""))
+                if not fix_row.winfo_ismapped():
+                    fix_row.pack(anchor="w", pady=(4, 0), before=lbl_msg)
+            else:
+                fix_row.pack_forget()
+
+        def show_full(*_):
+            full = self._complete_episode_label(v_type.get().strip(), v_label.get())
+            lbl_full.config(text=f"→ {full}" if full else "")
+
+        def suggest(*_):
+            """A new episode: the next name of its type, with the number selected — type 14 to replace it."""
+            if st["id"] or (v_label.get().strip() and v_label.get() != st["auto"]):
+                return None  # an existing episode, or a label typed by hand
+            named = self._next_episode_name(v_type.get().strip(), with_number=True)
+            name = named[0] if named else ""
+            v_label.set(name)
+            st["auto"] = name
+            if named:
+                try:
+                    ent_label.select_range(named[1], named[2])
+                    ent_label.icursor(named[2])
+                    ent_label.focus_set()
+                except Exception:
+                    pass
+            show_full()
+            return name
 
         def fill():
             for item in tree.get_children():
@@ -117,6 +211,7 @@ class EpisodesMixin:
                 tree.insert("", tk.END, iid=ep["id"], values=(ep["type"], ep.get("label") or "", approx + short_ts(ep["start"])[:-2],
                                                              approx + short_ts(ep["end"])[:-2], short_ts(ep["end"] - ep["start"])[:-2],
                                                              f"clip {Path(src).name}" if src else ""))
+            show_fixes()
 
         def load(ep: Optional[Dict]):
             st["id"] = ep.get("id") if ep else None
@@ -128,6 +223,10 @@ class EpisodesMixin:
             v_note.set((ep or {}).get("note") or "")
             btn_apply.config(text="Save changes" if st["id"] else "Add episode")
             lbl_msg.config(text="")
+            st["auto"] = ""
+            if not st["id"]:
+                suggest()
+            show_full()
 
         def on_select(event=None):
             sel = tree.selection()
@@ -152,8 +251,11 @@ class EpisodesMixin:
                 lbl_msg.config(text="Give the episode a type (e.g. Interview).")
                 return None
             d = self.active_doc
-            if v_type.get().strip() == "Interview" and not v_label.get().strip() and not st["id"]:
-                v_label.set(self._next_interview_name() or "")
+            full = self._complete_episode_label(v_type.get().strip(), v_label.get())
+            if full:  # "14" or "I14" → "G4D3_I14"
+                v_label.set(full)
+            elif not v_label.get().strip() and not st["id"]:
+                v_label.set(self._next_episode_name(v_type.get().strip()) or "")
             fields = dict(type=v_type.get().strip(), label=v_label.get().strip(), start=a, end=b, approx=bool(v_approx.get()),
                           note=v_note.get().strip())
             if st["id"]:
@@ -166,6 +268,7 @@ class EpisodesMixin:
             self._rerender()
             fill()
             tree.selection_set(st["id"])
+            show_full()
             return st["id"]
 
         def delete():
@@ -206,12 +309,16 @@ class EpisodesMixin:
         self._tool(bar, "Close", win.destroy).pack(side=tk.RIGHT)
         tree.bind("<<TreeviewSelect>>", on_select)
         tree.bind("<Double-Button-1>", lambda e: goto())
+        v_label.trace_add("write", show_full)
+        v_type.trace_add("write", suggest)
+        cmb.bind("<<ComboboxSelected>>", suggest, add="+")
         win.bind("<Escape>", lambda e: (win.destroy(), "break")[-1])
         fill()
         load(preset)
         st.update(tree=tree, type=v_type, label=v_label, start=v_start, end=v_end, approx=v_approx, note=v_note, apply=apply,
                   delete=delete, load=load, select=lambda i: (tree.selection_set(i), on_select()), from_selection=from_selection,
-                  export=export, goto=goto, msg=lbl_msg, fill=fill)
+                  export=export, goto=goto, msg=lbl_msg, fill=fill, suggest=suggest, full=lbl_full, fix=lbl_fix,
+                  complete_all=complete_all, completable=completable, entry=ent_label)
         return win, st
 
     # ================================================================== export one episode as a clip
@@ -254,9 +361,10 @@ class EpisodesMixin:
                          "and its exports — the same layout as transcribing the clip (Interviews/G3D1_I1.mp4 → Interviews/G3D1_I1/). "
                          "The transcript keeps your corrections and speakers, and opens and codes like any other.", font="small",
                     fg=T["fg_secondary"], bg=T["bg_panel"], wraplength=520, justify=tk.LEFT).pack(anchor="w", pady=(4, 8))
-        project, st = self._structure_ctx()
-        if st is not None and ep["type"] == "Interview" and not st.parse_clip_name(ep.get("label") or ""):
-            default_name = self._next_interview_name() or f"{doc.base_name}_{ep['type']}"
+        named_st = self._name_structure(ep["type"])[1]
+        if named_st is not None and not named_st.parse_clip_name(ep.get("label") or ""):
+            default_name = (self._complete_episode_label(ep["type"], ep.get("label") or "")  # "I14" → "G4D3_I14"
+                            or self._next_episode_name(ep["type"]) or f"{doc.base_name}_{ep['type']}")
         else:
             default_name = ep.get("label") or f"{doc.base_name}_{ep['type']}"
         v_name = tk.StringVar(value=default_name)
@@ -347,7 +455,8 @@ class EpisodesMixin:
                   "note": "Times in 'episode' are on the source recording; the clip's transcript starts at 0."}
         (res_dir / f"{msg['name']}.episode.json").write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
         doc.log_edit("export_episode", id=msg["ep"]["id"], output=Path(msg["dst"]).name, mode=msg["mode"])
-        if msg["ep"]["type"] == "Interview":  # the episode now carries the clip's name and knows its clip
+        if msg["ep"]["type"] == "Interview" or self._name_structure(msg["ep"]["type"])[1] is not None:
+            # the episode now carries the clip's name and knows its clip
             doc.update_episode(msg["ep"]["id"], label=msg["name"], source={"clip": msg["dst"], "exported": now_iso()})
         doc.save()
         if self.active_doc is not None and str(self.active_doc.path) == msg["doc"]:

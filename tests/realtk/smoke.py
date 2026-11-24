@@ -382,7 +382,12 @@ def main():
         if st["rows"]:
             break
     assert len(st["rows"]) == 3, st["lbl"].cget("text")
-    assert [st["tree"].item(i, "text") for i in st["tree"].get_children()] == ["Day 1 2026-03-12", "Day 2 2026-03-13"]
+    days = sorted({st["tree"].set(i, "a:Day") for i in st["tree"].get_children()})
+    assert len(st["tree"].get_children()) == 3 and days == ["Day 1 2026-03-12", "Day 2 2026-03-13"], days
+    st["filter"].set("day 2")
+    pump(app, 0.1)
+    assert len(st["tree"].get_children()) == len([r for r in st["rows"] if "Day 2" in r["auto"].get("Day", "")]) >= 1
+    st["filter"].set("")
     shot(app, "project-overview", win)
     # a window opened from another window comes to the front with the focus (it used to appear behind its opener)
     if sys.platform != "win32":

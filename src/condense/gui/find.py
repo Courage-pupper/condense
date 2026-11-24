@@ -265,11 +265,7 @@ class FindMixin:
             if not sel:
                 return
             res = state["results"][sel[0]]
-            self._autosave_edit(rerender=False)
-            if self.active_doc is None or Path(self.active_doc.path).resolve() != res["path"].resolve():
-                self._render_doc(TranscriptDocument.load(res["path"]))
-            self.notebook.select(self.tab_preview)
-            self._goto_segment(res["seg"])
+            self._open_at(res["path"], res["seg"])
 
         def replace_everywhere():
             r = rx()

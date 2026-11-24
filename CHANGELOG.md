@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.22.0 — 2026-11-24
+
+### Study overview
+- **Project overview is a table:** one row per transcript with Day, Group, Type (session / interview) and Date read
+  from the folders and file names, length, % checked, codings and speakers; episodes under their transcript.
+- **Filter by typing** (every word has to match: `group 3 interview`, `day 2`), **sort** by any column, and the totals
+  of what is shown. *Save as CSV* includes Type, Date, codings and your attributes.
+- **Faster with many transcripts:** each row is remembered and only re-read when its transcript changed — also for the
+  Project tab.
+
+### Fixed
+- **Clicking an episode or interview in the Project tab goes there**, also in a transcript you were already working
+  in. It used to jump there and then straight back to where you had left off. The same for episodes in the overview
+  and results of Find in all transcripts. Clicking one in the transcript that is already open no longer reloads it, so
+  it is instant (also for long sessions) and undo is kept.
+- **Lossless clips and cuts stay in sync with their transcript.** For recordings whose internal clock doesn't start at
+  0 — common for camera files (.MTS, many MP4/MOV) — lossless episode clips and lossless Cut exports came out
+  seconds off: the keyframes were looked up on the file's clock but cut on a clock from 0. MPEG-TS (.MTS) copies also
+  keep a little sound from before the keyframe, and a timestamp shift added up to another 0.5 s; both are now measured
+  from the written clip. Lossless is now as accurate as the re-encoded export (within a frame or two).
+
+- **Memory no longer piles up while you watch video.** Every pause, jump or click during playback left the video
+  preview's ffmpeg running in the background — stuck, but holding its memory (hundreds of MB for a long HD or 4K
+  recording with the sharper preview). Over a long session these added up to gigabytes, enough for the system to
+  close other programs. Stopped video streams now end for good.
+
+### Memory meter
+- **Memory at the bottom right:** what Condense and the programs it started (video preview, playback, transcription)
+  use, measured every 10 seconds. Amber ▲ at a quarter of the computer's memory, red ⚠ at 40 %, with one line in the
+  status bar and the Console when it gets there (no popups).
+- **Click it for the Memory window:** each program's share, the undo history, how much it grew in the last 30 minutes,
+  and two ways out — *Free memory*, or *Restart Condense…*, which saves everything and reopens the transcript where you
+  were.
+
+### Episode names
+- **A new episode's label starts with its name:** for an interview in Group 4 on Day 3, *G4D3_I14* with the number
+  selected, so you only type the number. `14` or `I14` is completed to `G4D3_I14` when saved (with a preview while you
+  type), and when exporting. Before, a typed `I14` stayed like that until the clip was exported. Short labels from
+  before can be completed with one click in the Episodes dialog, and they count as taken numbers.
+- **Names for other episode types** (Project Settings ▸ Episode names, e.g. `Phase: G{group}D{day}_P{n}`), numbered
+  per group like interviews — for workshops and studies that mark more than interviews.
+
+### Attributes
+- **Describe transcripts with attributes** (activity, site, consent, …): set them for several transcripts at once from
+  the overview, or define them in *Project ▸ Attributes…*, optionally with a list of values. Renaming or deleting one
+  follows in every transcript. Each becomes a column to filter, sort and export.
+
+### Names and pseudonyms
+- **Project ▸ Names & Pseudonyms…:** one list of the people in the study — every transcript's speakers, plus people who
+  are only talked about.
+- **Rename throughout:** speaker labels, the text, the project's speaker lists and exports, in every transcript, after
+  showing what will change. Whole words only; other people whose name contains it (*Robin Meyer* when renaming
+  *Robin*) are left alone. Codings stay on their words, transcripts keep a backup, the open one can be undone.
+- **Pseudonyms** for each person (or numbered suggestions: P01, P02, …), and **export with pseudonyms**: copies of the
+  transcripts with every name replaced, while the originals keep the real names.
+
 ## 0.21.0 — 2026-11-24
 
 ### Video while you work

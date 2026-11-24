@@ -27,16 +27,46 @@ def probe(path: Path) -> dict:
             "video": "video" in kinds, "audio": "audio" in kinds}
 
 
+def start_time(path: Path) -> float:
+    """Where the file's clock starts. Camera files often don't start at 0 (.MTS at about 1.4 s, some MP4/MOV files later
+    still), while ffmpeg's -ss and the transcript count from the start of the file."""
+    res = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=start_time", "-of", "csv=p=0", str(path)],
+                         capture_output=True, text=True, timeout=60)
+    try:
+        return float((res.stdout or "").strip().splitlines()[0])
+    except (ValueError, IndexError):
+        return 0.0
+
+
+def video_lead(path: Path) -> float:
+    """How long after the file's start its picture starts. A stream copy starts the picture at a keyframe, but some
+    formats (MPEG-TS: .MTS / .ts) also keep the sound from a little before it, so the copy really starts that much
+    earlier than the keyframe."""
+    res = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=start_time:stream=codec_type,start_time",
+                          "-of", "json", str(path)], capture_output=True, text=True, timeout=60)
+    try:
+        data = json.loads(res.stdout or "{}")
+        t0 = float((data.get("format") or {}).get("start_time") or 0.0)
+        v = next(float(st["start_time"]) for st in data.get("streams", [])
+                 if st.get("codec_type") == "video" and st.get("start_time") not in (None, "N/A"))
+    except (ValueError, StopIteration, TypeError):
+        return 0.0
+    return max(0.0, v - t0)
+
+
 def keyframes(path: Path) -> List[float]:
-    """Times of the video keyframes (read from the packets, without decoding)."""
+    """Times of the video keyframes (read from the packets, without decoding), counted from the start of the file
+    like -ss and the transcript — not on the file's own clock, which made lossless clips of such files start seconds
+    away from where the transcript said."""
     res = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time,flags",
-                          "-of", "csv=p=0", str(path)], capture_output=True, text=True, timeout=600)
+                          "-of", "csv=p=0", str(path)], capture_output=True, text=True, timeout=3600)
+    t0 = start_time(path)
     out = []
     for line in res.stdout.splitlines():
         parts = line.strip().split(",")
         if len(parts) >= 2 and "K" in parts[1]:
             try:
-                out.append(float(parts[0]))
+                out.append(max(0.0, float(parts[0]) - t0))
             except ValueError:
                 pass
     return sorted(out)
@@ -145,14 +175,18 @@ def write_trimmed(src: Path, dst: Path, kept: Sequence[Range], mode: str = "exac
         all_total = sum(b - a for a, b in planned)
         for i, (a, b) in enumerate(planned):
             piece = work / f".{dst.stem}.part{i:03d}{src.suffix}"
+            # no -avoid_negative_ts make_zero: it shifted the copy by the frames' reorder delay (0.1–0.5 s) against the
+            # transcript; the container's own handling keeps sound and picture where they were
             cmd = ["ffmpeg", "-hide_banner", "-y", "-ss", f"{a:.3f}", "-to", f"{b:.3f}", "-i", str(src), "-map", "0",
-                   "-c", "copy", "-avoid_negative_ts", "make_zero", "-progress", "pipe:1", "-nostats", str(piece)]
+                   "-c", "copy", "-progress", "pipe:1", "-nostats", str(piece)]
             _run(cmd, all_total, on_progress, stop, base=done / all_total if all_total else 0, span=1.0)
             done += b - a
             pieces.append(piece)
-            # a stream copy rarely ends exactly at b: map the transcript with what was really written
+            # map the transcript with what was really written: the copy may start a little before the keyframe (sound
+            # kept from before it) and rarely ends exactly at b
             real = probe(piece)["duration"] or (b - a)
-            actual.append((a, round(a + real, 3)))
+            start = max(0.0, a - (video_lead(piece) if info["video"] else 0.0))
+            actual.append((round(start, 3), round(start + real, 3)))
         if len(pieces) == 1:
             os.replace(pieces[0], dst)
             pieces = []
