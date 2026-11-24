@@ -50,7 +50,8 @@ class CuttingMixin:
 
     # ----- trimmed export -----
     def _trim_source(self) -> Optional[Path]:
-        return self._video_media() or self._media()
+        # a linked video on another timeline (cut differently, started earlier) would be cut in the wrong places
+        return self._video_on_timeline() or self._media()
 
     def _export_trimmed_dialog(self):
         doc = self.active_doc

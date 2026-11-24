@@ -85,6 +85,8 @@ class EditorMixin:
             ("check", "Play a snippet when jumping to a segment", self.var_autoplay),
             ("check", "Skip cut parts", self.var_skip_cuts),
             ("check", "Show the video", self.var_show_video),
+            ("Link a video…", self._link_video_dialog),
+            ("Unlink the video", self._unlink_video),
             ("-",),
             ("Open in QuickTime ↗" if IS_MAC_PLATFORM else "Open in a video player ↗", self._open_in_quicktime),
             ("Keyboard shortcuts…", self._show_shortcuts),

@@ -203,6 +203,19 @@ class TranscriptDocument:
         p = Path(value)
         return p if p.is_absolute() else (self.out_dir / p)
 
+    def link_video(self, path: Optional[str], link: Optional[Dict] = None) -> None:
+        """Set the video shown with this transcript. link: {"pieces": [[transcript_start, video_start, length], …],
+        "method", "score"} when the video is not on the transcript's timeline (see core/videolink.py); None when it is."""
+        self.set_media("video", path)
+        if path and link and link.get("pieces"):
+            self.data["video_link"] = dict(link, file=Path(path).name, linked_at=now_iso())
+        else:
+            self.data.pop("video_link", None)
+
+    def video_pieces(self) -> Optional[List[List[float]]]:
+        """How the video's time relates to the transcript's (None = the same)."""
+        return (self.data.get("video_link") or {}).get("pieces") or None
+
     def roster(self) -> List[str]:
         """All speakers of this transcript, in a stable order: the saved list (including speakers you added
         who have no segments yet), then any others in order of first appearance."""
