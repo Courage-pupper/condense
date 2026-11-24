@@ -151,6 +151,11 @@ class UpdatesMixin:
     def _restart_app(self):
         """Close normally (saves everything), then start the freshly installed version in this process's place."""
         self._on_close()
+        try:
+            if self.winfo_exists():  # closing was cancelled (a task is running and you chose to keep it)
+                return
+        except tk.TclError:
+            pass  # the window is gone: closed normally
         if os.name == "nt":  # exec does not replace a GUI process on Windows: start the new one, this one ends
             subprocess.Popen([sys.executable, "-m", "condense"], close_fds=True)
             return

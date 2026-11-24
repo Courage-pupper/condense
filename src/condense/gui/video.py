@@ -270,26 +270,31 @@ class VideoMixin:
 
         def reader():
             i = 0
-            while self._video_gen == gen:
-                frame = read_ppm_frame(proc.stdout)
-                if frame is None:
-                    break
-                item = (gen, pos + i / self.VIDEO_FPS, frame)
-                i += 1
-                while self._video_gen == gen:  # bounded queue = ffmpeg is paced by playback
-                    try:
-                        q.put(item, timeout=0.2)
+            try:
+                while self._video_gen == gen:
+                    frame = read_ppm_frame(proc.stdout)
+                    if frame is None:
                         break
-                    except queue.Full:
-                        continue
+                    item = (gen, pos + i / self.VIDEO_FPS, frame)
+                    i += 1
+                    while self._video_gen == gen:  # bounded queue = ffmpeg is paced by playback
+                        try:
+                            q.put(item, timeout=0.2)
+                            break
+                        except queue.Full:
+                            continue
+            except (OSError, ValueError):  # the pipe was closed under us: the stream was stopped
+                pass
+            finally:
+                end_process(proc)  # also when ffmpeg is still writing: it must not stay behind
 
         threading.Thread(target=reader, daemon=True).start()
 
     def _video_stop(self):
         self._video_gen = self.__dict__.get("_video_gen", 0) + 1
         proc = self.__dict__.get("_video_proc")
-        if proc is not None and proc.poll() is None:
-            proc.terminate()
+        if proc is not None:
+            end_process(proc)
         self._video_proc = None
         self._video_next = None
         self._video_seg_end = None

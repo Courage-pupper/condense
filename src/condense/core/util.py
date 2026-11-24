@@ -134,6 +134,35 @@ def short_ts(seconds: float) -> str:
     return f"{h}:{m:02d}:{s:02d}.{t}"
 
 
+def end_process(proc) -> None:
+    """Stop a child process that writes into a pipe of ours, for good. terminate() is not enough: an ffmpeg blocked on
+    a full pipe nobody reads any more never gets to handle it, and stays — with its decoder's memory — until Condense
+    quits (each pause or jump during video playback left one). So: kill, then reap it and close its pipes in the
+    background."""
+    import threading
+    if proc is None:
+        return
+    try:
+        if proc.poll() is None:
+            (getattr(proc, "kill", None) or proc.terminate)()
+    except Exception:
+        pass
+
+    def reap():
+        try:
+            proc.wait(timeout=10)
+        except Exception:
+            pass
+        for f in (getattr(proc, "stdout", None), getattr(proc, "stderr", None)):
+            try:
+                if f is not None:
+                    f.close()
+            except Exception:
+                pass
+
+    threading.Thread(target=reap, daemon=True).start()
+
+
 def read_ppm_frame(stream) -> Optional[Tuple[int, int, bytes]]:
     """Read one binary PPM (P6) image from a pipe (ffmpeg -f image2pipe -vcodec ppm). None at end of stream."""
     magic = stream.readline()

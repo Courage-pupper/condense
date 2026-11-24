@@ -21,6 +21,19 @@
   keep a little sound from before the keyframe, and a timestamp shift added up to another 0.5 s; both are now measured
   from the written clip. Lossless is now as accurate as the re-encoded export (within a frame or two).
 
+- **Memory no longer piles up while you watch video.** Every pause, jump or click during playback left the video
+  preview's ffmpeg running in the background — stuck, but holding its memory (hundreds of MB for a long HD or 4K
+  recording with the sharper preview). Over a long session these added up to gigabytes, enough for the system to
+  close other programs. Stopped video streams now end for good.
+
+### Memory meter
+- **Memory at the bottom right:** what Condense and the programs it started (video preview, playback, transcription)
+  use, measured every 10 seconds. Amber ▲ at a quarter of the computer's memory, red ⚠ at 40 %, with one line in the
+  status bar and the Console when it gets there (no popups).
+- **Click it for the Memory window:** each program's share, the undo history, how much it grew in the last 30 minutes,
+  and two ways out — *Free memory*, or *Restart Condense…*, which saves everything and reopens the transcript where you
+  were.
+
 ### Episode names
 - **A new episode's label starts with its name:** for an interview in Group 4 on Day 3, *G4D3_I14* with the number
   selected, so you only type the number. `14` or `I14` is completed to `G4D3_I14` when saved (with a preview while you

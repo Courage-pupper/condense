@@ -466,5 +466,9 @@ MAXQDA can also import the `.srt` subtitles together with the video.
   transcribing, or cut those segments.
 - **Speakers are mixed up:** enter the right number of speakers and use *Transcript ▾ ▸ Detect speakers…*, or fix stretches with
   multi-select and the number keys.
+- **The computer runs low on memory** (other programs close): the **Memory** meter at the bottom right shows what
+  Condense and the programs it started (ffmpeg for the video, Whisper) use. It turns amber at a quarter of the
+  computer's memory and red at 40 %. Click it for the details, *Free memory* (drops the undo history of transcripts that
+  aren't open, and caches), or *Restart Condense…* — everything is saved and the transcript reopens where you were.
 - **Report a problem:** [GitHub issues](https://github.com/s-hurtado26/condense/issues). Never attach recordings or
   transcripts of participants. Describe the problem, or reproduce it with a test video.
