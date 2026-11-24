@@ -186,7 +186,7 @@ assert cd.data["provenance"]["episode_of"]["transcript"] == str(doc.path) and cd
 assert {sg.get("speaker") for sg in cd.segments} <= set(cd.roster())
 inv = proj.inventory(study)
 item = next(i for i in inv if i.get("media") is not None and i["media"].name == "G1D1_I1_new.mp4")
-assert item["role"] == "interview" and item["transcript"] == res / "G1D1_I1_new.transcript.json"
+assert item["role"] == "interview" and item["transcript"].resolve() == (res / "G1D1_I1_new.transcript.json").resolve(), item
 assert not any(i.get("media") is None and i["transcript"] == item["transcript"] for i in inv)
 ok("the clip has a real transcript (.transcript.json, timed to the clip, playback = the clip); the project lists the "
    "clip as a transcribed interview")
