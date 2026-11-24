@@ -1,4 +1,11 @@
-"""Video preview synced to the player, and linking a video to a transcript afterwards (without re-encoding)."""
+"""Video preview synced to the player, and linking a video to a transcript afterwards (without re-encoding).
+
+The preview has three screens: a column in the Transcript tab, one in the Coding tab, and a window of its own (pop-out,
+resizable, full screen). One player feeds the screen in view: the pop-out when it is open, else the tab's column. The
+picture is fitted to the screen (enlarged too), and fitted again when the screen changes size.
+"""
+from types import SimpleNamespace
+
 from condense.core import videolink
 from condense.gui._common import *  # noqa: F401,F403
 from condense.media import trim as trimlib
@@ -6,18 +13,35 @@ from condense.media import trim as trimlib
 
 class VideoMixin:
     # ----- video preview -----
-    VIDEO_FPS = 10
+    VIDEO_FPS = 15
+
+    def _make_video_screen(self, name: str, parent, controls: bool = False, link: bool = True) -> SimpleNamespace:
+        """A place the preview can be shown: picture, a caption bar (time · file, ⤢) and the Link-a-video button."""
+        T = THEME
+        frame = tk.Frame(parent, bg="#000000")
+        label = tk.Label(frame, bg="#000000", fg=T["fg_dim"], font=self.f["small"], text="No video", justify=tk.CENTER,
+                         wraplength=260, bd=0, highlightthickness=0, padx=0, pady=0)
+        label.pack(fill=tk.BOTH, expand=True)
+        bar = tk.Frame(frame, bg="#000000")
+        bar.pack(fill=tk.X)
+        scr = SimpleNamespace(name=name, frame=frame, label=label, bar=bar, link=None, link_shown=False, play_btn=None)
+        if controls:  # the Coding tab has no player bar of its own
+            scr.play_btn = self._tool(bar, "▶", self._toggle_play)
+            scr.play_btn.pack(side=tk.LEFT, padx=(2, 4), pady=2)
+        if name != "pop":
+            self._tool(bar, "⤢", self._video_pop_out).pack(side=tk.RIGHT, padx=2, pady=2)
+        scr.caption = self._label(bar, "", font="mono_small", fg=T["fg_dim"], bg="#000000")
+        scr.caption.pack(side=tk.LEFT, fill=tk.X)
+        if link:
+            scr.link = self._tool(frame, "Link a video…", self._link_video_dialog)
+        label.bind("<Configure>", lambda e, scr=scr: self._video_resized(scr), add="+")
+        self.__dict__.setdefault("_video_screens", {})[name] = scr
+        return scr
 
     def _build_video_panel(self):
-        T = THEME
-        self.video_frame = tk.Frame(self.tx_paned, bg="#000000")
-        self.video_label = tk.Label(self.video_frame, bg="#000000", fg=T["fg_dim"], font=self.f["small"], text="No video",
-                                    justify=tk.CENTER, wraplength=260)
-        self.video_label.pack(fill=tk.BOTH, expand=True)
-        self.lbl_video_caption = self._label(self.video_frame, "", font="mono_small", fg=T["fg_dim"], bg="#000000")
-        self.lbl_video_caption.pack(fill=tk.X)
-        self.btn_link_video = self._tool(self.video_frame, "Link a video…", self._link_video_dialog)
-        self._link_btn_shown = False
+        tx = self._make_video_screen("tx", self.tx_paned)
+        self.video_frame, self.video_label, self.lbl_video_caption = tx.frame, tx.label, tx.caption
+        self.btn_link_video = tx.link
         self._video_seg_end: Optional[float] = None  # transcript time where the linked video's current piece ends
         self._video_linking = False
         self._video_proc: Optional[subprocess.Popen] = None
@@ -30,20 +54,147 @@ class VideoMixin:
         self._still_pending = None    # … and only the newest request waits (holding ↓ or scrolling fast)
         self._video_img = None
         self._video_panel_shown = False
+        self._cd_video_shown = False
+        self._video_popout = None
+        self._video_cur_screen = None
         self.after(40, self._video_pump)
         self.after_idle(self._toggle_video_panel)
+
+    def _build_cd_video(self):
+        """The Coding tab's video column (shown with the Transcript tab's, by Show the video)."""
+        self._make_video_screen("cd", self.cd_main, controls=True)
 
     def _toggle_video_panel(self):
         want = bool(self.var_show_video.get())
         if want and not self._video_panel_shown:
-            self.tx_paned.add(self.video_frame, minsize=200, width=420, stretch="never")
+            self.tx_paned.add(self.video_frame, minsize=200, width=max(480, self.winfo_width() * 2 // 5), stretch="never")
             self._video_panel_shown = True
-            if not self.__dict__.get("playing", False):
-                self._video_still(self.__dict__.get("play_pos", 0.0))
         elif not want and self._video_panel_shown:
             self._video_stop()
             self.tx_paned.forget(self.video_frame)
             self._video_panel_shown = False
+        cd = self.__dict__.get("_video_screens", {}).get("cd")
+        if cd is not None:
+            if want and not self._cd_video_shown:
+                self.cd_main.add(cd.frame, minsize=220, width=max(400, self.winfo_width() // 3), stretch="never")
+                self._cd_video_shown = True
+            elif not want and self._cd_video_shown:
+                self.cd_main.forget(cd.frame)
+                self._cd_video_shown = False
+        self._video_retarget(force=True)
+
+    def _video_screen(self) -> Optional[SimpleNamespace]:
+        """The screen in view: the pop-out window, else the Coding tab's column when that tab is open, else the
+        Transcript tab's column (None if the video is hidden)."""
+        pop = self.__dict__.get("_video_popout")
+        if pop is not None:
+            return pop
+        screens = self.__dict__.get("_video_screens", {})
+        if self.__dict__.get("_cd_video_shown") and screens.get("cd") is not None and self._cd_visible():
+            return screens["cd"]
+        return screens.get("tx") if self.__dict__.get("_video_panel_shown") else None
+
+    def _video_retarget(self, force: bool = False):
+        """The screen in view changed (tab switched, pop-out opened or closed): show the video there."""
+        scr = self._video_screen()
+        if scr is self.__dict__.get("_video_cur_screen") and not force:
+            return
+        self._video_cur_screen = scr
+        self._video_refresh()
+
+    def _video_refresh(self):
+        """Show the current moment again (another screen, another size, another source)."""
+        self._video_stop()
+        if self._video_screen() is None:
+            return
+        if self.__dict__.get("playing", False):
+            self._video_start(self._current_pos())
+        else:
+            self._video_still(self.__dict__.get("play_pos", 0.0))
+
+    def _video_resized(self, scr):
+        """A screen changed size: fit the picture again once it rests (not for every pixel of a drag)."""
+        if scr is not self._video_screen():
+            return
+        job = self.__dict__.get("_video_resize_job")
+        if job is not None:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
+
+        def settle():
+            self._video_resize_job = None
+            size = self._video_size()
+            last = self.__dict__.get("_video_last_size") or (0, 0)
+            if abs(size[0] - last[0]) > 8 or abs(size[1] - last[1]) > 8:
+                self._video_refresh()
+
+        self._video_resize_job = self.after(250, settle)
+
+    # ----- the pop-out window -----
+    def _video_pop_out(self):
+        """⤢: the video in a window of its own — as large as you like, or full screen (F, double-click)."""
+        pop = self.__dict__.get("_video_popout")
+        if pop is not None:
+            try:
+                pop.win.lift()
+            except Exception:
+                pass
+            return pop
+        win = tk.Toplevel(self)
+        win.title("Video — " + (self.active_doc.base_name if self.active_doc is not None else "Condense"))
+        win.configure(bg="#000000")
+        win.geometry(self.settings.get("video_popout_geometry", "960x600"))
+        scr = self._make_video_screen("pop", win, controls=True, link=False)
+        scr.frame.pack(fill=tk.BOTH, expand=True)
+        scr.win = win
+        self._tool(scr.bar, "Back into the window", self._video_pop_in).pack(side=tk.RIGHT, padx=2, pady=2)
+        self._tool(scr.bar, "Full screen (F)", self._video_fullscreen).pack(side=tk.RIGHT, padx=2, pady=2)
+        win.protocol("WM_DELETE_WINDOW", self._video_pop_in)
+        for seq in ("<Key-f>", "<Key-F>"):
+            win.bind(seq, lambda e: self._video_fullscreen())
+        scr.label.bind("<Double-Button-1>", lambda e: self._video_fullscreen())
+        win.bind("<space>", lambda e: (self._toggle_play(), "break")[-1])
+        self._video_popout = scr
+        self._video_retarget()
+        return scr
+
+    def _video_fullscreen(self):
+        pop = self.__dict__.get("_video_popout")
+        if pop is None:
+            return
+        try:
+            pop.win.attributes("-fullscreen", not bool(pop.win.attributes("-fullscreen")))
+        except Exception:
+            pass
+
+    def _video_pop_in(self):
+        pop = self.__dict__.get("_video_popout")
+        if pop is None:
+            return
+        try:
+            if not bool(pop.win.attributes("-fullscreen")):
+                self.settings["video_popout_geometry"] = pop.win.geometry()
+        except Exception:
+            pass
+        self._video_popout = None
+        self.__dict__.get("_video_screens", {}).pop("pop", None)
+        try:
+            pop.win.destroy()
+        except Exception:
+            pass
+        self._video_retarget()
+
+    def _preview_media(self) -> Optional[Path]:
+        """What the preview decodes: the transcript's video, or with Playback ▸ Sharper preview the original recording
+        when it is on the same timeline (not trimmed, not merged, not a linked video)."""
+        media = self._video_media()
+        doc = self.active_doc
+        if media is None or doc is None or not self.var_preview_original.get() or self._video_pieces():
+            return media
+        orig = doc.original_recording()
+        return orig if orig is not None else media
 
     def _video_media(self) -> Optional[Path]:
         """A video for the open transcript (see TranscriptDocument.find_video)."""
@@ -63,10 +214,21 @@ class VideoMixin:
         """(position in the video for transcript time pos or None, transcript time where that changes or None)."""
         return videolink.to_video_time(self._video_pieces(), pos)
 
+    def _video_size(self) -> Tuple[int, int]:
+        """The picture's room on the screen in view (even numbers, as video scaling needs)."""
+        scr = self._video_screen()
+        w = h = 0
+        if scr is not None:
+            try:
+                w, h = int(scr.label.winfo_width()), int(scr.label.winfo_height())
+            except Exception:
+                w = h = 0
+        if w <= 40 or h <= 40:
+            w, h = 480, 270
+        return max(160, min(3840, w)) // 2 * 2, max(90, min(2160, h)) // 2 * 2
+
     def _video_width(self) -> int:
-        w = self.video_label.winfo_width()
-        w = w if w > 40 else 420
-        return max(160, min(1280, w)) // 2 * 2
+        return self._video_size()[0]
 
     def _video_ffmpeg(self, media: Path, pos: float, single: bool, duration: Optional[float] = None) -> List[str]:
         """pos: position in the video file (already mapped from transcript time). duration: stop after that long."""
@@ -76,15 +238,18 @@ class VideoMixin:
         cmd += ["-ss", f"{max(0.0, pos):.3f}", "-i", str(media), "-an", "-sn"]
         if duration is not None and not single:
             cmd += ["-t", f"{max(0.05, duration):.3f}"]
-        scale = f"scale='min({self._video_width()},iw)':-2"  # never upscale small videos
+        w, h = self._video_size()
+        self._video_last_size = (w, h)
+        # fitted to the screen, enlarged too; lanczos keeps text and faces sharp when making the picture smaller
+        scale = f"scale=w={w}:h={h}:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos"
         vf = scale if single else f"fps={self.VIDEO_FPS},{scale}"
         cmd += ["-vf", vf] + (["-frames:v", "1"] if single else []) + ["-f", "image2pipe", "-vcodec", "ppm", "-"]
         return cmd
 
     def _video_start(self, pos: float):
         self._video_stop()
-        media = self._video_media()
-        if media is None or not self._video_panel_shown or not shutil.which("ffmpeg"):
+        media = self._preview_media()
+        if media is None or self._video_screen() is None or not shutil.which("ffmpeg"):
             return
         vpos, change_at = self._video_map(pos)
         self._video_seg_end = change_at  # the pump restarts the stream here (next piece of a linked video)
@@ -130,9 +295,9 @@ class VideoMixin:
         self._video_seg_end = None
 
     def _video_still(self, pos: float):
-        if not self.__dict__.get("_video_panel_shown"):
+        if self._video_screen() is None:
             return
-        media = self._video_media()
+        media = self._preview_media()
         if media is None:
             self._show_no_video()
             return
@@ -163,11 +328,18 @@ class VideoMixin:
         threading.Thread(target=grab, daemon=True).start()
 
     def _set_link_button(self, shown: bool):
-        if shown and not self._link_btn_shown:
-            self.btn_link_video.pack(pady=(0, 10))
-        elif not shown and self._link_btn_shown:
-            self.btn_link_video.pack_forget()
-        self._link_btn_shown = shown
+        scr = self._video_screen() or self.__dict__.get("_video_screens", {}).get("tx")
+        for other in self.__dict__.get("_video_screens", {}).values():
+            want = shown and other is scr and other.link is not None
+            if want and not other.link_shown:
+                other.link.pack(pady=(0, 10))
+            elif not want and other.link_shown:
+                other.link.pack_forget()
+            other.link_shown = want
+        self._link_btn_shown = shown and scr is not None and scr.link is not None
+
+    def _video_target(self) -> SimpleNamespace:
+        return self._video_screen() or self.__dict__["_video_screens"]["tx"]
 
     def _show_no_video(self):
         self._video_img = None
@@ -177,16 +349,18 @@ class VideoMixin:
             why = f"The video {recorded.name} was moved or deleted."
         else:
             why = "No video on this transcript's timeline (audio only, or trimmed without the Compress step)."
-        self.video_label.configure(image="", text=f"{why}\n\nLink the recording's video to watch it with the transcript — "
-                                                   "nothing is re-encoded; Condense lines it up by its sound.")
-        self.lbl_video_caption.configure(text="")
+        scr = self._video_target()
+        scr.label.configure(image="", text=f"{why}\n\nLink the recording's video to watch it with the transcript — "
+                                           "nothing is re-encoded; Condense lines it up by its sound.")
+        scr.caption.configure(text="")
         self._set_link_button(doc is not None)
 
     def _show_no_picture_here(self):
         """A linked video that has no picture for this moment (cut out before transcribing, or outside the video)."""
         self._video_img = None
-        self.video_label.configure(image="", text="The linked video has no picture for this moment.")
-        self.lbl_video_caption.configure(text="")
+        scr = self._video_target()
+        scr.label.configure(image="", text="The linked video has no picture for this moment.")
+        scr.caption.configure(text="")
         self._set_link_button(False)
 
     def _show_frame(self, pos: float, frame: Tuple[int, int, bytes]):
@@ -196,12 +370,19 @@ class VideoMixin:
         except Exception:
             return
         self._video_img = img  # keep a reference, or Tk drops the image
-        self.video_label.configure(image=img, text="")
+        scr = self._video_target()
+        scr.label.configure(image=img, text="")
         self._set_link_button(False)
-        self.lbl_video_caption.configure(text=f"{short_ts(pos)[:-2]}  ·  {self._video_media().name if self._video_media() else ''}")
+        media = self._preview_media()
+        scr.caption.configure(text=f"{short_ts(pos)[:-2]}  ·  {media.name if media else ''}")
 
     def _video_pump(self):
         try:
+            playing = bool(self.__dict__.get("playing", False))
+            for scr in self.__dict__.get("_video_screens", {}).values():
+                if scr.play_btn is not None and getattr(scr, "shows_playing", None) != playing:
+                    scr.play_btn.configure(text="⏸" if playing else "▶")
+                    scr.shows_playing = playing
             if self.playing and self._video_seg_end is not None and self._current_pos() >= self._video_seg_end - 0.02:
                 self._video_start(self._current_pos())  # next piece of a linked video (or a gap without picture)
             if self._video_proc is not None and self.playing:
