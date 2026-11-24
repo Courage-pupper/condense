@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.20.0 — unreleased
+## 0.20.0 — 2026-11-24
 
 ### Episode clips get their own transcript folder
 - **Export clip…** now lays a clip out like transcribing it: `Semi-structured Interviews/G3D1_I1.mp4` and, next to it,
@@ -45,7 +45,7 @@
   elsewhere** (on Linux they stayed open), press Esc or switch to another app. ↑/↓, Return, → and ← work in them. On
   macOS they stay the system's own menus.
 
-## 0.19.0 — unreleased
+## 0.19.0 — 2026-11-24
 
 ### Long sessions (3–5 hours) stay responsive
 - **Corrections no longer redraw the whole transcript.** After saving a segment, changing a speaker, splitting,
