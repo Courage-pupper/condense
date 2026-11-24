@@ -15,6 +15,11 @@
   in. It used to jump there and then straight back to where you had left off. The same for episodes in the overview
   and results of Find in all transcripts. Clicking one in the transcript that is already open no longer reloads it, so
   it is instant (also for long sessions) and undo is kept.
+- **Lossless clips and cuts stay in sync with their transcript.** For recordings whose internal clock doesn't start at
+  0 — common for camera files (.MTS, many MP4/MOV) — lossless episode clips and lossless Cut exports came out
+  seconds off: the keyframes were looked up on the file's clock but cut on a clock from 0. MPEG-TS (.MTS) copies also
+  keep a little sound from before the keyframe, and a timestamp shift added up to another 0.5 s; both are now measured
+  from the written clip. Lossless is now as accurate as the re-encoded export (within a frame or two).
 
 ### Attributes
 - **Describe transcripts with attributes** (activity, site, consent, …): set them for several transcripts at once from
