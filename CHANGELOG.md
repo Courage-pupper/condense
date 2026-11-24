@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.22.0 — unreleased
+## 0.22.0 — 2026-11-24
 
 ### Study overview
 - **Project overview is a table:** one row per transcript with Day, Group, Type (session / interview) and Date read
