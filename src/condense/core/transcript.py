@@ -234,6 +234,17 @@ class TranscriptDocument:
                 return cand
         return None
 
+    def original_recording(self) -> Optional[Path]:
+        """The recording the transcript was made from, if it is on the transcript's timeline: one input, neither trimmed
+        in LosslessCut nor merged (compressing keeps the timeline)."""
+        prov = self.data.get("provenance") or {}
+        proc = prov.get("processing") or {}
+        inputs = prov.get("inputs") or []
+        if len(inputs) != 1 or proc.get("losslesscut") or proc.get("merge") or proc.get("episode_clip"):
+            return None
+        cand = Path(inputs[0].get("path", ""))
+        return cand if cand.is_file() else None
+
     def video_on_timeline(self) -> Optional[Path]:
         """find_video, but only if its time is the transcript's time (what may be cut or subtitled with its times)."""
         v = self.find_video()

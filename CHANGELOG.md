@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.21.0 — unreleased
+
+### Video while you work
+- **The Coding tab shows the video** next to the transcript, with its own play/pause and ⤢ — for coding what happens,
+  not only what is said.
+- **⤢ Video in its own window:** as large as you like, on a second screen, full screen (F or double-click). Closing it
+  puts the video back into the tab.
+- **The picture fills its column** (fitted to width and height, enlarged when the video is small, never distorted) and
+  is fitted again when you resize the column or the window. Sharper scaling, and smoother playback (15 instead of 10
+  frames per second). The video column starts wider.
+- **Playback ▾ ▸ Sharper preview: from the original recording** — the preview decodes the camera's original instead
+  of the compressed copy, when the transcript is on its timeline.
+
 ## 0.20.0 — 2026-11-24
 
 ### Episode clips get their own transcript folder

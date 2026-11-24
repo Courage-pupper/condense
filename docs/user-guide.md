@@ -109,6 +109,11 @@ tab opens:
 player); in the segment editor *Mark checked*, *Split*, *Merge*, *+ Insert*, *Delete*, *More ▾* (re-transcribe, revert,
 markers), *Save* and *Save & next*.
 
+**The video** fills its column: drag the column's edge to make it larger, or press **⤢** to give it a window of its
+own (resize it, move it to a second screen, **F** or double-click for full screen; *Back into the window* returns it).
+*Playback ▾ ▸ Sharper preview* decodes the camera's original recording instead of the compressed copy, when the
+transcript is on the original's timeline (not trimmed or merged) — sharper, a little heavier for the computer.
+
 **Long sessions:** hover over the timeline to see the time under the mouse, drag along it to scrub (Condense jumps
 when you let go), or press ⌘J / Ctrl+J and type a time such as `2:15:30`. For sessions over about an hour the
 exports are updated in the background a moment after each change.
@@ -288,6 +293,9 @@ study folder (`condense-codebook.json`) and shared by all its transcripts. Codin
 - double-click a code in the codebook, or press **Return** for the selected code;
 - press **1–9** for a recent code (shown above the transcript);
 - or right-click the selection.
+
+The video plays next to the text while you code (its own ▶ button, **⤢** for a window of its own), so you see what
+happens while you code what is said.
 
 Each coding shows as a coloured **stripe** next to the text and as a mark on the timeline. Click a stripe or coded words
 to select a coding; the list below shows all codings of the transcript (or *only the selected code*) with their speaker

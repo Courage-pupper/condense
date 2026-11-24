@@ -120,6 +120,8 @@ class CodingMixin:
         self.cd_stripes.bind("<Button-1>", self._cd_stripe_click)
         self.cd_text.bind("<Configure>", lambda e: self._cd_draw_stripes())
 
+        self._build_cd_video()  # the video column (added to cd_main when Show the video is on)
+
         # ---- codings of this transcript ----
         lst = tk.Frame(body, bg=T["bg_panel"])
         body.add(lst, minsize=110, height=190)
@@ -183,6 +185,7 @@ class CodingMixin:
             return False
 
     def _cd_on_tab(self):
+        self.after_idle(lambda: self._video_retarget())  # the video moves to the tab in view
         if self._cd_visible():
             self._cd_refresh()
 

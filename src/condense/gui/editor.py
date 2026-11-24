@@ -92,12 +92,17 @@ class EditorMixin:
         self.var_skip_cuts = tk.BooleanVar(value=True)
         self._persist["skip_cuts"] = self.var_skip_cuts
         self._persist["show_video"] = self.var_show_video
+        self.var_preview_original = tk.BooleanVar(value=False)  # the preview decodes the original recording (sharper)
+        self._persist["preview_original"] = self.var_preview_original
+        self.var_preview_original.trace_add("write", lambda *a: self.after_idle(self._video_refresh))
         self.var_show_video.trace_add("write", lambda *a: self.after_idle(self._toggle_video_panel))
         player.add(self._dropdown(player, "Playback ▾", [
             ("check", "Follow the text while playing", self.var_follow),
             ("check", "Play a snippet when jumping to a segment", self.var_autoplay),
             ("check", "Skip cut parts", self.var_skip_cuts),
             ("check", "Show the video", self.var_show_video),
+            ("Video in its own window (⤢)", self._video_pop_out),
+            ("check", "Sharper preview: from the original recording", self.var_preview_original),
             ("Go to time…", self._goto_time_dialog),
             ("Link a video…", self._link_video_dialog),
             ("Unlink the video", self._unlink_video),
