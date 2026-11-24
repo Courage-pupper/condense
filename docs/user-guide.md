@@ -370,10 +370,38 @@ show in folder.
 
 ![The Project tab](images/project-panel.png)
 
-**Project overview** (click the project's name, or *Project ▸ Project Overview…*) shows the study as a tree — Day ▸
-Group ▸ transcript ▸ its episodes — with totals per day and group. For each transcript it lists its length, how much is checked, the share of uncertain words, speakers (and how many still have no name), cut time,
-notes and the last change. Double-click opens a transcript, or goes straight to an episode. *Save as CSV* writes `condense-overview.csv`, for your records or
-your supervisor.
+**Project overview** (click the project's name, or *Project ▸ Project Overview…*) is a table with one row per
+transcript: Day, Group, Type (session or interview) and Date (taken from the folder and file names), its length, how
+much is checked, codings, speakers, and any attributes you add. Episodes are listed under their transcript.
+
+- **Filter** by typing in the box: every word has to match, so `group 3 interview` shows the interviews of Group 3,
+  and `day 2` only Day 2 (not Day 12). The line below the table adds up what is shown: recorded time, % checked,
+  codings, speakers.
+- **Sort** by clicking a column's heading; click again for the other direction.
+- Double-click opens a transcript, or goes straight to an episode. *Save as CSV* writes `condense-overview.csv` with
+  every column, for your records or your supervisor.
+- The table loads quickly even for large studies: Condense remembers each transcript's row and only reads the ones that
+  changed since.
+
+**Attributes** describe a transcript as a whole — the activity, the material used, the site, whether consent for video
+was given. Select rows in the overview and click *Set attribute…* (several at once is fine), or define them first with
+*Project ▸ Attributes…*, where you can also give an attribute a fixed list of values to choose from, rename it, or
+delete it — in every transcript at once. Each attribute becomes a column you can filter, sort and export. (MAXQDA calls
+these *document variables*.)
+
+**Names & pseudonyms** (*Project ▸ Names & Pseudonyms…*) keeps one list of the people in the study: the speakers of
+every transcript, plus anyone you add with *Add name…* — e.g. a teacher who is only talked about, or someone's full
+name as it is said.
+
+- **Rename throughout:** select a name and give the new one; Condense tells you how many transcripts, speaker labels
+  and mentions in the text will change, and asks first. Speaker labels, the text, the project's speaker lists and
+  exports all follow; codings stay on their words; each transcript keeps a backup, and the open one can be undone.
+  Only whole words are replaced (renaming *Robin* leaves *Robinson* alone), and so are names of other people on the
+  list that contain it — renaming *Robin* leaves *Robin Meyer* alone once *Robin Meyer* is on the list.
+- **Pseudonyms:** give each person a pseudonym (*Set*), or let *Suggest* number them (P01, P02, … — change the prefix
+  if you like, e.g. *Child*). Two people can't share one.
+- **Export with pseudonyms** writes copies of the transcripts (text, subtitles, Word, …) with every name replaced, into
+  a folder you choose, one subfolder per transcript. Your transcripts themselves keep the real names.
 
 ![Project overview](images/project-overview.png)
 

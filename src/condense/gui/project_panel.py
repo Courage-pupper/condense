@@ -75,12 +75,12 @@ class ProjectPanelMixin:
         self.lbl_pp_name.config(text=proj.project_name(project))
         stop = self._pp_state["stop"] = threading.Event()
         if not background:
-            items = proj.inventory(project, stop=stop)
+            items = proj.inventory(project, stop=stop, cache=self._overview_cache(project))
             self._pp_show(project, items)
             return items
         self.lbl_pp_info.config(text="Looking through the study's folders…")
         results: "_queue.Queue" = _queue.Queue()
-        threading.Thread(target=lambda: results.put(proj.inventory(project, stop=stop)), daemon=True).start()
+        threading.Thread(target=lambda: results.put(proj.inventory(project, stop=stop, cache=self._overview_cache(project))), daemon=True).start()
 
         def poll():
             if stop.is_set():

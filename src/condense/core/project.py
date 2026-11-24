@@ -266,47 +266,140 @@ def overview_row(path: Path) -> Dict:
         "episodes": doc.episodes,
         "media_paths": [m for m in [(doc.data.get("media") or {}).get("playback")]
                         + [i.get("path") for i in ((doc.data.get("provenance") or {}).get("inputs") or []) if isinstance(i, dict)] if m],
+        "speaker_names": doc.roster(),
+        "attributes": {k: v for k, v in (doc.data.get("attributes") or {}).items() if v not in (None, "")},
+        "codings": len(doc.data.get("codings") or []),
+        "codes": dict(Counter(c.get("code") for c in doc.data.get("codings") or [] if c.get("code"))),
+        "episode_clip": bool((doc.data.get("provenance") or {}).get("episode_of")),
     }
 
 
-def overview(folder: Path, stop=None) -> List[Dict]:
-    """One row per transcript, with the level folders it lies in (Day, Group …) when folder is a project."""
-    settings = project_settings(folder) if (Path(folder) / PROJECT_FILE).is_file() else {"levels": [], "skip": DEFAULT_SKIP}
+class RowCache:
+    """Overview rows, kept between openings (by path, size and modification time): a project of a hundred long
+    transcripts opens in a moment instead of reading every file again. A changed file is read again."""
+
+    def __init__(self, path: Optional[Path]):
+        self.path = Path(path) if path else None
+        self.data: Dict[str, Dict] = {}
+        self.dirty = False
+        if self.path and self.path.exists():
+            try:
+                self.data = json.loads(self.path.read_text(encoding="utf-8"))
+            except Exception:
+                self.data = {}
+
+    @staticmethod
+    def _stamp(p: Path) -> List:
+        st = p.stat()
+        return [st.st_size, int(st.st_mtime_ns // 1_000_000)]
+
+    def row(self, p: Path) -> Dict:
+        key = str(Path(p).resolve())
+        try:
+            stamp = self._stamp(p)
+        except OSError:
+            return overview_row(p)
+        hit = self.data.get(key)
+        if hit and hit.get("stamp") == stamp:
+            row = dict(hit["row"])
+            row["path"] = Path(p)
+            return row
+        row = overview_row(p)
+        stored = {k: v for k, v in row.items() if k != "path"}
+        self.data[key] = {"stamp": stamp, "row": stored}
+        self.dirty = True
+        return row
+
+    def save(self) -> None:
+        if self.path is None or not self.dirty:
+            return
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(self.data, ensure_ascii=False), encoding="utf-8")
+            tmp.replace(self.path)
+            self.dirty = False
+        except OSError:
+            pass
+
+
+def role_for(folder: Path, transcript: Path, settings: Dict) -> str:
+    """session / interview / other for a transcript, from the folder template (or folder names) of the folder its
+    results folder lies in."""
+    st = settings.get("structure")
+    p = Path(transcript)
+    outer = p.parent.parent if p.parent.name == p.name[: -len(".transcript.json")] else p.parent
+    if st is not None:
+        r = st.role_of(folder, outer)
+        if r:
+            return "session" if r == "sessions" else "interview"
+        return "other"
+    low = outer.name.lower()
+    return "interview" if "interview" in low else ("session" if "session" in low else "other")
+
+
+def overview(folder: Path, stop=None, cache: Optional[RowCache] = None) -> List[Dict]:
+    """One row per transcript, with the level folders it lies in (Day, Group …) when folder is a project, its role
+    (session / interview / other) and its attributes, automatic (Day, Group, Type, Date) and the project's own."""
+    from condense.core import attributes as attrlib
+    settings = project_settings(folder) if (Path(folder) / PROJECT_FILE).is_file() else {"levels": [], "skip": DEFAULT_SKIP, "structure": None}
     rows = []
     for p in transcripts_under(folder, stop=stop, skip=settings["skip"]):
         if stop is not None and stop.is_set():
             break
         try:
-            row = overview_row(p)
+            row = cache.row(p) if cache is not None else overview_row(p)
         except Exception as exc:
             row = {"path": p, "name": p.name, "error": str(exc)}
         row["levels"] = level_path(folder, p, settings["levels"])
+        row["role"] = "interview" if row.get("episode_clip") else role_for(folder, p, settings)
+        row["auto"] = attrlib.auto_values(folder, p, row["levels"], row["role"])
         rows.append(row)
+    if cache is not None:
+        cache.save()
     return rows
 
 
-def write_overview_csv(rows: List[Dict], target: Path) -> Path:
+def write_overview_csv(rows: List[Dict], target: Path, extra: Optional[List[str]] = None) -> Path:
+    """One row per transcript: its level folders, type and date, the overview's numbers, and the attributes named in
+    extra (the project's own)."""
     level_names = []
     for r in rows:
         for lv, _ in r.get("levels") or []:
             if lv not in level_names:
                 level_names.append(lv)
-    cols = level_names + ["name", "folder", "length_s", "checked_pct", "uncertain_pct", "speakers", "generic_speakers", "cut_s", "notes",
-            "edits", "modified"]
+    extra = list(extra or [])
+    cols = level_names + ["Type", "Date", "name", "folder", "length_s", "checked_pct", "uncertain_pct", "codings", "speakers",
+                          "speaker_names", "generic_speakers", "cut_s", "notes", "edits", "modified"] + extra
     with open(target, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(cols)
         for r in rows:
-            if "error" not in r:
-                lv = dict(r.get("levels") or [])
-                w.writerow([lv.get(c, "") if c in level_names else r.get(c, "") for c in cols])
+            if "error" in r:
+                continue
+            lv = dict(r.get("levels") or [])
+            auto = r.get("auto") or {}
+            attrs = r.get("attributes") or {}
+            out = []
+            for c in cols:
+                if c in level_names:
+                    out.append(lv.get(c, ""))
+                elif c in ("Type", "Date"):
+                    out.append(auto.get(c, ""))
+                elif c in extra:
+                    out.append(attrs.get(c, ""))
+                elif c == "speaker_names":
+                    out.append(", ".join(r.get("speaker_names") or []))
+                else:
+                    out.append(r.get(c, ""))
+            w.writerow(out)
     return target
 
 
 MEDIA_EXTS = {".mp4", ".mov", ".m4v", ".mkv", ".avi", ".mts", ".m2ts", ".webm", ".wav", ".mp3", ".m4a", ".aac", ".flac"}
 
 
-def inventory(folder: Path, stop=None, max_dirs: int = 20000) -> List[Dict]:
+def inventory(folder: Path, stop=None, max_dirs: int = 20000, cache: Optional["RowCache"] = None) -> List[Dict]:
     """Everything a study holds, by level folder: each recording (transcribed or not) with its role — session, interview
     or other — and its transcript's overview row; transcripts whose recording was not found are listed too.
     Media inside Condense's own output folders (compressed copies) belong to their transcript and are not listed."""
@@ -340,9 +433,11 @@ def inventory(folder: Path, stop=None, max_dirs: int = 20000) -> List[Dict]:
         if stop is not None and stop.is_set():
             break
         try:
-            rows[t] = overview_row(t)
+            rows[t] = cache.row(t) if cache is not None else overview_row(t)
         except Exception as exc:
             rows[t] = {"path": t, "name": t.name, "error": str(exc), "media_paths": []}
+    if cache is not None:
+        cache.save()
     by_path: Dict[str, List[Path]] = {}
     by_name: Dict[str, List[Path]] = {}
     for t, row in rows.items():

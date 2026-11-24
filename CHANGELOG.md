@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.22.0 — unreleased
+
+### Study overview
+- **Project overview is a table:** one row per transcript with Day, Group, Type (session / interview) and Date read
+  from the folders and file names, length, % checked, codings and speakers; episodes under their transcript.
+- **Filter by typing** (every word has to match: `group 3 interview`, `day 2`), **sort** by any column, and the totals
+  of what is shown. *Save as CSV* includes Type, Date, codings and your attributes.
+- **Faster with many transcripts:** each row is remembered and only re-read when its transcript changed — also for the
+  Project tab.
+
+### Attributes
+- **Describe transcripts with attributes** (activity, site, consent, …): set them for several transcripts at once from
+  the overview, or define them in *Project ▸ Attributes…*, optionally with a list of values. Renaming or deleting one
+  follows in every transcript. Each becomes a column to filter, sort and export.
+
+### Names and pseudonyms
+- **Project ▸ Names & Pseudonyms…:** one list of the people in the study — every transcript's speakers, plus people who
+  are only talked about.
+- **Rename throughout:** speaker labels, the text, the project's speaker lists and exports, in every transcript, after
+  showing what will change. Whole words only; other people whose name contains it (*Robin Meyer* when renaming
+  *Robin*) are left alone. Codings stay on their words, transcripts keep a backup, the open one can be undone.
+- **Pseudonyms** for each person (or numbered suggestions: P01, P02, …), and **export with pseudonyms**: copies of the
+  transcripts with every name replaced, while the originals keep the real names.
+
 ## 0.21.0 — 2026-11-24
 
 ### Video while you work

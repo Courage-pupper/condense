@@ -85,6 +85,8 @@ class ProjectMixin:
         pm.add_command(label="Close Project", command=lambda: self._set_project(None))
         pm.add_separator()
         pm.add_command(label="Project Overview…", command=self._project_overview)
+        pm.add_command(label="Attributes…", command=lambda: self._attributes_dialog(self._project_dir()) if self._project_dir() else self._project_start_dialog())
+        pm.add_command(label="Names & Pseudonyms…", command=lambda: self._names_dialog(self._project_dir()) if self._project_dir() else self._project_start_dialog())
         pm.add_command(label="Speakers (Project and Groups)…", command=lambda: self._project_speakers_dialog())
         pm.add_command(label="Project Settings…", command=lambda: self._project_settings_dialog())
         pm.add_command(label="Tidy Unsorted Folders…", command=lambda: self._tidy_dialog())
@@ -242,149 +244,6 @@ class ProjectMixin:
         return self._project_overview()
 
     # ================================================================== overview
-    def _project_overview(self):
-        project = self._project_dir()
-        if project is None and self.active_doc is not None:
-            f = proj.find_project_file(Path(self.active_doc.path).parent)
-            if f is not None:
-                self._set_project(f.parent)
-                project = f.parent
-        if project is None:
-            return self._project_start_dialog()
-        T = THEME
-        win = tk.Toplevel(self)
-        win.title(f"Project — {proj.project_name(project)}")
-        win.configure(bg=T["bg_panel"], padx=14, pady=12)
-        win.transient(self)
-        top = tk.Frame(win, bg=T["bg_panel"])
-        top.pack(fill=tk.X)
-        self._label(top, proj.project_name(project), font="body_bold", bg=T["bg_panel"]).pack(side=tk.LEFT)
-        self._label(top, f"   {project}", font="small", fg=T["fg_dim"], bg=T["bg_panel"]).pack(side=tk.LEFT)
-        lbl_total = self._label(win, "", font="small_bold", bg=T["bg_panel"])
-        cols = ("length", "checked", "uncertain", "speakers", "cuts", "notes", "modified")
-        tree = ttk.Treeview(win, columns=cols, show="tree headings", height=16, style="Queue.Treeview")
-        tree.heading("#0", text="Transcript")
-        tree.column("#0", width=320)
-        for c, w, title in (("length", 80, "Length"), ("checked", 80, "Checked"), ("uncertain", 90, "Uncertain"),
-                            ("speakers", 130, "Speakers"), ("cuts", 70, "Cut"), ("notes", 60, "Notes"), ("modified", 160, "Last change / time")):
-            tree.heading(c, text=title)
-            tree.column(c, width=w, anchor="center")
-        state = {"rows": [], "stop": threading.Event(), "project": project}
-
-        def show(rows):
-            state["rows"] = rows
-            for item in tree.get_children():
-                tree.delete(item)
-            ok_rows = [r for r in rows if "error" not in r]
-            nodes: Dict[str, List[Dict]] = {}  # level node iid -> rows below it (for the totals)
-            for i, r in enumerate(rows):
-                parent = ""
-                for depth, (_lv, name) in enumerate(r.get("levels") or []):
-                    iid = "L:" + "/".join(n for _, n in r["levels"][: depth + 1])
-                    if iid not in nodes:
-                        tree.insert(parent, tk.END, iid=iid, text=name, open=True)
-                        nodes[iid] = []
-                    if "error" not in r:
-                        nodes[iid].append(r)
-                    parent = iid
-                if "error" in r:
-                    tree.insert(parent, tk.END, iid=str(i), text=f"⚠ {r['name']}", values=("", "", "", "", "", "", "could not read"))
-                    continue
-                spk = f"{r['speakers']}" + (f" ({r['generic_speakers']} unnamed)" if r["generic_speakers"] else "")
-                tree.insert(parent, tk.END, iid=str(i), text=r["name"], open=False, values=(
-                    short_ts(r["length_s"])[:-2], f"{r['checked_pct']}%", f"{r['uncertain_pct']}%", spk,
-                    short_ts(r["cut_s"])[:-2] if r["cut_s"] else "", r["notes"] or "", r["modified"]))
-                for j, ep in enumerate(r.get("episodes") or []):
-                    approx = "≈ " if ep.get("approx") else ""
-                    tree.insert(str(i), tk.END, iid=f"{i}:{j}", text=f"▸ {ep['type']} {ep.get('label') or ''}",
-                                values=(short_ts(ep["end"] - ep["start"])[:-2], "", "", "", "", "",
-                                        f"{approx}{short_ts(ep['start'])[:-2]} – {short_ts(ep['end'])[:-2]}"))
-            for iid, below in nodes.items():
-                length = sum(r["length_s"] for r in below)
-                done = sum(r["length_s"] * r["checked_pct"] / 100 for r in below)
-                n_ep = sum(len(r.get("episodes") or []) for r in below)
-                tree.item(iid, values=(short_ts(length)[:-2], f"{done * 100 / length:.0f}%" if length else "", "",
-                                       f"{len(below)} transcript(s)", "", "", f"{n_ep} episode(s)" if n_ep else ""))
-            total_len = sum(r["length_s"] for r in ok_rows)
-            done = sum(r["length_s"] * r["checked_pct"] / 100 for r in ok_rows)
-            speakers = proj.load_project(project / proj.PROJECT_FILE)["speakers"]
-            if not rows:
-                lbl_total.config(text="No transcripts in this folder yet. Set a task's output to this folder "
-                                      "(Task Details ▸ Output), or move finished session folders into it.")
-            else:
-                lbl_total.config(text=f"{len(ok_rows)} transcript(s)  ·  {short_ts(total_len)[:-2]} recorded  ·  "
-                                      f"{(done * 100 / total_len) if total_len else 0:.0f}% checked  ·  "
-                                      f"speakers: {', '.join(speakers) or 'none yet (Project speakers…)'}")
-
-        def refresh(background: bool = True):
-            state["stop"].set()
-            stop = state["stop"] = threading.Event()
-            if not background:
-                rows = proj.overview(project, stop=stop)
-                show(rows)
-                return rows
-            lbl_total.config(text="Looking for transcripts…")
-            results: "_queue.Queue" = _queue.Queue()
-            threading.Thread(target=lambda: results.put(proj.overview(project, stop=stop)), daemon=True).start()
-
-            def poll():
-                if stop.is_set() or not win.winfo_exists():
-                    return
-                try:
-                    rows = results.get_nowait()
-                except _queue.Empty:
-                    win.after(120, poll)
-                    return
-                show(rows)
-            win.after(120, poll)
-            return None
-
-        def open_selected(event=None):
-            sel = tree.selection()
-            if not sel or sel[0].startswith("L:"):
-                return
-            i, _, j = sel[0].partition(":")
-            r = state["rows"][int(i)]
-            if "error" in r:
-                return
-            self._autosave_edit(rerender=False)
-            self._render_doc(TranscriptDocument.load(r["path"]))
-            self.notebook.select(self.tab_preview)
-            if j:  # an episode: go to its first segment
-                ep = r["episodes"][int(j)]
-                idx = self.active_doc.episode_segments(ep)
-                if idx:
-                    self._goto_segment(idx[0])
-
-        def export_csv():
-            if not state["rows"]:
-                return
-            target = project / "condense-overview.csv"
-            proj.write_overview_csv(state["rows"], target)
-            self._append_log(f"Project overview saved: {target}", "SUCCESS")
-            lbl_total.config(text=lbl_total.cget("text") + f"  ·  saved {target.name}")
-
-        def close():
-            state["stop"].set()
-            win.destroy()
-
-        self._tool(top, "Refresh", refresh).pack(side=tk.RIGHT)
-        lbl_total.pack(anchor="w", pady=(8, 4))
-        tree.pack(fill=tk.BOTH, expand=True)
-        bar = tk.Frame(win, bg=T["bg_panel"])
-        bar.pack(fill=tk.X, pady=(8, 0))
-        self._tool(bar, "Open", open_selected, primary=True).pack(side=tk.LEFT)
-        self._tool(bar, "Project speakers…", lambda: self._project_speakers_dialog(project, on_saved=refresh)).pack(side=tk.LEFT, padx=(6, 0))
-        self._tool(bar, "Save as CSV", export_csv).pack(side=tk.LEFT, padx=(6, 0))
-        self._tool(bar, "Settings…", lambda: self._project_settings_dialog(on_saved=refresh)).pack(side=tk.LEFT, padx=(6, 0))
-        self._tool(bar, "Close", close).pack(side=tk.RIGHT)
-        tree.bind("<Double-Button-1>", open_selected)
-        win.protocol("WM_DELETE_WINDOW", close)
-        win.bind("<Escape>", lambda e: (close(), "break")[-1])
-        state.update(refresh=refresh, open=open_selected, export=export_csv, tree=tree, lbl=lbl_total, close=close)
-        refresh()
-        return win, state
-
     # ================================================================== project speakers
     def _project_speakers_dialog(self, folder: Optional[Path] = None, on_saved=None, group: Optional[str] = None):
         """Speakers of the project (in every group, e.g. facilitators) and of each group (its children). A transcript's
