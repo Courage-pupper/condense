@@ -716,10 +716,52 @@ class TranscriptDocument:
         """All exports on the original recording's timeline (cut parts left out)."""
         return self._write_exports(self.kept_segments(), self.export_paths(), self.base_name, self.paragraphs())
 
+    def _episode_cuts(self, ep: Dict) -> List:
+        """Everything outside the episode, plus what is cut inside it."""
+        last = max((float(s.get("end", 0)) for s in self.segments), default=0)
+        outside = [(0.0, ep["start"]), (ep["end"], max(ep["end"] + 1.0, last + 1))]
+        return cutlib.normalize(list(self.cuts) + outside)
+
     def export_episode(self, ep: Dict, kept_actual, base_name: str, out_dir: Path) -> Dict[str, Path]:
         """Exports for one episode as its own recording: only what lies inside it (and is not cut), timed from its start."""
-        outside = [(0.0, ep["start"]), (ep["end"], max(ep["end"] + 1.0, max((float(s.get("end", 0)) for s in self.segments), default=0) + 1))]
-        return self.export_trimmed(kept_actual, base_name, out_dir, cuts=cutlib.normalize(list(self.cuts) + outside))
+        return self.export_trimmed(kept_actual, base_name, out_dir, cuts=self._episode_cuts(ep))
+
+    def episode_document(self, ep: Dict, kept_actual, base_name: str, out_dir: Path, clip: Path) -> "TranscriptDocument":
+        """The episode as a transcript of its own clip, like one made by transcribing the clip: <out_dir>/<base_name>
+        .transcript.json with what lies inside the episode (and is not cut), timed from the clip's start. Speakers,
+        corrections, checked marks and notes come along; the provenance names the session transcript and the episode.
+        Not saved yet. kept_actual: the interval of the source really written to the clip."""
+        segs = cutlib.retime_segments(self.segments, self._episode_cuts(ep), cutlib.TimeMap(kept_actual))
+        result = {k: v for k, v in self.result.items() if k != "segments"}
+        result["segments"] = segs
+        source_prov = self.data.get("provenance") or {}
+        provenance = {
+            "inputs": [{"path": str(clip)}],
+            "episode_of": {"transcript": str(self.path), "episode": dict(ep), "kept_as_written": [list(k) for k in kept_actual],
+                           "note": "Times in 'episode' are on the session recording; this transcript is timed to the clip."},
+            "processing": {"episode_clip": {"file": Path(clip).name}},
+            "whisper": source_prov.get("whisper"),
+            "session_inputs": source_prov.get("inputs"),
+        }
+        doc = TranscriptDocument.create(out_dir, base_name, result, self.data.get("model", ""), self.data.get("export_formats") or {},
+                                        self.data.get("confidence_thresholds") or {}, {"playback": str(clip), "video": str(clip)},
+                                        provenance)
+        roster = [n for n in self.roster() if any(sg.get("speaker") == n for sg in segs)]
+        if roster:
+            doc.data["speakers"] = roster
+        if "next_wid" in self.data:
+            doc.data["next_wid"] = self.data["next_wid"]  # word ids stay unique when words are added later
+        doc.log_edit("from_episode", transcript=self.path.name, episode=ep.get("id"), label=ep.get("label"))
+        return doc
+
+    def backup_now(self) -> Optional[Path]:
+        """A backup of the file as it is on disk, regardless of when the last one was made."""
+        if not self.path.exists():
+            return None
+        self.backup_dir.mkdir(parents=True, exist_ok=True)
+        dst = self.backup_dir / f"{self.base_name}.{datetime.now().strftime('%Y%m%d-%H%M%S')}{self.SUFFIX}"
+        shutil.copy2(self.path, dst)
+        return dst
 
     def export_trimmed(self, kept_actual, base_name: str, out_dir: Optional[Path] = None, cuts=None) -> Dict[str, Path]:
         """Exports for a trimmed recording: cut parts left out and every time moved onto the trimmed timeline.

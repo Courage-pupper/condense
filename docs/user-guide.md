@@ -228,9 +228,14 @@ coloured bands on the timeline and as headers in the transcript, and they start 
 
 - **Work through one kind:** the *Show* filter has *In Interview*, *In Phase* … — ↑/↓ then move only through those
   segments.
-- **Export one as a clip:** *Export clip…* in the Episodes dialog writes the clip and a transcript timed to it (SRT, TXT,
-  paragraphs for MAXQDA), plus a small `.episode.json` record of where it came from. Interviews are saved next to the
-  group's other interviews (a folder with "Interview" in its name), so you no longer need to cut them out by hand.
+- **Export one as a clip:** *Export clip…* in the Episodes dialog writes the clip and, next to it, a folder of the same
+  name with the clip's transcript — the same layout as transcribing the clip yourself
+  (`Semi-structured Interviews/G3D1_I1.mp4` and `Semi-structured Interviews/G3D1_I1/`). The folder holds a real
+  `.transcript.json` (timed to the clip, with your corrections, speakers, checked marks and notes; open, edit and code it
+  like any transcript), its exports (SRT, TXT, paragraphs for MAXQDA) and a small `.episode.json` record of where it
+  came from. Interviews are saved next to the group's other interviews (a folder with "Interview" in its name), so you
+  no longer need to cut them out and transcribe them again. Exporting the same episode again replaces the clip and its
+  transcript after asking; the old transcript is kept in its `_backups` folder.
 - **Episode types** (Interview, Phase, Plenary …) are set per project in *Project ▸ Project Settings…*.
 
 **Interviews you already cut out:** open the group's session transcript and choose *Find interview clips…* (in the
