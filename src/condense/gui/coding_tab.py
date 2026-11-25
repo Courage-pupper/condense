@@ -2,8 +2,8 @@
 every coding, and the transcript's codings below.
 
 Code words: select them in the text, then double-click a code (or press Return to use the selected code, or 1–9 for
-the recent codes, or N for a new code). Code a moment without speech: drag on the timeline, then choose a code and
-describe what happens. Codings are saved in the transcript (with backups and undo); the codebook in the study folder.
+the recent codes, or N for a new code). Code by time — what happens without words, or before the transcript is
+checked: mark a range on the timeline below (coding_timeline.py) and code it the same way. Codings are saved in the transcript (with backups and undo); the codebook in the study folder.
 """
 import bisect
 
@@ -31,7 +31,14 @@ class CodingMixin:
         self._tool(row, "New Project…", self._new_project_dialog, primary=True).pack(side=tk.LEFT)
         self._tool(row, "Open Project…", self._open_project_dialog).pack(side=tk.LEFT, padx=(6, 0))
 
-        self.cd_main = tk.PanedWindow(tab, orient=tk.HORIZONTAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
+        # the tab: codebook | transcript | video on top, the timeline under all of them (its height can be dragged)
+        self.cd_area = tk.PanedWindow(tab, orient=tk.VERTICAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
+        self.cd_main = tk.PanedWindow(self.cd_area, orient=tk.HORIZONTAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
+        self.cd_area.add(self.cd_main, minsize=260, stretch="always")
+        tl_frame = tk.Frame(self.cd_area, bg=T["bg_panel"], padx=4, pady=2)
+        self.cd_area.add(tl_frame, minsize=70, height=170, stretch="never")
+        self.cdt_frame = tl_frame
+        self._build_cd_timeline(tl_frame)
         # ---- codebook ----
         left = tk.Frame(self.cd_main, bg=T["bg_panel"], padx=4)
         self.cd_main.add(left, minsize=220, width=280)
@@ -50,6 +57,10 @@ class CodingMixin:
         bar.add(self._dropdown(bar, "More ▾", [
             ("Merge into another code…", lambda: self._cd_merge_dialog(self._cd_selected_code())),
             ("Delete code…", lambda: self._cd_delete_code(self._cd_selected_code())),
+            ("-",),
+            ("Show on the timeline / hide", lambda: self._cdt_set_shown(self._cd_selected_code(),
+                                                                         self._cd_selected_code() not in self._cdt_shown_codes())),
+            ("Timeline: back to the codes used", lambda: [self._cdt_set_shown(c, False) for c in self._cdt_shown_codes()]),
             ("-",),
             ("Refresh counts", lambda: self._cd_fill_codebook(recount=True)),
         ]))
@@ -79,16 +90,11 @@ class CodingMixin:
         top.add(self.lbl_cd_doc)
         top.add(self._tool(top, "Code selection (↩)", lambda: self._cd_apply(self._cd_selected_code())))
         top.add(self._tool(top, "New code from selection (N)", lambda: self._cd_new_code(parent=self._cd_selected_code(), apply=True)))
-        top.add(self._tool(top, "Moment without speech…", lambda: self._cd_time_dialog()))
+        top.add(self._tool(top, "Code by time…", lambda: self._cd_time_dialog(*(self._cdt_mark() or (None, None)))))
         top.add(self._tool(top, "▶ Play selection", self._cd_play_selection))
+        top.add(self._tool(top, "⇔ Video size", self._cd_video_size))
         self.cd_recent = self._flow(right, padx=3, pady=2, bg=T["bg_panel"])
-        self.cd_recent.pack(fill=tk.X)
-        self.cd_timeline = tk.Canvas(right, height=26, bg=T["bg_input"], highlightthickness=0, bd=0, cursor="crosshair")
-        self.cd_timeline.pack(fill=tk.X, pady=(4, 4))
-        self.cd_timeline.bind("<Configure>", lambda e: self._cd_draw_timeline())
-        self.cd_timeline.bind("<Button-1>", self._cd_tl_press)
-        self.cd_timeline.bind("<B1-Motion>", self._cd_tl_drag)
-        self.cd_timeline.bind("<ButtonRelease-1>", self._cd_tl_release)
+        self.cd_recent.pack(fill=tk.X, pady=(0, 4))
         body = tk.PanedWindow(right, orient=tk.VERTICAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
         body.pack(fill=tk.BOTH, expand=True)
         txt_frame = tk.Frame(body, bg="#0b0d13")
@@ -169,13 +175,13 @@ class CodingMixin:
     def _cd_show_state(self):
         project = self._cd_project()
         if project is None:
-            self.cd_main.pack_forget()
+            self.cd_area.pack_forget()
             self.cd_none_lbl.config(text="Coding works in a project: the codebook is kept in the study's folder and shared by all its "
                                          "transcripts. Open or create the project of this study first.")
             self.cd_none.pack(fill=tk.X, padx=10, pady=10)
             return False
         self.cd_none.pack_forget()
-        self.cd_main.pack(fill=tk.BOTH, expand=True)
+        self.cd_area.pack(fill=tk.BOTH, expand=True)
         return True
 
     def _cd_visible(self) -> bool:
@@ -219,6 +225,7 @@ class CodingMixin:
             self._cd_counts = cod.counts(cb.path.parent)
         counts = self._cd_counts
         q = self.var_cd_search.get().strip().lower()
+        shown_on_tl = set(self._cdt_shown_codes()) if self.__dict__.get("cdt") is not None else set()
         shown = set()
         if q:  # a match and the codes above it
             for c in cb.codes:
@@ -236,7 +243,8 @@ class CodingMixin:
             if parent and not tree.exists(parent):
                 parent = ""
             n = counts.get(c["id"], 0)
-            tree.insert(parent, tk.END, iid=c["id"], text=f"■ {c['name']}", values=(n or "",), open=True, tags=(tag,))
+            lane = "  ◉" if c["id"] in shown_on_tl else ""
+            tree.insert(parent, tk.END, iid=c["id"], text=f"■ {c['name']}{lane}", values=(n or "",), open=True, tags=(tag,))
         if keep and tree.exists(keep):
             tree.selection_set(keep)
         if not cb.codes:
@@ -260,7 +268,9 @@ class CodingMixin:
             self.cd_tree.selection_set(iid)
         m = PopupMenu(self)
         if iid:
-            m.add_command(label="Code the selected text with it", command=lambda: self._cd_apply(iid))
+            m.add_command(label="Code the selection (or the marked range) with it", command=lambda: self._cd_apply(iid))
+            on = iid in self._cdt_shown_codes()
+            m.add_command(label="Hide from the timeline" if on else "Show on the timeline", command=lambda: self._cdt_set_shown(iid, not on))
             m.add_command(label="New subcode…", command=lambda: self._cd_new_code(parent=iid))
             m.add_command(label="Edit…", command=lambda: self._cd_edit_code(iid))
             m.add_command(label="Merge into another code…", command=lambda: self._cd_merge_dialog(iid))
@@ -281,8 +291,8 @@ class CodingMixin:
         cb = self._cd_codebook()
         if cb is None:
             return None
-        if apply and not self._cd_selection_words():
-            self.lbl_cd_doc.config(text="Select the words to code first.")
+        if apply and not self._cd_selection_words() and self._cdt_mark() is None:
+            self.lbl_cd_doc.config(text="Select the words to code first, or mark a range on the timeline.")
             return None
         where = f" under “{cb.get(parent)['name']}”" if parent and cb.get(parent) else ""
         if name is None:
@@ -467,6 +477,10 @@ class CodingMixin:
     # ================================================================== the transcript with stripes
     def _cd_render(self, doc):
         t = self.cd_text
+        if self._cd.get("rendered_for") != str(doc.path) and self.__dict__.get("cdt") is not None:
+            self.cdt.update(view=None, live={}, loop=None, thumbs={})  # another transcript: its whole recording, nothing marked
+            self.cdt["in"] = self.cdt["out"] = None
+            self._cdt_show_mark()
         self._cd["doc"] = doc
         y = t.yview()[0] if self._cd.get("rendered_for") == str(doc.path) else 0.0
         words: List[Tuple] = []  # (line, c0, c1, seg, wi, wid)
@@ -526,7 +540,7 @@ class CodingMixin:
         t.yview_moveto(y)
         n_word = sum(1 for r in res if r.get("words"))
         n_orph = sum(1 for r in res if r.get("orphan"))
-        self.lbl_cd_doc.config(text=f"{doc.base_name} · {len(res)} coding(s)" + (f" · {len(moments)} moment(s) without speech" if moments else "")
+        self.lbl_cd_doc.config(text=f"{doc.base_name} · {len(res)} coding(s)" + (f" · {len(moments)} coded by time" if moments else "")
                                + (f" · ⚠ {n_orph} coding(s) whose words were deleted" if n_orph else ""))
         self._cd_fill_list()
         self._cd_fill_recent()
@@ -540,7 +554,7 @@ class CodingMixin:
         self.cd_text.tag_config(tag, foreground=c["color"] if c else THEME["fg_dim"])
         self.cd_text.tag_bind(tag, "<Button-1>", lambda e, k=r["id"]: self._cd_select_coding(k))
         put(f"\n◆ {name}  {short_ts(r['start'])[:-2]} – {short_ts(r['end'])[:-2]}", "MOMENT", tag)
-        put(f"   {r['memo']}" if r.get("memo") else "   (no description)", "MOMENT", tag)
+        put(f"   {r['memo']}" if r.get("memo") else "   (by time)", "MOMENT", tag)
         put("\n")
 
     def _cd_current(self):
@@ -630,56 +644,25 @@ class CodingMixin:
                 return self._cd_select_coding(kid)
         return None
 
-    # ----- timeline: codings and moments; drag to mark a moment without speech -----
     def _cd_draw_timeline(self):
-        cv = self.cd_timeline
-        cv.delete("all")
-        doc = self._cd.get("doc")
-        if doc is None:
-            return
-        w, h = max(1, cv.winfo_width()), int(cv.cget("height"))
-        dur = max(self._duration(), max((float(s.get("end", 0)) for s in doc.segments), default=1.0), 1.0)
-        cb = self._cd_codebook()
-        for r in self._cd["resolved"]:
-            c = cb.get(r["code"]) if cb else None
-            col = c["color"] if c else THEME["fg_dim"]
-            x0, x1 = r["start"] / dur * w, max(r["start"] / dur * w + 2, r["end"] / dur * w)
-            if r.get("kind") == "time":
-                cv.create_rectangle(x0, 2, x1, h - 2, fill=self._dim(col, 0.5), outline=col)
-            else:
-                cv.create_rectangle(x0, h - 9, x1, h - 3, fill=col, outline="")
-        drag = self._cd.get("tl_drag")
-        if drag and drag.get("t1") is not None:
-            a, b = sorted((drag["t0"], drag["t1"]))
-            cv.create_rectangle(a / dur * w, 0, b / dur * w, h, outline=THEME["fg_primary"], dash=(3, 2))
-        cv.create_text(6, 3, anchor="nw", text="drag here to mark a moment without speech", fill=THEME["fg_dim"], font=self.f["small"])
-        self._cd["tl_dur"] = dur
+        return self._cdt_draw()
 
-    def _cd_tl_time(self, x) -> float:
-        w = max(1, self.cd_timeline.winfo_width())
-        return max(0.0, min(1.0, x / w)) * self._cd.get("tl_dur", 1.0)
-
-    def _cd_tl_press(self, event):
-        self._cd["tl_drag"] = {"t0": self._cd_tl_time(event.x), "t1": None}
-
-    def _cd_tl_drag(self, event):
-        if self._cd.get("tl_drag"):
-            self._cd["tl_drag"]["t1"] = self._cd_tl_time(event.x)
-            self._cd_draw_timeline()
-
-    def _cd_tl_release(self, event):
-        d = self._cd.get("tl_drag")
-        self._cd["tl_drag"] = None
-        if not d:
+    def _cd_video_size(self):
+        """The video column: a third of the tab, or more than half of it (for watching closely)."""
+        if not self.__dict__.get("_cd_video_shown"):
+            self.var_show_video.set(True)
+            self._toggle_video_panel()
+        try:
+            panes = self.cd_main.panes()
+            width = int(self.cd_main.winfo_width())
+            big = not self.__dict__.get("_cd_video_big")
+            x = int(width * (0.42 if big else 0.67))
+            self.cd_main.sash_place(len(panes) - 2, x, 0)
+            self._cd_video_big = big
+            self.after(120, lambda: self._video_resized(self._video_screen()))
+        except Exception:
             return None
-        t1 = self._cd_tl_time(event.x)
-        if abs(t1 - d["t0"]) < 0.5:  # a click: play from there
-            self._player_start(d["t0"])
-            self._cd_draw_timeline()
-            return None
-        self._cd_draw_timeline()
-        a, b = sorted((d["t0"], t1))
-        return self._cd_time_dialog(a, b)
+        return self._cd_video_big
 
     # ================================================================== selecting and coding
     def _cd_key(self, event):
@@ -701,7 +684,14 @@ class CodingMixin:
         elif k.isdigit() and k != "0":
             rec = self._cd["recent"]
             if int(k) <= len(rec):
-                self._cd_apply(rec[int(k) - 1])
+                code = rec[int(k) - 1]
+                if self._cd_selection_words() is None and self._cdt_mark() is None and (
+                        self.__dict__.get("playing") or code in (self.cdt.get("live") or {})):
+                    self._cdt_live_toggle(code)  # while watching: start, and end, a coding at the playhead
+                else:
+                    self._cd_apply(code)
+        else:
+            self._cdt_key(k)
         return "break"
 
     def _cd_selection_words(self) -> Optional[Tuple[int, int]]:
@@ -724,8 +714,10 @@ class CodingMixin:
             self.lbl_cd_doc.config(text="Choose a code in the codebook first (or press N for a new one).")
             return None
         span = self._cd_selection_words()
+        if span is None and self._cdt_mark() is not None:
+            return self._cdt_code_mark(code_id)  # the range marked on the timeline: by time
         if span is None:
-            self.lbl_cd_doc.config(text="Select the words to code first (drag over them).")
+            self.lbl_cd_doc.config(text="Select the words to code first (drag over them), or mark a range on the timeline.")
             return None
         words = self._cd["words"]
         a, b = words[span[0]], words[span[1]]
@@ -753,10 +745,10 @@ class CodingMixin:
             start, end = (existing["start"], existing["end"]) if existing else (pos, pos + 10)
         choices = self._cd_code_choices()
         win = tk.Toplevel(self)
-        win.title("Moment without speech")
+        win.title("Code by time")
         win.configure(bg=T["bg_panel"], padx=16, pady=14)
-        self._label(win, "Code a stretch of the recording by time — what happens without words (materials, devices, gestures). "
-                         "It shows in the transcript at its time, with your description.", font="small", fg=T["fg_secondary"],
+        self._label(win, "Code a stretch of the recording by time — what happens without words (materials, devices, gestures), "
+                         "or before the transcript is checked. It shows in the transcript at its time, with your description.", font="small", fg=T["fg_secondary"],
                     bg=T["bg_panel"], wraplength=460, justify=tk.LEFT).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 8))
         v_start, v_end = tk.StringVar(value=short_ts(start)), tk.StringVar(value=short_ts(end))
         sel_name = next((n.strip() for i, n in choices if i == ((existing or {}).get("code") or self._cd_selected_code())), "")
@@ -918,7 +910,7 @@ class CodingMixin:
             if keep is not None and r["code"] not in keep:
                 continue
             c = cb.get(r["code"]) if cb else None
-            text = ("◆ " + (r.get("memo") or "(moment without speech)")) if r.get("kind") == "time" else (
+            text = ("◆ " + (r.get("memo") or "(coded by time)")) if r.get("kind") == "time" else (
                 "⚠ (its words were deleted)" if r.get("orphan") else cod.coded_text(doc, r))
             if r.get("memo") and r.get("kind") != "time":
                 text += f"   ✎ {r['memo']}"
@@ -1010,7 +1002,7 @@ class CodingMixin:
             m.add_command(label="Change its code…", command=lambda: self._cd_change_code(kid))
             m.add_command(label="Delete this coding", command=lambda: self._cd_remove(kid))
         m.add_separator()
-        m.add_command(label="Moment without speech…", command=lambda: self._cd_time_dialog())
+        m.add_command(label="Code by time…", command=lambda: self._cd_time_dialog(*(self._cdt_mark() or (None, None))))
         try:
             m.tk_popup(event.x_root, event.y_root)
         finally:

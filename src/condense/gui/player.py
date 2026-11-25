@@ -587,6 +587,7 @@ class PlayerMixin:
         extra = f"  ·  {self.var_speed.get()}" if abs(speed - 1.0) > 1e-3 else ""
         self.lbl_time.configure(text=f"{short_ts(self._current_pos())[:-2]} / {short_ts(self._duration())[:-2]}{extra}")
         self._timeline_playhead()
+        self._cdt_tick(self._current_pos())
 
     def _open_transcript(self):
         initial = self._start_dir_in_project(self.settings.get("last_transcript_dir"))
