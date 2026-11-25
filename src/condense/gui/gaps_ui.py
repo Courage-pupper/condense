@@ -49,6 +49,10 @@ class GapsMixin:
             a, b = rng
             when = f"{short_ts(a)[:-2]} – {short_ts(b)[:-2]}"
             m.add_command(label=f"Re-transcribe this passage…  ({when})", command=lambda: self._retranscribe_dialog(rng))
+            segs = self._segments_in(rng)
+            if segs is not None and segs[1] > segs[0]:  # one segment has one speaker: detecting needs several
+                m.add_command(label=f"Detect speakers in this passage…  ({segs[1] - segs[0] + 1} segments)",
+                              command=lambda: self._rediarize_dialog(segs))
             m.add_command(label="Play this passage", command=lambda: self._player_start(a, duration=max(0.5, b - a)))
             m.add_separator()
         m.add_command(label="Find untranscribed stretches…", command=self._gaps_dialog)

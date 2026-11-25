@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.23.0 — unreleased
+
+### Coding video on a timeline
+- **A real timeline in the Coding tab**, under the transcript and the video: a ruler, frames of the video, who speaks,
+  the episodes, and one lane per code (time codings outlined, codings of words solid). Its height can be dragged.
+- **Zoom** to the whole recording, the episode at the playhead, or 10 / 2 minutes around it; the mouse wheel zooms where
+  the mouse is, Shift+wheel or dragging the ruler moves along, a click jumps there, and it pages along while playing.
+- **Code by time without a dialog:** drag a range (or I and O at the playhead), then Return, 1–9 or N — like words.
+  Works before the transcript is checked, and for what happens without words.
+- **Coding while watching:** with nothing marked, 1–9 starts a coding at the playhead and the same key ends it.
+- **Drag a bar's edge** to change a coding (codings of words take the words at the new place). Right-click a bar:
+  play, loop, memo, change code, delete, **attach to the words said in it** (or keep by time only).
+- **Lanes for the codes you choose** (codebook: right-click ▸ Show on the timeline, marked ◉), like activated codes in
+  MAXQDA; until you choose, the codes used in view.
+- **Watching closely:** L loops the marked range or a coding, . and , step a frame, > and < a second, X clears the mark;
+  *⇔ Video size* gives the video more than half of the tab.
+
+### More room
+- **Hide the Tasks / Project panel** (⌘B / Ctrl+B, View menu, or ◂ next to the Tasks tab): it becomes a strip at the
+  left, and the Transcript and Coding tabs get the whole width. Click the strip to bring it back; remembered.
+
+### Speakers
+- **Detect speakers in a highlighted passage:** right-click ▸ *Detect speakers in this passage…*. Only those segments
+  get new speakers, matched to the names already used there.
+
+### Tests
+- The playback-speed test counted video stills taken in the background as player restarts, so it failed now and then
+  (on macOS); it counts only the player now.
+
 ## 0.22.0 — 2026-11-24
 
 ### Study overview

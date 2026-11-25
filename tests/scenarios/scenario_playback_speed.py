@@ -15,7 +15,10 @@ class P:
     def __init__(self, cmd, **k): self.cmd = cmd; self.alive = True; launched.append(cmd)
     def poll(self): return None if self.alive else 0
     def terminate(self): self.alive = False
-pipe.subprocess.Popen = P
+real_popen = subprocess.Popen
+# only the audio player is faked and counted: video stills (and other ffmpeg calls from background threads, which go
+# through Popen too) run for real — counting them made this test depend on thread timing
+pipe.subprocess.Popen = lambda cmd, *a, **k: P(cmd, **k) if cmd and cmd[0] == "ffplay" else real_popen(cmd, *a, **k)
 clock = [10.0]; pipe.time.monotonic = lambda: clock[0]
 seq = []
 for _ in range(8):

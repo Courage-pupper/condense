@@ -19,6 +19,7 @@ from condense.gui.project import ProjectMixin
 from condense.gui.episodes import EpisodesMixin
 from condense.gui.project_panel import ProjectPanelMixin
 from condense.gui.coding_tab import CodingMixin
+from condense.gui.coding_timeline import CodingTimelineMixin
 from condense.gui.video import VideoMixin
 from condense.gui.subtitles_ui import SubtitlesMixin
 from condense.gui.storage_ui import StorageMixin
@@ -27,7 +28,7 @@ from condense.gui.overview_ui import OverviewMixin
 from condense.gui.memory_ui import MemoryMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, ProjectPanelMixin, CodingMixin, SubtitlesMixin, StorageMixin, GapsMixin, OverviewMixin, MemoryMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, ProjectPanelMixin, CodingMixin, CodingTimelineMixin, SubtitlesMixin, StorageMixin, GapsMixin, OverviewMixin, MemoryMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")
@@ -382,7 +383,10 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.var_show_pct = tk.BooleanVar(value=False)
         v.add_checkbutton(label="Show % on Uncertain Words", variable=self.var_show_pct, command=self._rerender)
         self.var_show_video = tk.BooleanVar(value=True)
+        self.var_side_panel = tk.BooleanVar(value=not self.settings.get("side_collapsed"))
         v.add_checkbutton(label="Show Video Preview", variable=self.var_show_video, command=self._toggle_video_panel)
+        v.add_checkbutton(label="Show Tasks & Project Panel", variable=self.var_side_panel, accelerator=f"{acc}B",
+                          command=lambda: self._toggle_side_panel(bool(self.var_side_panel.get())))
         v.add_separator()
         v.add_command(label="Settings", accelerator=f"{acc}1", command=lambda: self.notebook.select(self.tab_settings))
         v.add_command(label="Console", accelerator=f"{acc}2", command=lambda: self.notebook.select(self.tab_console))
@@ -439,6 +443,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             "i": self._insert_segment_dialog,
             "slash": self._show_shortcuts,
             "f": self._toggle_find,
+            "b": self._toggle_side_panel,
         }
         # Use the <Mod-Key-x> form: in Tk "<Command-1>" would mean Command + mouse button 1.
         for key, fn in keys.items():
@@ -524,6 +529,16 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         right = tk.Frame(self.paned, bg=THEME["bg_root"])
         self.paned.add(left, minsize=300, stretch="always")
         self.paned.add(right, minsize=480, stretch="always")
+        self.side_left, self.side_right = left, right
+        self.side_collapsed = False
+        # collapsed, the side panel is a thin strip at the left: the analysis (Transcript, Coding) gets the room
+        self.side_strip = tk.Frame(self, bg=THEME["bg_panel"], padx=2, pady=6)
+        self._tool(self.side_strip, "▸", self._toggle_side_panel).pack(fill=tk.X)
+        for name, which in (("Tasks", "tasks"), ("Project", "project")):
+            lab = tk.Label(self.side_strip, text="\n".join(name), font=self.f["small"], fg=THEME["fg_secondary"], bg=THEME["bg_panel"],
+                           cursor="hand2", pady=8)
+            lab.pack(fill=tk.X, pady=(10, 0))
+            lab.bind("<Button-1>", lambda e, w=which: self._toggle_side_panel(show=w))
         self.after(80, self._restore_sash)
 
         # Tasks and the project's recordings share the left side; the project tab is shown when a project is open
@@ -537,6 +552,10 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self._build_project_panel(self.tab_project)
         if self._project_dir() is not None:
             self.left_tabs.select(self.tab_project)
+        hide = self._tool(left, "◂", self._toggle_side_panel)
+        hide.place(relx=1.0, x=0, y=-4, anchor="ne")  # top right, beside the Tasks / Project tabs
+        if self.settings.get("side_collapsed"):
+            self.after(120, lambda: self._toggle_side_panel(False))
 
         self.notebook = ttk.Notebook(right)
         self.notebook.pack(fill=tk.BOTH, expand=True)
@@ -553,7 +572,33 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self._build_preview_tab()
         self._build_coding_tab()
 
+    def _toggle_side_panel(self, show=None):
+        """Collapse the Tasks / Project panel to a strip at the left, or bring it back (show: True, False, "tasks" or
+        "project" — which tab to show; None toggles)."""
+        want = self.side_collapsed if show is None else bool(show)  # toggling: shown when it was collapsed
+        if want and self.side_collapsed:
+            self.side_strip.pack_forget()
+            self.paned.add(self.side_left, before=self.side_right, minsize=300, stretch="always")
+            self.side_collapsed = False
+            self.after(60, self._restore_sash)
+        elif not want and not self.side_collapsed:
+            try:
+                self.settings["sash_fraction"] = round(self.paned.sash_coord(0)[0] / max(1, self.paned.winfo_width()), 3)
+            except Exception:
+                pass
+            self.paned.forget(self.side_left)
+            self.side_strip.pack(side=tk.LEFT, fill=tk.Y, padx=(10, 0), pady=(6, 4), before=self.paned)
+            self.side_collapsed = True
+        if show in ("tasks", "project"):
+            self.left_tabs.select(self.tab_tasks if show == "tasks" else self.tab_project)
+        self.var_side_panel.set(not self.side_collapsed)
+        self.settings["side_collapsed"] = self.side_collapsed
+        self.after(150, lambda: self._video_resized(self._video_screen()))  # more room: fit the picture again
+        return not self.side_collapsed
+
     def _restore_sash(self):
+        if self.side_collapsed:
+            return
         if self.paned.winfo_width() <= 1:
             self.after(100, self._restore_sash)
             return
@@ -596,7 +641,8 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                 full = False
             if not full:  # a full-screen size would reopen as an oversized ordinary window
                 self.settings["geometry"] = self.geometry()
-            self.settings["sash_fraction"] = round(self.paned.sash_coord(0)[0] / max(1, self.paned.winfo_width()), 3)
+            if not self.__dict__.get("side_collapsed"):
+                self.settings["sash_fraction"] = round(self.paned.sash_coord(0)[0] / max(1, self.paned.winfo_width()), 3)
         except Exception:
             pass
         SettingsStore.save(self.settings)
