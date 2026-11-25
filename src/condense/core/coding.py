@@ -214,6 +214,76 @@ def remove_coding(doc, coding_id: str) -> bool:
     return False
 
 
+def _timed_words(doc) -> List[Tuple[float, float, str]]:
+    """(start, end, wid) of every word with an id, in order of time."""
+    out = []
+    for seg in doc.segments:
+        for w in seg.get("words") or []:
+            if w.get("wid") and str(w.get("word", "")).strip():
+                out.append((float(w.get("start", 0.0)), float(w.get("end", 0.0)), w["wid"]))
+    out.sort()
+    return out
+
+
+def set_coding_span(doc, coding_id: str, start: float, end: float) -> bool:
+    """Move a coding's start and end (dragging its edges on the timeline). A time coding takes the times; a coding of
+    words takes the words at those times (the first word that ends after start, the last that begins before end)."""
+    c = get_coding(doc, coding_id)
+    if c is None:
+        return False
+    start, end = sorted((max(0.0, float(start)), max(0.0, float(end))))
+    if c.get("kind") == "time":
+        if end - start < 0.2:
+            return False
+        if abs(c["start"] - start) < 1e-3 and abs(c["end"] - end) < 1e-3:
+            return False
+        c["start"], c["end"] = round(start, 3), round(end, 3)
+    else:
+        words = _timed_words(doc)
+        first = next((w for w in words if w[1] > start), None)
+        last = next((w for w in reversed(words) if w[0] < end), None)
+        if first is None or last is None or last[0] < first[0]:
+            return False
+        if c.get("start_wid") == first[2] and c.get("end_wid") == last[2]:
+            return False
+        c["start_wid"], c["end_wid"] = first[2], last[2]
+        c["start"], c["end"] = round(first[0], 3), round(last[1], 3)
+    doc.log_edit("move_coding", coding=coding_id, start=c["start"], end=c["end"])
+    return True
+
+
+def attach_to_words(doc, coding_id: str, slack: float = 0.25) -> bool:
+    """A time coding becomes a coding of the words said in it (once the transcript is checked): it then follows the
+    words through edits and shows as underlined text. False if no word lies inside."""
+    c = get_coding(doc, coding_id)
+    if c is None or c.get("kind") != "time":
+        return False
+    inside = [w for w in _timed_words(doc) if w[0] >= c["start"] - slack and w[1] <= c["end"] + slack]
+    if not inside:
+        return False
+    c["start_wid"], c["end_wid"] = inside[0][2], inside[-1][2]
+    c["start"], c["end"] = round(inside[0][0], 3), round(inside[-1][1], 3)
+    c.pop("kind", None)
+    doc.log_edit("attach_coding", coding=coding_id, start=c["start"], end=c["end"])
+    return True
+
+
+def detach_from_words(doc, coding_id: str) -> bool:
+    """A coding of words becomes a time coding over the same stretch (kept by time only, whatever happens to the
+    words — e.g. before re-transcribing the passage)."""
+    c = get_coding(doc, coding_id)
+    if c is None or c.get("kind") == "time":
+        return False
+    r = next((r for r in resolve(doc) if r["id"] == coding_id), None)
+    if r is not None and not r.get("orphan"):
+        c["start"], c["end"] = round(r["start"], 3), round(r["end"], 3)
+    c.pop("start_wid", None)
+    c.pop("end_wid", None)
+    c["kind"] = "time"
+    doc.log_edit("detach_coding", coding=coding_id, start=c["start"], end=c["end"])
+    return True
+
+
 def resolve(doc) -> List[Dict]:
     """Every coding with where it is now: "words" ((seg, word), (seg, word)) or None for time codings and codings
     whose words are all gone ("orphan": True). Sorted by time."""

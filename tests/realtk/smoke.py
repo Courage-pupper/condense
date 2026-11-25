@@ -21,6 +21,7 @@ sys.path.insert(0, str(HERE))
 import demo_data  # noqa: E402
 
 from condense import updates  # noqa: E402
+from condense.core import coding as cod  # noqa: E402
 from condense.core import project as proj  # noqa: E402
 from condense.core.transcript import TranscriptDocument as TD  # noqa: E402
 from condense.gui.app import CondenseApp  # noqa: E402
@@ -489,9 +490,36 @@ def main():
     pump(app, 0.3)
     shot(app, "coding-code", w_e)
     w_e.destroy()
+    # the timeline: code by time (no dialog), zoomed, with frames of the video; the side panel collapsed for room
+    making = cb.find("Making")["id"]
+    app._toggle_side_panel(False)
+    pump(app, 0.4)
+    assert app.side_collapsed and str(app.side_strip.winfo_manager()) == "pack"
+    app.play_pos = 40.0
+    app._cdt_mark_in()
+    app.play_pos = 49.0
+    app._cdt_mark_out()
+    kt = app._cdt_code_mark(making)
+    assert kt and cod.get_coding(app.active_doc, kt)["kind"] == "time"
+    app._cdt_set_mark(62.0, 70.0)
+    app._cdt_zoom("120")
+    deadline = time.time() + 20
+    while time.time() < deadline and not any(isinstance(v, tk.PhotoImage) for v in app.cdt["thumbs"].values()):
+        pump(app, 0.3)
+    pump(app, 0.5)
+    assert any(isinstance(v, tk.PhotoImage) for v in app.cdt["thumbs"].values()), "no frames on the timeline"
+    kinds = {it[0] for it in app._cdt_items()}
+    assert {"tick", "frame", "speaker", "lane", "bar", "mark"} <= kinds, kinds
+    assert len(app.cd_timeline.find_all()) > 20
+    shot(app, "coding-timeline")
+    app._cdt_clear_mark()
+    app._toggle_side_panel(True)
+    pump(app, 0.4)
+    assert not app.side_collapsed
     app.notebook.select(app.tab_preview)
     pump(app, 0.3)
-    ok("Coding tab: demo codebook, a real selection coded, stripes drawn, moment and code dialogs")
+    ok("Coding tab: demo codebook, a real selection coded, stripes drawn, moment and code dialogs; timeline: coded by "
+       "I/O, zoomed to 2 min with video frames; side panel collapsed and back")
 
     res = app._trim_dialog(video)
     assert res is not None

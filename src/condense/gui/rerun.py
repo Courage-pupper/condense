@@ -271,7 +271,17 @@ class RerunMixin:
             self._gap_finished(n_new)
 
     # --- re-run speaker detection
-    def _rediarize_dialog(self):
+    def _segments_in(self, rng: Tuple[float, float]) -> Optional[Tuple[int, int]]:
+        """(first, last) segment index of the segments that overlap a time range, or None."""
+        doc = self.active_doc
+        if doc is None:
+            return None
+        a, b = rng
+        idx = [i for i, sg in enumerate(doc.segments) if float(sg.get("end", 0)) > a + 0.05 and float(sg.get("start", 0)) < b - 0.05]
+        return (idx[0], idx[-1]) if idx else None
+
+    def _rediarize_dialog(self, seg_range: Optional[Tuple[int, int]] = None):
+        """Detect speakers again — for the whole transcript, or (seg_range) only for the segments from first to last."""
         doc = self.active_doc
         if doc is None:
             self.lbl_status.config(text="Open a transcript first.")
@@ -284,14 +294,22 @@ class RerunMixin:
         win.title("Re-run speaker detection")
         win.configure(bg=T["bg_panel"], padx=16, pady=14)
         win.transient(self)
-        manual = sum(1 for sg in doc.segments if sg.get("speaker_manual"))
-        self._label(win, "Detect speakers again for this transcript", font="body_bold", bg=T["bg_panel"]).grid(row=0, column=0, columnspan=2, sticky="w")
+        part = doc.segments if seg_range is None else doc.segments[seg_range[0]:seg_range[1] + 1]
+        manual = sum(1 for sg in part if sg.get("speaker_manual"))
+        if seg_range is None:
+            title = "Detect speakers again for this transcript"
+        else:
+            title = (f"Detect speakers in the selection: {len(part)} segments, {short_ts(float(part[0]['start']))[:-2]} – "
+                     f"{short_ts(float(part[-1]['end']))[:-2]}")
+        win.title("Detect speakers" if seg_range is not None else "Re-run speaker detection")
+        self._label(win, title, font="body_bold", bg=T["bg_panel"]).grid(row=0, column=0, columnspan=2, sticky="w")
         self._label(win, kbd("Your text stays as it is; only speaker labels change. New labels are matched to the names you already use "
                              "wherever they overlap most. ⌘Z undoes the whole re-run."), font="small", fg=T["fg_dim"], bg=T["bg_panel"],
                     wraplength=440, justify=tk.LEFT).grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 10))
         v_method = tk.StringVar(value=self.var_diarize_mode.get() if not self.var_diarize_mode.get().startswith("Disabled")
                                 else GPU_DIARIZATION)
-        v_n = tk.IntVar(value=max(2, len(doc.roster())))
+        in_part = {sg.get("speaker") for sg in part if sg.get("speaker")}
+        v_n = tk.IntVar(value=max(2, len(in_part) if seg_range is not None else len(doc.roster())))
         v_keep = tk.BooleanVar(value=True)
         self._label(win, "Method", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).grid(row=2, column=0, sticky="w", pady=3)
         ttk.Combobox(win, textvariable=v_method, values=[GPU_DIARIZATION, "Pyannote.audio 3.1 Neural (Requires HF Token)"],
@@ -311,34 +329,50 @@ class RerunMixin:
             except Exception:
                 n = 0
             win.destroy()
-            self._launch_rediarization(v_method.get(), n, bool(v_keep.get()))
+            return self._launch_rediarization(v_method.get(), n, bool(v_keep.get()), seg_range)
 
         self._tool(btns, "Cancel", win.destroy).pack(side=tk.RIGHT, padx=(6, 0))
         self._tool(btns, "Detect speakers", run, primary=True).pack(side=tk.RIGHT)
+        return win, {"run": run, "n": v_n, "method": v_method, "keep": v_keep}
 
-    def _launch_rediarization(self, method: str, num_speakers: int, keep_manual: bool):
+    def _launch_rediarization(self, method: str, num_speakers: int, keep_manual: bool, seg_range: Optional[Tuple[int, int]] = None):
         doc = self.active_doc
         if doc is None:
-            return
+            return None
         if method.startswith("Pyannote") and not self.var_hf_token.get().strip():
             messagebox.showinfo("Token needed", "pyannote needs your Hugging Face token (Settings ▸ Speakers & Exports). "
                                                 "Without it, the offline spectral method is used.", parent=self)
-        segs = [{"start": float(sg.get("start", 0)), "end": float(sg.get("end", 0)), "text": sg.get("text", "")} for sg in doc.segments]
+        lo, hi = seg_range if seg_range is not None else (0, len(doc.segments) - 1)
+        part = doc.segments[lo:hi + 1]
+        clip = None
+        t0 = 0.0
+        if seg_range is not None:  # only this stretch of the audio, with its segments' times counted from its start
+            t0 = max(0.0, float(part[0].get("start", 0)) - 0.2)
+            clip = (t0, float(part[-1].get("end", 0)) + 0.2)
+        segs = [{"start": round(float(sg.get("start", 0)) - t0, 3), "end": round(float(sg.get("end", 0)) - t0, 3), "text": sg.get("text", "")}
+                for sg in part]
         params = {"method": method, "diarize_mode": method, "num_speakers": num_speakers, "keep_manual": keep_manual,
-                  "n_segments": len(segs), "fingerprint": [(round(s["start"], 2), round(s["end"], 2)) for s in segs]}
-        self._start_rerun("rediarize", params, clip=None, segments_json=segs)
-        self.lbl_status.config(text=f"Detecting speakers ({'pyannote' if method.startswith('Pyannote') else 'spectral'}, "
+                  "n_segments": len(segs), "range": [lo, hi] if seg_range is not None else None,
+                  "fingerprint": [(round(float(sg.get("start", 0)), 2), round(float(sg.get("end", 0)), 2)) for sg in part]}
+        self._start_rerun("rediarize", params, clip=clip, segments_json=segs)
+        where = (f"{len(part)} segments, {short_ts(float(part[0]['start']))[:-2]} – {short_ts(float(part[-1]['end']))[:-2]}"
+                 if seg_range is not None else "the whole recording")
+        self.lbl_status.config(text=f"Detecting speakers in {where} ({'pyannote' if method.startswith('Pyannote') else 'spectral'}, "
                                     f"{num_speakers or 'auto'} speakers)…")
-        self._append_log("Re-running speaker detection on the whole recording.", "STAGE")
+        self._append_log(f"Re-running speaker detection on {where}.", "STAGE")
+        return params
 
     def _apply_rediarization(self, doc: TranscriptDocument, result: Dict, p: Dict):
         segs = result.get("segments") or []
-        current = [(round(float(sg.get("start", 0)), 2), round(float(sg.get("end", 0)), 2)) for sg in doc.segments]
-        if len(segs) != len(doc.segments) or current != [tuple(x) for x in p["fingerprint"]]:
+        lo, hi = p.get("range") or (0, len(doc.segments) - 1)
+        part = doc.segments[lo:hi + 1]
+        current = [(round(float(sg.get("start", 0)), 2), round(float(sg.get("end", 0)), 2)) for sg in part]
+        if len(segs) != len(part) or current != [tuple(x) for x in p["fingerprint"]]:
             messagebox.showinfo("Transcript changed", "Segments were edited while speakers were being detected, so the result "
                                                       "was not applied. Please run it again.", parent=self)
             return
-        labels = [sg.get("speaker") for sg in segs]
+        labels: List[Optional[str]] = [None] * len(doc.segments)  # outside the selection: nothing changes
+        labels[lo:hi + 1] = [sg.get("speaker") for sg in segs]
         if not any(labels):
             messagebox.showinfo("No speakers found", f"Speaker detection returned no labels ({result.get('diarization_method')}).", parent=self)
             return

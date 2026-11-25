@@ -189,6 +189,9 @@ The chips under the editor are the speakers. Their numbers are the keys:
 
 - **Transcript ▾ ▸ Detect speakers…** runs speaker detection again (for example with a different number of speakers). It keeps the
   speakers you assigned by hand.
+- **For one stretch only:** highlight it in the transcript (from a word in its first segment to one in its last), then
+  **right-click ▸ Detect speakers in this passage…**. Only those segments get new speakers, matched to the names already
+  used there — handy in a long session where one part (a group discussion, say) needs separating.
 
 Use pseudonyms here, not children's real names: the names end up in every export.
 
@@ -297,15 +300,37 @@ study folder (`condense-codebook.json`) and shared by all its transcripts. Codin
 The video plays next to the text while you code (its own ▶ button, **⤢** for a window of its own), so you see what
 happens while you code what is said.
 
-Each coding shows as a coloured **stripe** next to the text and as a mark on the timeline. Click a stripe or coded words
+Each coding shows as a coloured **stripe** next to the text and as a bar on the timeline. Click a stripe or coded words
 to select a coding; the list below shows all codings of the transcript (or *only the selected code*) with their speaker
 and text. **Memo…**, **Change code…** and **Delete coding** (or Del) work on the selected one; double-click plays it.
 
-**Moments without speech** — working with the materials, a device, a gesture: **drag on the timeline** over the moment
-(or *Moment without speech…*), choose the code and describe **what happens**. It appears in the transcript at its time
-as ◆ with your description, and counts like any other coding.
+### Coding video on the timeline
 
-![A moment without speech](images/coding-moment.png)
+The **timeline** under the Coding tab shows the recording in time: a ruler, frames of the video, who speaks (the
+episodes behind it), and one **lane per code**. Codings of words are solid bars, codings by time outlined ones. Drag
+the line above the timeline to give it more height.
+
+![The coding timeline](images/coding-timeline.png)
+
+- **Zoom:** *Whole*, *Episode* (the interview or phase at the playhead), *10 min* and *2 min* around the playhead; the
+  mouse wheel zooms where the mouse is, Shift+wheel or dragging the ruler moves along. A click jumps there. While the
+  video plays, a zoomed timeline pages along with it.
+- **Code by time** — what happens without words (materials, devices, gestures), or before the transcript is checked:
+  **drag across the lanes** to mark a range, or press **I** and **O** at the playhead (**O** alone marks the last 5
+  seconds). Then code it like words: **Return** for the selected code, **1–9** for a recent one, **N** for a new code.
+  *Code by time…* (or right-click the range) adds a description of what happens; it shows in the transcript as ◆.
+- **While watching:** with nothing marked, **1–9** starts a coding at the playhead, and the same key ends it.
+- **Change a coding:** drag the edge of its bar. A coding of words takes the words at the new place. Right-click a bar
+  to play or loop it, write a memo, change its code, delete it, or **attach it to the words said in it** (once the
+  transcript is checked, so it follows the words from then on) — or the other way round, *keep by time only*.
+- **Watching closely:** **L** loops the marked range or the selected coding, **.** and **,** step one frame, **>** and
+  **<** one second, **X** clears the mark. *⇔ Video size* gives the video more than half of the tab, and **⌘B** /
+  **Ctrl+B** (or **◂** next to the Tasks tab) hides the Tasks / Project panel to a strip at the left.
+- **Which lanes:** at first the codes used in view. To work with a few codes, right-click them in the codebook ▸
+  *Show on the timeline* (marked ◉): only those get lanes, like activated codes in MAXQDA; a code you use on the
+  timeline gets its lane. *More ▾ ▸ Timeline: back to the codes used* undoes it.
+
+![Code by time, with a description](images/coding-moment.png)
 
 Codings stay on their words when you correct the text, split or merge segments, or re-transcribe a passage in the
 Transcript tab. If every word of a coding is deleted, it is listed with ⚠ so you can decide what to do with it.
