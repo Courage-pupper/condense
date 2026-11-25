@@ -1,6 +1,10 @@
 # Changelog
 
-## 0.23.0 — unreleased
+## 0.23.0 — 2026-11-25
+
+### Platforms
+- **Linux with an AMD GPU is now a main platform**, next to macOS on Apple Silicon. NVIDIA, CPU-only Linux and Windows
+  stay a preview.
 
 ### Coding video on a timeline
 - **A real timeline in the Coding tab**, under the transcript and the video: a ruler, frames of the video, who speaks,

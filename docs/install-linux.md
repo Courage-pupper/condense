@@ -1,8 +1,8 @@
 # Installing Condense on Linux
 
-> **Preview.** Linux support is new in Condense 0.10.0. It runs Whisper and speaker detection on the GPU through
-> PyTorch (ROCm on AMD, CUDA on NVIDIA) and compresses video with VA-API on AMD and Intel GPUs. It is covered by the
-> automated tests but has seen less real-world use than the Mac version — please
+> **Linux with an AMD GPU is a main platform**, used for real studies alongside the Mac. Whisper and speaker
+> detection run on the GPU through PyTorch (ROCm), and video is compressed with VA-API. **NVIDIA** (CUDA) and
+> **CPU-only** setups are still a preview: covered by the automated tests, but with less real-world use — please
 > [report problems](https://github.com/s-hurtado26/condense/issues).
 
 Nothing is uploaded: recordings and transcripts stay on your computer. The instructions use **Ubuntu 24.04**; other
