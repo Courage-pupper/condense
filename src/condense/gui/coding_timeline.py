@@ -368,12 +368,34 @@ class CodingTimelineMixin:
         self.cdt["playhead"] = cv.create_line(0, 0, 0, height, fill="#f87171", width=2)
         self.cdt["hover_item"] = cv.create_text(0, RULER_H + 2, text="", anchor="nw", fill=T["fg_primary"], font=f["mono_small"])
         self._cdt_playhead()
+        if height != self.cdt.get("fit_h"):  # more or fewer lanes: the timeline's height follows (a dragged one stays)
+            self.cdt["fit_h"] = height
+            self.after_idle(lambda h=height: self._cdt_fit_height(h))
         mode = self.cdt.get("lane_mode")
         self.lbl_cdt_hint.config(text="" if mode == "chosen" else
                                  "Lanes: codes used here — right-click a code ▸ Show on timeline to choose")
         if request_frames:
             self._cdt_request_frames()
         return items
+
+    def _cdt_fit_height(self, height: int):
+        """Make room for every lane: the line between the tab and the timeline moves up (to half the tab at most)."""
+        area, frame = self.__dict__.get("cd_area"), self.__dict__.get("cdt_frame")
+        if area is None or frame is None:
+            return None
+        try:
+            area_h = int(area.winfo_height())
+            if area_h < 200:
+                return None
+            bar_h = int(self.cdt_bar.winfo_reqheight())
+            want = min(height + bar_h + 16, area_h // 2)
+            have = int(frame.winfo_height())
+            if want > have or want < have - 40:
+                area.sash_place(0, 0, max(260, area_h - want))
+                return want
+        except Exception:
+            return None
+        return None
 
     def _cdt_playhead(self, pos: Optional[float] = None):
         cv, ph = self.__dict__.get("cd_timeline"), (self.__dict__.get("cdt") or {}).get("playhead")

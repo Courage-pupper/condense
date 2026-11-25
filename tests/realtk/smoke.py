@@ -511,6 +511,8 @@ def main():
     kinds = {it[0] for it in app._cdt_items()}
     assert {"tick", "frame", "speaker", "lane", "bar", "mark"} <= kinds, kinds
     assert len(app.cd_timeline.find_all()) > 20
+    need = app.cdt["rows"]["bottom"][1]
+    assert app.cd_timeline.winfo_height() >= need - 2, (app.cd_timeline.winfo_height(), need)  # every lane in view
     shot(app, "coding-timeline")
     app._cdt_clear_mark()
     app._toggle_side_panel(True)

@@ -37,6 +37,7 @@ class CodingMixin:
         self.cd_area.add(self.cd_main, minsize=260, stretch="always")
         tl_frame = tk.Frame(self.cd_area, bg=T["bg_panel"], padx=4, pady=2)
         self.cd_area.add(tl_frame, minsize=70, height=170, stretch="never")
+        self.cdt_frame = tl_frame
         self._build_cd_timeline(tl_frame)
         # ---- codebook ----
         left = tk.Frame(self.cd_main, bg=T["bg_panel"], padx=4)
@@ -539,7 +540,7 @@ class CodingMixin:
         t.yview_moveto(y)
         n_word = sum(1 for r in res if r.get("words"))
         n_orph = sum(1 for r in res if r.get("orphan"))
-        self.lbl_cd_doc.config(text=f"{doc.base_name} · {len(res)} coding(s)" + (f" · {len(moments)} moment(s) without speech" if moments else "")
+        self.lbl_cd_doc.config(text=f"{doc.base_name} · {len(res)} coding(s)" + (f" · {len(moments)} coded by time" if moments else "")
                                + (f" · ⚠ {n_orph} coding(s) whose words were deleted" if n_orph else ""))
         self._cd_fill_list()
         self._cd_fill_recent()
@@ -553,7 +554,7 @@ class CodingMixin:
         self.cd_text.tag_config(tag, foreground=c["color"] if c else THEME["fg_dim"])
         self.cd_text.tag_bind(tag, "<Button-1>", lambda e, k=r["id"]: self._cd_select_coding(k))
         put(f"\n◆ {name}  {short_ts(r['start'])[:-2]} – {short_ts(r['end'])[:-2]}", "MOMENT", tag)
-        put(f"   {r['memo']}" if r.get("memo") else "   (no description)", "MOMENT", tag)
+        put(f"   {r['memo']}" if r.get("memo") else "   (by time)", "MOMENT", tag)
         put("\n")
 
     def _cd_current(self):
@@ -909,7 +910,7 @@ class CodingMixin:
             if keep is not None and r["code"] not in keep:
                 continue
             c = cb.get(r["code"]) if cb else None
-            text = ("◆ " + (r.get("memo") or "(moment without speech)")) if r.get("kind") == "time" else (
+            text = ("◆ " + (r.get("memo") or "(coded by time)")) if r.get("kind") == "time" else (
                 "⚠ (its words were deleted)" if r.get("orphan") else cod.coded_text(doc, r))
             if r.get("memo") and r.get("kind") != "time":
                 text += f"   ✎ {r['memo']}"
