@@ -206,10 +206,15 @@ class PipelineWorker(EncodeMixin, TranscribeMixin, threading.Thread):
         if compress_also_enabled or not can_stream_copy:
             label = "Stage 1+2: HandBrake Merge & Compress" if compress_also_enabled else "Stage 1: HandBrake Merge Finalize"
             span = 35.0 if compress_also_enabled else 25.0
-            self.run_handbrake_encode_for_jobs(
+            written = self.run_handbrake_encode_for_jobs(
                 intermediate_concat, final_merged, label,
                 base_progress=18.0, progress_span=span, job_ids=job_ids, job_base_pct=18.0, job_span_pct=span,
             )
+            if Path(written) == Path(intermediate_concat):  # not worth compressing: the merged original is kept
+                final_merged = final_merged.with_suffix(Path(intermediate_concat).suffix)
+                shutil.move(str(intermediate_concat), str(final_merged))
+            else:
+                final_merged = Path(written)  # (an H.264 goal writes .mp4)
             merge_record["final_encode"] = self.compression_record()
         else:
             shutil.copy2(str(intermediate_concat), str(final_merged))
@@ -312,13 +317,21 @@ class PipelineWorker(EncodeMixin, TranscribeMixin, threading.Thread):
                         if steps["compress"]:
                             container_ext = ".mkv" if self.config.get("hb_container", "MKV") == "MKV" else ".mp4"
                             out_vid = out_dir / f"{base}_compressed{container_ext}"
-                            self.run_handbrake_encode_for_jobs(
+                            written = Path(self.run_handbrake_encode_for_jobs(
                                 input_path=active_vid, output_path=out_vid, stage_label=label,
                                 base_progress=job_base_overall + job_span_overall * 0.05, progress_span=job_span_overall * 0.45,
                                 job_ids=[tid], job_base_pct=10.0, job_span_pct=45.0,
-                            )
-                            processing["compression"] = dict(self.compression_record(), file=out_vid.name)
-                            active_vid = out_vid
+                            ))
+                            if written == Path(active_vid):  # a copy would not be clearly smaller: the original is used
+                                processing["compression"] = dict(self.compression_record(), file=None)
+                                if is_within(active_vid, temp_dir):  # trimmed (LosslessCut): keep it, it's what the transcript follows
+                                    kept_vid = out_dir / f"{base}_trimmed{Path(active_vid).suffix}"
+                                    shutil.move(str(active_vid), str(kept_vid))
+                                    active_vid = kept_vid
+                                    processing["compression"]["file"] = kept_vid.name
+                            else:
+                                processing["compression"] = dict(self.compression_record(), file=written.name)
+                                active_vid = written
                         self.run_audio_and_transcribe(active_vid, out_dir, temp_dir, base, [tid], [orig_vid], processing)
 
                     self.update_job(tid, status="Completed", stage="Completed ✓", progress=100.0, output_dir=str(out_dir))

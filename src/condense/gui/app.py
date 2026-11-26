@@ -22,13 +22,14 @@ from condense.gui.coding_tab import CodingMixin
 from condense.gui.coding_timeline import CodingTimelineMixin
 from condense.gui.video import VideoMixin
 from condense.gui.subtitles_ui import SubtitlesMixin
+from condense.gui.maxqda_copy import MaxqdaCopyMixin
 from condense.gui.storage_ui import StorageMixin
 from condense.gui.gaps_ui import GapsMixin
 from condense.gui.overview_ui import OverviewMixin
 from condense.gui.memory_ui import MemoryMixin
 
 
-class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, ProjectPanelMixin, CodingMixin, CodingTimelineMixin, SubtitlesMixin, StorageMixin, GapsMixin, OverviewMixin, MemoryMixin, tk.Tk):
+class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, HistoryMixin, ReviewMarksMixin, PlayerMixin, RerunMixin, VideoMixin, UpdatesMixin, GpuCheckMixin, FileDialogsMixin, CuttingMixin, TrimDialogMixin, FindMixin, ProjectMixin, EpisodesMixin, ProjectPanelMixin, CodingMixin, CodingTimelineMixin, SubtitlesMixin, MaxqdaCopyMixin, StorageMixin, GapsMixin, OverviewMixin, MemoryMixin, tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Condense — Video, Audio & Transcripts")

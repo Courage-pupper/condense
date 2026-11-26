@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 from condense.core.util import *  # noqa: F401,F403
+from condense.media import compress as complib
 from condense.platform import INSTALL_HINTS, SystemProbe, has_ffmpeg_vaapi, vaapi_device
 
 
@@ -92,30 +93,10 @@ class EncodeMixin:
         cmd += ["-c:a", "aac", "-b:a", audio_bitrate, str(output_path)]
         return cmd, codec, quality
 
-    def run_ffmpeg_videotoolbox_encode_for_jobs(self, *args, **kwargs) -> Path:
-        return self.run_ffmpeg_hw_encode_for_jobs(*args, hw="videotoolbox", **kwargs)
-
-    def run_ffmpeg_hw_encode_for_jobs(
-        self,
-        input_path: Path,
-        output_path: Path,
-        encoder_choice: str,
-        stage_label: str,
-        base_progress: float,
-        progress_span: float,
-        job_ids: List[str],
-        job_base_pct: float = 0.0,
-        job_span_pct: float = 100.0,
-        hw: str = "videotoolbox",
-    ) -> Path:
-        duration = self.probe_video_duration(input_path)
-        cmd, vt_codec, vt_quality = self.build_hw_encode_command(hw, input_path, output_path, encoder_choice)
-        hw_name = {"vaapi": "VA-API", "videotoolbox": "VideoToolbox", "nvenc": "NVENC", "amf": "AMF", "qsv": "Quick Sync",
-                   "cpu": "ffmpeg (CPU)"}.get(hw, hw)
-        engine = {"videotoolbox": "Media Engine", "cpu": "CPU"}.get(hw, "GPU")
-        self.log(f"[{stage_label}] Executing {hw_name} hardware encode: {' '.join(cmd)}", "CMD")
-        self.last_encode = {"tool": "ffmpeg", "encoder": vt_codec, "quality": vt_quality, "command": cmd}
-
+    def _ffmpeg_with_progress(self, cmd: List[str], duration: float, stage_label: str, hw_name: str, engine: str,
+                              base_progress: float, progress_span: float, job_ids: List[str], job_base_pct: float,
+                              job_span_pct: float) -> Tuple[int, List[str]]:
+        """Run an ffmpeg encode, showing its progress on the task. Returns (exit code, last lines of its output)."""
         self.current_proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -166,6 +147,34 @@ class EncodeMixin:
 
         ret = self.current_proc.wait()
         self.current_proc = None
+        return ret, tail_lines
+
+    def run_ffmpeg_videotoolbox_encode_for_jobs(self, *args, **kwargs) -> Path:
+        return self.run_ffmpeg_hw_encode_for_jobs(*args, hw="videotoolbox", **kwargs)
+
+    def run_ffmpeg_hw_encode_for_jobs(
+        self,
+        input_path: Path,
+        output_path: Path,
+        encoder_choice: str,
+        stage_label: str,
+        base_progress: float,
+        progress_span: float,
+        job_ids: List[str],
+        job_base_pct: float = 0.0,
+        job_span_pct: float = 100.0,
+        hw: str = "videotoolbox",
+    ) -> Path:
+        duration = self.probe_video_duration(input_path)
+        cmd, vt_codec, vt_quality = self.build_hw_encode_command(hw, input_path, output_path, encoder_choice)
+        hw_name = {"vaapi": "VA-API", "videotoolbox": "VideoToolbox", "nvenc": "NVENC", "amf": "AMF", "qsv": "Quick Sync",
+                   "cpu": "ffmpeg (CPU)"}.get(hw, hw)
+        engine = {"videotoolbox": "Media Engine", "cpu": "CPU"}.get(hw, "GPU")
+        self.log(f"[{stage_label}] Executing {hw_name} hardware encode: {' '.join(cmd)}", "CMD")
+        self.last_encode = {"tool": "ffmpeg", "encoder": vt_codec, "quality": vt_quality, "command": cmd}
+
+        ret, tail_lines = self._ffmpeg_with_progress(cmd, duration, stage_label, hw_name, engine, base_progress, progress_span,
+                                                     job_ids, job_base_pct, job_span_pct)
         if ret != 0:
             err_tail = "\n".join(tail_lines[-6:])
             hint = ("\nThis GPU may not encode AV1 (AMD RX 7000 and Intel Arc or newer do); choose vaapi_h265."
@@ -174,6 +183,64 @@ class EncodeMixin:
                     if hw in ("nvenc", "amf", "qsv") else "")
             raise RuntimeError(f"FFmpeg {hw_name} exited with code {ret}:\n{err_tail}{hint}")
 
+        return output_path
+
+    def run_goal_encode(self, input_path: Path, output_path: Path, stage_label: str, base_progress: float, progress_span: float,
+                        job_ids: List[str], job_base_pct: float = 0.0, job_span_pct: float = 100.0) -> Path:
+        """Compress for a goal (Settings ▸ Video): AV1 (small) or H.264 MP4 (compatible), at most 1080p, quality from
+        a few samples, never larger than the original. Returns the file written — or input_path itself when the
+        original is kept (a copy would not be clearly smaller)."""
+        kind = complib.goal_kind(self.config.get("hb_goal", ""))
+        target = self.config.get("hb_target") or complib.TARGETS[0]
+        device = vaapi_device() if has_ffmpeg_vaapi() else None
+        codec = complib.pick_encoder(kind, device)
+        if codec is None:
+            what = "AV1 (SVT-AV1)" if kind == "av1" else "H.264 (x264)"
+            raise RuntimeError(f"This ffmpeg has no {what} encoder. Run: {INSTALL_HINTS['ffmpeg']} (or choose Custom in Settings ▸ Video).")
+        if kind == "h264":
+            output_path = output_path.with_suffix(".mp4")  # MP4: what MAXQDA and every player open
+        src = complib.probe(input_path)
+        engine = "GPU" if codec in ("av1_vaapi", "av1_nvenc", "av1_amf", "av1_qsv") else "CPU"
+        for jid in job_ids:
+            self.update_job(jid, status="Running", stage="Checking quality on samples", progress=job_base_pct)
+        self.set_progress(base_progress, f"{stage_label}: checking quality on samples ({codec})…")
+        work = output_path.parent / f".{output_path.stem}.samples"
+        try:
+            res = complib.search_quality(input_path, codec, work, target=target, vaapi_device=device,
+                                         log=lambda m: self.log(m, "INFO"), stop=self.stop_event.is_set)
+            if codec == "av1_vaapi" and complib.padded(res["size"], (src["width"], src["height"])):
+                self.log(f"The GPU's AV1 encoder adds lines ({res['size'][0]}×{res['size'][1]}): a known driver issue. "
+                         "Encoding with SVT-AV1 on the CPU instead.", "WARN")
+                codec, engine = "libsvtav1", "CPU"
+                res = complib.search_quality(input_path, codec, work, target=target, log=lambda m: self.log(m, "INFO"),
+                                             stop=self.stop_event.is_set)
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+        summary = {"goal": self.config.get("hb_goal"), "target": target, "metric": res["metric"], "score": res["score"],
+                   "estimate_bytes": res["estimate"], "source_bytes": res["source_size"], "samples": res["tries"]}
+        if res["keep_original"]:
+            self.log(f"Not compressed: {res['reason']}.", "WARN")
+            self.last_encode = {"tool": "none", "kept_original": True, "reason": res["reason"], **summary}
+            return input_path
+        self.log(f"Compressing with {codec} {res['q']}: about {res['estimate'] / 1e9:.2f} GB "
+                 f"(the original is {res['source_size'] / 1e9:.2f} GB).", "INFO")
+        fps = None if self.config.get("hb_fps", "Same as source") == "Same as source" else str(self.config["hb_fps"]).split()[0]
+        cmd = complib.encode_command(codec, input_path, output_path, res["q"], vaapi_device=device, fps=fps, progress=False)
+        self.log(f"[{stage_label}] Executing: {' '.join(cmd)}", "CMD")
+        ret, tail = self._ffmpeg_with_progress(cmd, src["duration"], stage_label, codec, engine, base_progress, progress_span,
+                                               job_ids, job_base_pct, job_span_pct)
+        if ret != 0:
+            output_path.unlink(missing_ok=True)
+            raise RuntimeError(f"ffmpeg {codec} exited with code {ret}:\n" + "\n".join(tail[-6:]))
+        size = output_path.stat().st_size if output_path.exists() else 0
+        if src["size"] and size >= 0.9 * src["size"]:
+            output_path.unlink(missing_ok=True)
+            reason = f"the copy came out at {size / 1e9:.2f} GB of the original {src['size'] / 1e9:.2f} GB"
+            self.log(f"Not compressed: {reason} — the original is used.", "WARN")
+            self.last_encode = {"tool": "none", "kept_original": True, "reason": reason, **summary}
+            return input_path
+        self.log(f"Compressed: {size / 1e9:.2f} GB, {size / max(1, src['size']):.0%} of the original.", "INFO")
+        self.last_encode = {"tool": "ffmpeg", "encoder": codec, "quality": res["q"], "command": cmd, "bytes": size, **summary}
         return output_path
 
     def run_handbrake_encode_for_jobs(
@@ -187,6 +254,9 @@ class EncodeMixin:
         job_base_pct: float = 0.0,
         job_span_pct: float = 100.0,
     ) -> Path:
+        if complib.goal_kind(self.config.get("hb_goal", "")) != "custom":
+            return self.run_goal_encode(input_path, output_path, stage_label, base_progress, progress_span, job_ids,
+                                        job_base_pct, job_span_pct)
         # GUI values look like "vt_h265 (Apple Media Engine)"; the first token is the encoder id.
         requested_encoder = str(self.config["hb_encoder"]).split()[0]
         vt_kwargs = dict(
@@ -348,6 +418,8 @@ class EncodeMixin:
         return output_path
 
     def compression_record(self) -> Dict:
+        if (self.last_encode or {}).get("goal") is not None:
+            return dict(self.last_encode)
         rec = {
             "requested_encoder": self.config.get("hb_encoder"),
             "quality_rf": self.config.get("hb_quality"),

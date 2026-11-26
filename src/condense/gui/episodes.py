@@ -378,8 +378,10 @@ class EpisodesMixin:
         self._entry(grid, v_dir, font="small", width=40).grid(row=1, column=1, sticky="we", padx=6, pady=2)
         self._tool(grid, "Choose…", lambda: v_dir.set(self._ask_directory("Save the clip in", v_dir.get()) or v_dir.get())
                    ).grid(row=1, column=2)
-        for value, text in (("exact", "Exact — starts and ends exactly there (re-encodes; a few seconds for an interview)"),
-                            ("lossless", "Lossless — no re-encoding, but starts at the keyframe before (up to a few seconds early)")):
+        for value, text in (("exact", "Exact — an H.264 MP4 that MAXQDA opens, starting and ending exactly there (re-encodes; "
+                                      "a few seconds for an interview)"),
+                            ("lossless", "Lossless — no re-encoding, keeps the recording's format (from an AV1 copy: AV1, which "
+                                         "MAXQDA may not play); starts at the keyframe before")):
             tk.Radiobutton(win, text=text, variable=v_mode, value=value, bg=T["bg_panel"], fg=T["fg_primary"], selectcolor=T["bg_input"],
                            activebackground=T["bg_panel"], font=self.f["small"], anchor="w").pack(anchor="w", fill=tk.X)
         lbl = self._label(win, "", font="small", fg=T["warn"], bg=T["bg_panel"])

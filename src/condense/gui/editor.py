@@ -31,6 +31,7 @@ class EditorMixin:
             ("Find untranscribed stretches…", self._gaps_dialog),
             ("Export trimmed video & transcript…", self._export_trimmed_dialog),
             ("Video with subtitles…", self._subtitles_dialog),
+            ("Copy for MAXQDA (H.264 MP4)…", self._maxqda_copy_dialog),
             ("-",),
             ("Mark whole transcript checked (100 %)", lambda: self.active_doc is not None and self._mark_transcripts_checked([self.active_doc.path], True)),
             ("Mark whole transcript not checked", lambda: self.active_doc is not None and self._mark_transcripts_checked([self.active_doc.path], False)),

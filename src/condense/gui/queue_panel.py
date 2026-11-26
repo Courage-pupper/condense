@@ -208,6 +208,7 @@ class QueueMixin:
             num_speakers = 0
         return {
             "respect_llc": self.var_respect_llc.get(),
+            "hb_goal": self.var_hb_goal.get(), "hb_target": self.var_hb_target.get(),
             "hb_encoder": self.var_hb_encoder.get(), "hb_quality": self.var_hb_quality.get(), "hb_resolution": self.var_hb_res.get(),
             "hb_fps": self.var_hb_fps.get(), "hb_container": self.var_hb_container.get(), "hb_audio_bitrate": self.var_hb_abitrate.get(),
             "audio_format": self.var_audio_format.get(), "speech_filter": self.var_speech_filter.get(),
@@ -333,7 +334,11 @@ class QueueMixin:
         s, st = task.get("settings") or {}, task.get("steps") or {}
         parts = []
         if st.get("compress") or len(task.get("inputs") or []) > 1:
-            parts.append(f"Video: {str(s.get('hb_encoder', '')).split()[0]} RF {s.get('hb_quality')}, {s.get('hb_container')}")
+            goal = str(s.get("hb_goal") or "")
+            if goal and not goal.lower().startswith("custom"):
+                parts.append(f"Video: {goal.split(' (')[0]} — {s.get('hb_target') or 'Looks the same'}")
+            else:
+                parts.append(f"Video: {str(s.get('hb_encoder', '')).split()[0]} RF {s.get('hb_quality')}, {s.get('hb_container')}")
         if st.get("audio"):
             parts.append(f"Audio: {str(s.get('audio_format', '')).split(' (')[0]}")
         if st.get("whisper"):
@@ -777,6 +782,8 @@ class QueueMixin:
                     self._on_episode_msg(msg)
                 elif mtype == "subtitles":
                     self._on_subtitles_msg(msg)
+                elif mtype == "maxqda_copy":
+                    self._on_maxqda_copy_msg(msg)
                 elif mtype == "gpu_test":
                     self._on_gpu_test(msg)
                 elif mtype == "probe":

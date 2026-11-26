@@ -31,6 +31,7 @@ from condense.gui.popup import PopupMenu
 from condense.gui.widgets import (EDIT_MOD, EDIT_MOD_LABEL, IS_MAC, MOD, FlowFrame, ScrollFrame, geometry_fits,
                                   is_shortcut, kbd, screen_rects)
 from condense.pipeline.worker import PipelineWorker
+from condense.media.compress import GOALS as COMPRESS_GOALS, TARGETS as COMPRESS_TARGETS  # noqa: F401
 from condense.platform import (APP_SUPPORT_DIR, DEFAULT_BACKEND, DEFAULT_ENCODER, GPU_DIARIZATION, HW_QUALITY_NAME, IS_MAC_PLATFORM,
                                PLATFORM, VIDEO_ENCODERS, WHISPER_BACKENDS, AppInstaller, KeychainSecret, MacAppInstaller,
                                SecretStore, SystemProbe, default_output_dir, log_file, open_command)

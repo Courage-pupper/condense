@@ -44,8 +44,15 @@ The install guides cover one-line installation for [macOS](install-mac.md), [Lin
    transcript.
 2. **Check the settings** (right). New tasks copy them, and each task keeps its own copy. *Task Details* (below the
    queue) shows a task's settings; *Use current Settings* updates a pending task. The settings that matter most:
-   - **Steps:** *Compress* makes a smaller video for archiving and for MAXQDA. *Extract audio* keeps a separate audio
-     file. *Transcribe* runs Whisper.
+   - **Steps:** *Compress* makes a smaller copy of the video to work with and to keep. *Extract audio* keeps a separate
+     audio file. *Transcribe* runs Whisper.
+   - **Video ▸ Goal:** *Small: AV1, up to 1080p* (the default) makes the copy several times smaller than a camera file
+     (often a quarter of the size or less) with the picture as before. It uses the GPU where it can
+     encode AV1 (AMD RX 7000, Intel Arc, recent NVIDIA), otherwise the CPU (Macs: their chips have no AV1 encoder; about
+     an hour or two for 5 hours of video). Before encoding, a few short samples are made to estimate the size (and, when
+     ffmpeg has VMAF, to find the smallest setting that still looks the same); if a copy would not be clearly smaller,
+     none is made and the original is used. *Compatible: H.264 MP4* plays everywhere, MAXQDA included, but is larger.
+     *Custom* uses the encoder settings below it, as before.
    - **Model:** `large-v3-turbo` is a good default. `large-v3` is slower and sometimes better with quiet or unclear
      speech.
    - **Language:** set it for single-language sessions. *Auto* only listens to the first 30 seconds.
@@ -459,6 +466,11 @@ Condense's paragraph exports.
 1. In MAXQDA: *Import ▸ Transcripts* (in older versions *Transcripts with Timestamps*).
 2. Choose `<name>_paragraphs.rtf` (or `.txt`).
 3. When MAXQDA asks for the media file, choose **the video that matches the transcript**:
+   - **Copy for MAXQDA**, if the working copy is AV1 (the default *Small* goal): MAXQDA recommends H.264 and may not play
+     AV1. *Transcript ▾ ▸ Copy for MAXQDA (H.264 MP4)…* (or right-click transcripts in the Project tab) makes
+     `<name>_MAXQDA.mp4` next to the transcript, timed like it — 720p (what MAXQDA advises, about 1 GB per hour) or
+     1080p. It can be deleted after the analysis and made again at any time. Interview and phase clips exported with
+     *Exact* are H.264 MP4 already;
    - the original video, for the normal exports;
    - the **trimmed** video, for a trimmed transcript (from *Export trimmed video & transcript…*, or from a run with `.llc` trims).
 
