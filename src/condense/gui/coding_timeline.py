@@ -420,7 +420,8 @@ class CodingTimelineMixin:
         return items
 
     def _cdt_fit_height(self, height: int):
-        """Make room for every lane: the line between the tab and the timeline moves up (to half the tab at most)."""
+        """Make room for every lane: the line between the tab and the timeline moves up (to half the tab at most, and
+        never so far that the tab's text loses its room — Edit mode needs more, for the segment editor)."""
         area, frame = self.__dict__.get("right_area"), self.__dict__.get("tl_frame")
         if area is None or frame is None or not self.__dict__.get("tl_shown"):
             return None
@@ -429,7 +430,9 @@ class CodingTimelineMixin:
             if area_h < 200:
                 return None
             bar_h = int(self.cdt_bar.winfo_reqheight())
-            want = min(height + bar_h + 16, area_h // 2)
+            # the tab keeps room for its toolbars and the text — in Edit mode also the segment editor
+            keep = 560 if self.__dict__.get("tx_mode", "edit") == "edit" else 380
+            want = max(70, min(height + bar_h + 16, area_h // 2, area_h - keep))
             have = int(frame.winfo_height())
             if want > have or want < have - 40:
                 area.sash_place(0, 0, max(300, area_h - want))

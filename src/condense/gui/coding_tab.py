@@ -291,6 +291,9 @@ class CodingMixin:
                 pass
         self.after(150, lambda: self._video_resized(self._video_screen()))  # the column changed: fit the picture again
         self._cdt_draw()
+        fit = (self.__dict__.get("cdt") or {}).get("fit_h")
+        if fit:  # Edit mode needs more height for the tab (the segment editor): the timeline gives it back
+            self.after_idle(lambda: self._cdt_fit_height(fit))
         return mode
 
     def _tx_place_sashes(self, total: int, video_w: int, lefts: List[int]):
