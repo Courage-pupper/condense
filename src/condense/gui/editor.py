@@ -23,6 +23,8 @@ class EditorMixin:
         switch.pack(side=tk.LEFT, anchor="n", padx=(5, 2), pady=5)
         self.btn_mode_code = self._tool(switch, "Code", lambda: self._set_tx_mode("code"))
         self.btn_mode_edit = self._tool(switch, "Edit", lambda: self._set_tx_mode("edit"))
+        for b in (self.btn_mode_code, self.btn_mode_edit):
+            b.configure(width=6)  # the same width: a switch, whichever is on
         self.btn_mode_code.pack(side=tk.LEFT)
         self.btn_mode_edit.pack(side=tk.LEFT, padx=(1, 0))
         self.mode_holder = tk.Frame(toprow, bg=T["bg_panel"])
