@@ -78,6 +78,17 @@ class SettingsTabMixin:
 
         # --- Video
         hb = self._card(self.cards_frame, "VIDEO  ·  STAGES 1–2")
+        self.var_hb_goal = tk.StringVar(value=COMPRESS_GOALS[0])
+        self._row_combo(hb, "Goal", self.var_hb_goal, list(COMPRESS_GOALS), "hb_goal")
+        self.var_hb_target = tk.StringVar(value=COMPRESS_TARGETS[0])
+        self._row_combo(hb, "Quality", self.var_hb_target, list(COMPRESS_TARGETS), "hb_target")
+        self._row_full(hb, self._wrapping_label(
+            hb.form, "Small: AV1 at most 1080p — about a quarter of a camera file, picture as before (GPU on AMD RX 7000 / "
+                     "Intel Arc / recent NVIDIA, else the CPU). A few short samples are checked first (with VMAF when ffmpeg "
+                     "has it), and a copy that would not be clearly smaller is not made: the original is used. Compatible: "
+                     "H.264 MP4 that MAXQDA and every player open. For MAXQDA you can also make an H.264 copy later "
+                     "(Transcript ▾ ▸ Copy for MAXQDA…). The settings below apply to Custom only.",
+            font="small", fg=T["fg_dim"]), pady=(0, 6))
         self.var_hb_encoder = tk.StringVar(value=DEFAULT_ENCODER)
         self._row_combo(hb, "Encoder", self.var_hb_encoder, list(VIDEO_ENCODERS), "hb_encoder")
         self.var_hb_quality = tk.IntVar(value=22)

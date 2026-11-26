@@ -278,6 +278,8 @@ class ProjectPanelMixin:
             m.add_command(label="Mark All Not Checked", command=lambda: self._mark_transcripts_checked(done, False))
             m.add_command(label=f"Video with Subtitles…{'' if len(done) == 1 else f' — {len(done)} transcripts'}",
                           command=lambda: self._subtitles_dialog(done))
+            m.add_command(label=f"Copy for MAXQDA (H.264)…{'' if len(done) == 1 else f' — {len(done)} transcripts'}",
+                          command=lambda: self._maxqda_copy_dialog(done))
         todo = [s["media"] for s in sel if s.get("media") and not s.get("row")]
         if todo:
             m.add_command(label=f"Transcribe {len(todo)} Recording(s)…", command=lambda: self._pp_transcribe(todo))

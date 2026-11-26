@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.24.0 — unreleased
+
+### Smaller videos: AV1
+- **A goal instead of encoder settings** (Settings ▸ Video): *Small: AV1, up to 1080p* is the new default. Camera files
+  get several times smaller (often a quarter of the size or less) with the picture as before. Before, the
+  default quality was close to lossless for the GPU encoders and the resolution was kept, so copies often came out as
+  large as the original, or larger.
+- **The best AV1 encoder of the computer:** the GPU on AMD RX 7000 / Intel Arc (VA-API) and recent NVIDIA / AMD / Intel
+  cards on Windows, otherwise SVT-AV1 on the CPU (Macs have no AV1 encoder, M5 included). If AMD's encoder pads 1080p
+  to 1082 lines (a known driver issue), Condense switches to the CPU.
+- **Samples first:** a few short samples estimate the size; with VMAF in ffmpeg they also find the smallest setting that
+  still looks the same (within a safe range). Without VMAF, the usual setting for "looks the same" is used — SSIM is not
+  used to choose, because on grainy camera footage it rates a blurred copy almost as well as a good one.
+- **Never larger:** if a copy would not be clearly smaller (or comes out that way), none is kept and the original is
+  used. "1080p" limits the short side, so phone videos in portrait stay 1080×1920. Sound: AAC 128 kbit/s.
+- *Compatible: H.264 MP4* for files that play everywhere; *Custom* keeps the encoder settings as before (and tasks saved
+  before this version keep theirs).
+
+### MAXQDA
+- **Copy for MAXQDA (H.264 MP4)** (Transcript ▾, or right-click transcripts in the Project tab): MAXQDA recommends
+  H.264 and may not play AV1. 720p (MAXQDA's advice) or 1080p, timed like the transcript, next to it as
+  `<name>_MAXQDA.mp4`; optional, and can be made again any time. Clips exported with *Exact* are H.264 MP4 already.
+
 ## 0.23.0 — 2026-11-25
 
 ### Platforms
