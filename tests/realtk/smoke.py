@@ -191,6 +191,7 @@ def main():
     lines = pt.winfo_height() / app.f["transcript"].metrics("linespace")
     if app.winfo_height() >= 820:  # some CI machines have a 1024x768 screen; a laptop has more
         assert lines >= 4, f"the transcript shows only {lines:.1f} lines in a {app.winfo_width()}x{app.winfo_height()} window"
+    assert lines >= 2, f"the timeline left the transcript {lines:.1f} lines in a {app.winfo_width()}x{app.winfo_height()} window"
     print(f"    (transcript: {lines:.1f} lines in a {app.winfo_width()}x{app.winfo_height()} window)")
     app.var_autoplay.set(False)
     app._goto_segment(0)
@@ -550,7 +551,9 @@ def main():
     assert {"tick", "frame", "speaker", "lane", "bar", "mark"} <= kinds, kinds
     assert len(app.cd_timeline.find_all()) > 20
     need = app.cdt["rows"]["bottom"][1]
-    assert app.cd_timeline.winfo_height() >= need - 2, (app.cd_timeline.winfo_height(), need)  # every lane in view
+    tab_h = app.right_area.winfo_height() - app.tl_frame.winfo_height()
+    assert app.cd_timeline.winfo_height() >= need - 2 or tab_h <= app._tl_keep() + 40, (
+        app.cd_timeline.winfo_height(), need, tab_h)  # every lane in view (a short screen: the text keeps its room)
     shot(app, "coding-timeline")
     # the video in a window of its own is not tied to the main window (on macOS a tied window can't go to another screen)
     pop = app._video_pop_out()

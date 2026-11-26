@@ -592,7 +592,14 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
     def _tl_show_for_tab(self):
         want = self._tl_visible()
         if want and not self.tl_shown:
-            self.right_area.add(self.tl_frame, minsize=70, height=int(self.settings.get("timeline_height", 170)), stretch="never")
+            height = int(self.settings.get("timeline_height", 170))
+            try:  # a short screen: the tab's text keeps its room, the timeline gets what is left
+                area_h = int(self.right_area.winfo_height())
+                if area_h > 200:
+                    height = max(70, min(height, area_h - self._tl_keep()))
+            except Exception:
+                pass
+            self.right_area.add(self.tl_frame, minsize=70, height=height, stretch="never")
             self.tl_shown = True
             self.after_idle(lambda: self._cdt_draw(request_frames=True))
         elif not want and self.tl_shown:
