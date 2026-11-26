@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.25.0 — unreleased
+## 0.24.0 — 2026-11-26
 
 ### One workspace: Code and Edit mode
 - **The Coding tab is now Code mode of the Transcript tab.** *Code | Edit* at the left of the toolbar, or ⌘E / Ctrl+E,
@@ -26,8 +26,6 @@
 - **Codings stay where they are after editing in the Transcript tab:** the timeline places them by the transcript as
   it is now, not by what the Coding tab showed last.
 - Mark a range and code it by time (I / O, then ↩ or 1–9) from the Transcript tab too.
-
-## 0.24.0 — unreleased
 
 ### Smaller videos: AV1
 - **A goal instead of encoder settings** (Settings ▸ Video): *Small: AV1, up to 1080p* is the new default. Camera files
