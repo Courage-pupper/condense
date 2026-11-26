@@ -421,7 +421,7 @@ class CodingTimelineMixin:
 
     def _tl_keep(self) -> int:
         """Height the Transcript tab keeps above the timeline: toolbars, player and a few lines of text — in Edit mode
-        also the segment editor. On a short screen the timeline gets the rest (at least 70 px)."""
+        also the segment editor. On a short screen the timeline gets the rest (at least 110 px: ruler, frames, speakers)."""
         return 500 if self.__dict__.get("tx_mode", "edit") == "edit" else 300
 
     def _cdt_fit_height(self, height: int):
@@ -436,7 +436,7 @@ class CodingTimelineMixin:
                 return None
             bar_h = int(self.cdt_bar.winfo_reqheight())
             # the tab keeps room for its toolbars and the text — in Edit mode also the segment editor
-            want = max(70, min(height + bar_h + 16, area_h // 2, area_h - self._tl_keep()))
+            want = max(110, min(height + bar_h + 16, area_h // 2, area_h - self._tl_keep()))  # 110: ruler, frames, speakers
             have = int(frame.winfo_height())
             if want > have or want < have - 40:
                 area.sash_place(0, 0, max(300, area_h - want))

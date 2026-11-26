@@ -596,7 +596,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             try:  # a short screen: the tab's text keeps its room, the timeline gets what is left
                 area_h = int(self.right_area.winfo_height())
                 if area_h > 200:
-                    height = max(70, min(height, area_h - self._tl_keep()))
+                    height = max(110, min(height, area_h - self._tl_keep()))
             except Exception:
                 pass
             self.right_area.add(self.tl_frame, minsize=70, height=height, stretch="never")
