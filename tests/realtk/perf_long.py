@@ -17,6 +17,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, simpledialog
 
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")  # test machines have no sound card: the player still runs
 WORK = Path(os.environ.get("CONDENSE_WORK") or tempfile.mkdtemp(prefix="perf_"))
 os.environ.setdefault("HOME", str(WORK / "home"))
 (Path(os.environ["HOME"])).mkdir(parents=True, exist_ok=True)
