@@ -14,6 +14,8 @@ Each component keeps its own licence; this page lists them so users can check th
 | [PyTorch](https://pytorch.org) | Speaker detection; on Linux and Windows also Whisper on the GPU (Metal / CUDA / ROCm builds) | BSD-3-Clause |
 | AMD's PyTorch for Windows wheels and ROCm SDK wheels (`repo.radeon.com`), Windows with AMD GPUs | PyTorch: BSD-3-Clause; ROCm components: AMD's licences (mostly MIT) | Downloaded from AMD by the Windows installer, not bundled. |
 | [NumPy](https://numpy.org) | Audio features | BSD-3-Clause |
+| [openpyxl](https://openpyxl.readthedocs.io) | The commentary spreadsheet (.xlsx) | MIT |
+| [Pillow](https://python-pillow.org) | Video frames in that spreadsheet (openpyxl needs it for pictures) | MIT-CMU (HPND) |
 | [pyannote.audio](https://github.com/pyannote/pyannote-audio) (optional) | Neural speaker detection | MIT |
 
 Their own dependencies (e.g. `huggingface_hub`, `tiktoken`) carry their own, permissive licences.

@@ -162,6 +162,7 @@ class NavigationMixin:
             "  N                new code from the selected words\n"
             "  1 – 9            code the selection with a recent code (while playing: start / end a coding)\n"
             "  Del              delete the selected coding\n"
+            "  M                comment on the selection (or the marked range, or the clicked word's segment)\n"
             + ("  ⌃1 – ⌃9          speaker 1–9 for the selected words' segments (or the clicked word's)\n\n" if IS_MAC else
                "  Alt+1 – Alt+9    speaker 1–9 for the selected words' segments (or the clicked word's)\n\n") +
             "On the timeline (both modes)\n"
@@ -186,6 +187,8 @@ class NavigationMixin:
             f"  {c}I               insert a missing segment\n"
             f"  {c}1 – {c}4       Settings / Console / Transcript: Edit / Transcript: Code\n"
             f"  {c}E               Code ⇄ Edit\n"
+            + (f"  ⌘K               comment on what is selected (both modes)\n" if IS_MAC else
+               "  Ctrl+Shift+K     comment on what is selected (both modes)\n") +
             f"  {c}+ / {c}- / {c}0     zoom (everything)\n"
             + ("  ⌘⌥+ / ⌘⌥-        transcript text larger / smaller (or ⌘ + scroll wheel)" if IS_MAC else
                "  Ctrl+Alt++ / Ctrl+Alt+-   transcript text larger / smaller (or Ctrl + scroll wheel)"))

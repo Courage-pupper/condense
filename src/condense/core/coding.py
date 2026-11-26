@@ -9,6 +9,10 @@ A coding lives in the transcript it belongs to (so backups, undo and the edit lo
 It points at its first and last word by their permanent ids (and keeps their times as a fallback). A coding of a moment
 without speech — someone working with the materials, a gesture — has no words: only start and end ("kind": "time"),
 usually with a memo describing what happens.
+
+A **comment** is a coding without a code (code COMMENT): the same anchoring (words, or a stretch of time), its text
+in the memo. Comments are how you describe what happens — e.g. every 5 minutes of a session — without choosing a code
+yet; commentary.py exports them on a timeline. The codebook shows no comment code; Codebook.get answers for it.
 """
 import json
 import uuid
@@ -17,9 +21,20 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
 CODEBOOK_FILE = "condense-codebook.json"
+COMMENT = "_comment"  # the "code" of a comment
+COMMENT_CODE = {"id": COMMENT, "name": "✎ Comment", "color": "#cbd5e1", "parent": None}
 COLORS = ["#f87171", "#fb923c", "#fbbf24", "#a3e635", "#34d399", "#22d3ee", "#60a5fa", "#a78bfa", "#f472b6", "#e879f9",
           "#94a3b8", "#fde047"]
 FIELDS = ("name", "parent", "color", "definition", "use_when", "not_when", "example", "memo")
+
+
+def clean_memo(text: Optional[str]) -> str:
+    """Spaces tidied, line breaks kept (a description can have paragraphs)."""
+    lines = [" ".join(line.split()) for line in (text or "").replace("\r\n", "\n").split("\n")]
+    out = "\n".join(lines).strip("\n")
+    while "\n\n\n" in out:
+        out = out.replace("\n\n\n", "\n\n")
+    return out
 
 
 def now() -> str:
@@ -55,6 +70,8 @@ class Codebook:
         return self.data["codes"]
 
     def get(self, code_id: str) -> Optional[Dict]:
+        if code_id == COMMENT:
+            return dict(COMMENT_CODE)  # not in the tree, but it has a name and a colour wherever codings are shown
         return next((c for c in self.codes if c["id"] == code_id), None)
 
     def children(self, parent: Optional[str]) -> List[Dict]:
@@ -168,11 +185,11 @@ def add_coding(doc, code: str, start: float, end: float, start_wid: Optional[str
         c["start_wid"], c["end_wid"] = start_wid, end_wid
     else:
         c["kind"] = "time"  # a moment without speech
-    memo = " ".join((memo or "").split())
+    memo = clean_memo(memo)
     if memo:
         c["memo"] = memo
     # the same code on exactly the same stretch twice is one coding
-    for other in codings(doc):
+    for other in codings(doc) if code != COMMENT else ():  # (two comments on one stretch are two comments)
         if other["code"] == code and other.get("start_wid") == c.get("start_wid") and other.get("end_wid") == c.get("end_wid") \
                 and abs(other["start"] - c["start"]) < 1e-3 and abs(other["end"] - c["end"]) < 1e-3:
             return other["id"]
@@ -192,7 +209,7 @@ def update_coding(doc, coding_id: str, **fields) -> bool:
     changed = {}
     for k in ("code", "memo"):
         if k in fields:
-            v = " ".join((fields[k] or "").split()) if k == "memo" else fields[k]
+            v = clean_memo(fields[k]) if k == "memo" else fields[k]
             if c.get(k, "") != v:
                 changed[k] = v
     for k, v in changed.items():

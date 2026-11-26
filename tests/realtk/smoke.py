@@ -555,6 +555,23 @@ def main():
     assert app.cd_timeline.winfo_height() >= need - 2 or tab_h <= app._tl_keep() + 40, (
         app.cd_timeline.winfo_height(), need, tab_h)  # every lane in view (a short screen: the text keeps its room)
     shot(app, "coding-timeline")
+    # a comment on the marked range (by time), then the commentary export with frames, written for real
+    w_c, cst = app._comment_dialog()
+    cst["text"].insert("1.0", "The group tests the raft together; Sam holds it, the others watch.")
+    pump(app, 0.3)
+    shot(app, "comment", w_c)
+    k_c = cst["save"]()
+    assert k_c and cod.get_coding(app.active_doc, k_c)["code"] == cod.COMMENT
+    pump(app, 0.3)
+    assert cod.COMMENT in app._cdt_lane_codes(app._cd["resolved"])
+    w_x, xst = app._commentary_dialog()
+    xst["minutes"].set("1")
+    pump(app, 0.3)
+    shot(app, "commentary", w_x)
+    out_x = WORK / "commentary.xlsx"
+    res_x = xst["go"](target=out_x, wait=True, open_after=False)
+    assert out_x.exists() and res_x["rows"] >= 2 and res_x["frames"] >= 1, res_x
+    w_x.destroy()
     # the video in a window of its own is not tied to the main window (on macOS a tied window can't go to another screen)
     pop = app._video_pop_out()
     pump(app, 0.5)

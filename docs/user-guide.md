@@ -353,6 +353,36 @@ the line above the timeline to give it more height.
 Codings stay on their words when you correct the text, split or merge segments, or re-transcribe a passage in the
 Transcript tab. If every word of a coding is deleted, it is listed with ⚠ so you can decide what to do with it.
 
+### Comments and commentary over time
+
+A **comment** is a note on a passage or a stretch of the recording, without a code: what the participants do, what
+you notice, an idea to come back to. For thematic analysis it is useful to describe every few minutes of a session
+this way, and to read the descriptions side by side later.
+
+- **Making one:** select words (Code mode), select segments (Edit mode) or mark a range on the timeline (drag, or
+  I / O), then press **M** (Code mode and timeline), **⌘K** / **Ctrl+Shift+K** (anywhere), *✎ Comment* in the Code
+  toolbar, or right-click ▸ *✎ Comment on this…*. With nothing selected, it is about the open (or clicked) segment.
+  Right-click the timeline ▸ *Comment on this 5-minute block* describes a whole block. A comment can have paragraphs.
+- **Where they show:** a *✎ Comments* lane on the timeline (both modes; drag its edges like a coding's), a stripe in
+  Code mode, and the codings list. Click to select, double-click to play, right-click ▸ *Edit comment…*. A comment can
+  be turned into a coding later (*Code it…*). Like codings, comments stay on their words when you edit the text, and
+  every change can be undone.
+
+![A comment on a range of the timeline](images/comment.png)
+
+**Commentary over time** (*Transcript ▾* or *Project ▸ Commentary over Time*) writes a **spreadsheet** of everything
+you wrote — comments, coding memos and segment notes — along the recording's time:
+- in **blocks** of 1, 2, **5**, 10, 15 or 30 minutes; every block gets a row, also the ones without a comment (to fill in
+  later, or to see where nothing was written), with **one video frame** from the middle of the block;
+- each comment in the block where it starts, with its own start and end (a comment may cover seconds or a quarter of an
+  hour), the speakers and the passage it is about;
+- for **this transcript** or **the whole project**: all transcripts in one sheet, with Day, Group, Type and the
+  project's attributes as columns to filter and sort by (and, if you like, a sheet per transcript as well).
+
+Excel (.xlsx, with the frames; opens in Numbers, LibreOffice and Google Sheets too) or CSV (text only).
+
+![Commentary over time](images/commentary.png)
+
 ## 10. Projects: many sessions of one study
 
 A **project** is the folder of one study. Every transcript in that folder or its subfolders belongs to it. Nothing is

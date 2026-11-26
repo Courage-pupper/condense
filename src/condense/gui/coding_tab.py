@@ -81,6 +81,7 @@ class CodingMixin:
         top.add(self._tool(top, "Code selection (↩)", lambda: self._cd_apply(self._cd_selected_code())))
         top.add(self._tool(top, "New code from selection (N)", lambda: self._cd_new_code(parent=self._cd_selected_code(), apply=True)))
         top.add(self._tool(top, "Code by time…", lambda: self._cd_time_dialog(*(self._cdt_mark() or (None, None)))))
+        top.add(self._tool(top, "✎ Comment (M)", lambda: self._comment_dialog()))
         top.add(self._tool(top, "▶ Play selection", self._cd_play_selection))
         top.add(self._tool(top, "⇔ Video size", self._cd_video_size))
         self.cd_recent = self._flow(self.mode_holder, padx=5, pady=2, bg=T["bg_panel"])
@@ -148,6 +149,7 @@ class CodingMixin:
         self._cd_show_state()
         for seq in (f"<{MOD}-Key-e>", f"<{MOD}-Key-E>"):
             self.bind_all(seq, lambda e: (self._set_tx_mode(), "break")[-1])
+        self._bind_comment_keys()
         self._mode_buttons()
         mode = self.settings.get("tx_mode")
         if mode == "code":
@@ -1154,10 +1156,15 @@ class CodingMixin:
             if keep is not None and r["code"] not in keep:
                 continue
             c = cb.get(r["code"]) if cb else None
-            text = ("◆ " + (r.get("memo") or "(coded by time)")) if r.get("kind") == "time" else (
-                "⚠ (its words were deleted)" if r.get("orphan") else cod.coded_text(doc, r))
-            if r.get("memo") and r.get("kind") != "time":
-                text += f"   ✎ {r['memo']}"
+            if r["code"] == cod.COMMENT:  # a comment: what you wrote first, then what it is about
+                about = "" if r.get("kind") == "time" or r.get("orphan") else f"   — “{cod.coded_text(doc, r)}”"
+                text = "✎ " + (r.get("memo") or "").replace("\n", " ⏎ ") + about
+            else:
+                text = ("◆ " + (r.get("memo") or "(coded by time)")) if r.get("kind") == "time" else (
+                    "⚠ (its words were deleted)" if r.get("orphan") else cod.coded_text(doc, r))
+                if r.get("memo") and r.get("kind") != "time":
+                    text += f"   ✎ {r['memo']}"
+            text = text.replace("\n", " ⏎ ")
             tag = f"col{c['color']}" if c else ""
             if c:
                 lst.tag_configure(tag, foreground=c["color"])
@@ -1215,6 +1222,8 @@ class CodingMixin:
         c = cod.get_coding(doc, kid) if doc is not None and kid else None
         if c is None:
             return None
+        if c.get("code") == cod.COMMENT and text is None:
+            return self._comment_dialog(kid)
         if c.get("kind") == "time" and text is None:
             return self._cd_time_dialog(coding_id=kid)
         if text is None:
@@ -1239,8 +1248,14 @@ class CodingMixin:
             for k, cid in enumerate(self._cd["recent"][:9]):
                 if cb and cb.get(cid):
                     m.add_command(label=f"{k + 1}  {cb.get(cid)['name']}", command=lambda cid=cid: self._cd_apply(cid))
+        m.add_command(label="✎ Comment on this…  (M)", command=lambda: self._comment_dialog())
         kid = self._cd.get("sel")
-        if kid:
+        c = cod.get_coding(self.active_doc, kid) if kid and self.active_doc is not None else None
+        if c is not None and c.get("code") == cod.COMMENT:
+            m.add_separator()
+            m.add_command(label="Edit this comment…", command=lambda: self._comment_dialog(kid))
+            m.add_command(label="Delete this comment", command=lambda: self._cd_remove(kid))
+        elif kid:
             m.add_separator()
             m.add_command(label="Memo for this coding…", command=lambda: self._cd_memo(kid))
             m.add_command(label="Change its code…", command=lambda: self._cd_change_code(kid))
