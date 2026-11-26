@@ -201,7 +201,8 @@ class CommentsMixin:
     def _radio(self, parent, text: str, var, value: str):
         T = THEME
         return tk.Radiobutton(parent, text=text, variable=var, value=value, bg=T["bg_panel"], fg=T["fg_primary"],
-                              selectcolor=T["bg_input"], activebackground=T["bg_panel"], font=self.f["small"], anchor="w")
+                              selectcolor=T["bg_input"], activebackground=T["bg_panel"], font=self.f["small"], anchor="w",
+                              highlightthickness=0, bd=0)
 
     def _commentary_dialog(self):
         doc = self.active_doc
@@ -213,9 +214,10 @@ class CommentsMixin:
         win = tk.Toplevel(self)
         win.title("Commentary over time")
         win.configure(bg=T["bg_panel"], padx=16, pady=14)
-        self._wrapping_label(win, "Your comments, coding memos and segment notes along the recording's time, in blocks: a "
-                                  "spreadsheet with a row for every block (also the empty ones, to fill in) and a video frame "
-                                  "for each.", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]).pack(fill=tk.X)
+        self._label(win, "Your comments, coding memos and segment notes along the recording's time, in blocks: a "
+                         "spreadsheet with a row for every block (also the empty ones, to fill in) and a video frame for each.",
+                    font="small", fg=T["fg_secondary"], bg=T["bg_panel"], wraplength=520, justify=tk.LEFT,
+                    anchor="w").pack(fill=tk.X)
         st: Dict = {"win": win}
         st["scope"] = tk.StringVar(value="doc" if doc is not None else "project")
         box = tk.Frame(win, bg=T["bg_panel"])
