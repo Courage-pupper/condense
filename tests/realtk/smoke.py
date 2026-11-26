@@ -220,7 +220,7 @@ def main():
 
     d0 = TD.load(docs[0].path)
     k = next(i for i in range(10, len(d0.segments) - 2) if d0.segments[i]["speaker"] != d0.segments[i - 1]["speaker"])
-    if lines < 4:  # too small a screen on this CI machine to see a jump; Linux CI runs this at laptop size
+    if lines < 5:  # too small a screen on this CI machine to see a jump; Linux CI runs this at laptop size
         print("    (screen too small here to measure jumps; checked on Linux)")
         y_before = y_after = y_merged = "-"
     else:
