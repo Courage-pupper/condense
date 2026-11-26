@@ -1,6 +1,6 @@
 """Video preview synced to the player, and linking a video to a transcript afterwards (without re-encoding).
 
-The preview has three screens: a column in the Transcript tab, one in the Coding tab, and a window of its own (pop-out,
+The preview has two screens: a column in the Transcript tab (in Code and Edit mode) and a window of its own (pop-out,
 resizable, full screen). One player feeds the screen in view: the pop-out when it is open, else the tab's column. The
 picture is fitted to the screen (enlarged too), and fitted again when the screen changes size.
 """
@@ -25,7 +25,7 @@ class VideoMixin:
         bar = tk.Frame(frame, bg="#000000")
         bar.pack(fill=tk.X)
         scr = SimpleNamespace(name=name, frame=frame, label=label, bar=bar, link=None, link_shown=False, play_btn=None)
-        if controls:  # the Coding tab has no player bar of its own
+        if controls:  # (a screen without a player bar next to it)
             scr.play_btn = self._tool(bar, "▶", self._toggle_play)
             scr.play_btn.pack(side=tk.LEFT, padx=(2, 4), pady=2)
         if name != "pop":
@@ -54,15 +54,10 @@ class VideoMixin:
         self._still_pending = None    # … and only the newest request waits (holding ↓ or scrolling fast)
         self._video_img = None
         self._video_panel_shown = False
-        self._cd_video_shown = False
         self._video_popout = None
         self._video_cur_screen = None
         self.after(40, self._video_pump)
         self.after_idle(self._toggle_video_panel)
-
-    def _build_cd_video(self):
-        """The Coding tab's video column (shown with the Transcript tab's, by Show the video)."""
-        self._make_video_screen("cd", self.cd_main, controls=True)
 
     def _toggle_video_panel(self):
         want = bool(self.var_show_video.get())
@@ -73,25 +68,14 @@ class VideoMixin:
             self._video_stop()
             self.tx_paned.forget(self.video_frame)
             self._video_panel_shown = False
-        cd = self.__dict__.get("_video_screens", {}).get("cd")
-        if cd is not None:
-            if want and not self._cd_video_shown:
-                self.cd_main.add(cd.frame, minsize=220, width=max(400, self.winfo_width() // 3), stretch="never")
-                self._cd_video_shown = True
-            elif not want and self._cd_video_shown:
-                self.cd_main.forget(cd.frame)
-                self._cd_video_shown = False
         self._video_retarget(force=True)
 
     def _video_screen(self) -> Optional[SimpleNamespace]:
-        """The screen in view: the pop-out window, else the Coding tab's column when that tab is open, else the
-        Transcript tab's column (None if the video is hidden)."""
+        """The screen in view: the pop-out window, else the Transcript tab's column (None if the video is hidden)."""
         pop = self.__dict__.get("_video_popout")
         if pop is not None:
             return pop
         screens = self.__dict__.get("_video_screens", {})
-        if self.__dict__.get("_cd_video_shown") and screens.get("cd") is not None and self._cd_visible():
-            return screens["cd"]
         return screens.get("tx") if self.__dict__.get("_video_panel_shown") else None
 
     def _video_retarget(self, force: bool = False):

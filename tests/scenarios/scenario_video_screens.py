@@ -27,7 +27,7 @@ pipe.launch_gui(); app = holder["app"]
 app._toggle_video_panel()
 app._render_doc(TD.load(d.path))
 screens = app._video_screens
-assert set(screens) == {"tx", "cd"} and app._video_panel_shown and app._cd_video_shown
+assert set(screens) == {"tx"} and app._video_panel_shown  # one screen in the tab (Code and Edit mode)
 
 
 def size(scr, w, h):
@@ -60,18 +60,18 @@ assert img.h == 300 and abs(img.w - 534) <= 2, (img.w, img.h)  # height-bound
 ok("a 320×180 compressed video fills an 800×600 screen at 800×450 (enlarged, 16:9 kept); fitted by height when wide")
 assert screens["tx"].label.cget("image") is img and "G1D1_compressed.mp4" in screens["tx"].caption.cget("text")
 
-print("[2] the Coding tab has its own screen")
-app._cd_visible = lambda: True
-size(screens["cd"], 640, 480)
-app._cd_on_tab()
-app._video_retarget()
+print("[2] Code mode: the same screen")
+del app._cd_visible
+app.notebook.select(app.tab_preview)
+app._set_tx_mode("code")
+assert app._cd_visible() and app._video_screen() is screens["tx"]
+size(screens["tx"], 640, 480)
+app._video_retarget(force=True)
 img = frame_now()
-assert screens["cd"].label.cget("image") is img and (img.w, img.h) == (640, 360)
-app._toggle_play(); app._video_pump()
-assert screens["cd"].play_btn.cget("text") == "⏸"
-app._player_pause(); app._video_pump()
-assert screens["cd"].play_btn.cget("text") == "▶"
-ok("in the Coding tab the frame goes to its column (640×360), with its own play/pause button")
+assert screens["tx"].label.cget("image") is img and (img.w, img.h) == (640, 360)
+app._set_tx_mode("edit")
+assert app._video_screen() is screens["tx"]
+ok("in Code mode the frame goes to the tab's one video column (640×360); switching modes keeps it")
 
 print("[3] a window of its own")
 pop = app._video_pop_out()
@@ -84,7 +84,7 @@ assert app._video_pop_out() is pop  # a second ⤢ brings the same window forwar
 app._video_pop_in()
 assert "pop" not in app._video_screens and app._video_popout is None
 img = frame_now()
-assert screens["cd"].label.cget("image") is img
+assert screens["tx"].label.cget("image") is img
 ok("⤢ opens the video in its own window (1600×900 there), closing it puts the video back into the tab")
 
 print("[4] sharper: from the original recording")
@@ -95,7 +95,7 @@ frame_now()
 assert str(comp) in calls[-1]
 app.var_preview_original.set(True)
 frame_now()
-assert str(orig) in calls[-1] and "G1D1.mp4" in screens["cd"].caption.cget("text")
+assert str(orig) in calls[-1] and "G1D1.mp4" in screens["tx"].caption.cget("text")
 pipe.subprocess.run = real_run
 dd = TD.load(d.path)
 dd.data["provenance"]["processing"] = {"losslesscut": {"segments_s": [[0, 3]]}}
@@ -104,8 +104,8 @@ ok("Playback ▸ Sharper preview decodes the camera's original (same timeline); 
 
 print("[5] the video hidden")
 app.var_show_video.set(False); app._toggle_video_panel()
-assert not app._video_panel_shown and not app._cd_video_shown and app._video_screen() is None
+assert not app._video_panel_shown and app._video_screen() is None
 app.var_show_video.set(True); app._toggle_video_panel()
-assert app._video_screen() is screens["cd"]
-ok("Show the video hides and shows both columns")
+assert app._video_screen() is screens["tx"]
+ok("Show the video hides and shows the column")
 print("\nALL TESTS PASSED")

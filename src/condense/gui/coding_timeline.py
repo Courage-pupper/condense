@@ -1,4 +1,4 @@
-"""The Coding tab's timeline: the recording in time, for coding video.
+"""The timeline under the Transcript tab (Code and Edit mode): the recording in time, for coding video and reviewing.
 
 Rows, top to bottom: a time ruler, frames of the video, who speaks (and the episodes behind everything), then one lane
 per code — the codes shown on the timeline (codebook: right-click ▸ Show on timeline), or, while none are chosen, the

@@ -108,7 +108,11 @@ def _direct(app, sequence):
     if m and m.group(1) in (None, EDIT_MOD):
         app._assign_speaker_number(int(m.group(2)))
     elif m and m.group(1) == MOD:
-        app.notebook.select((app.tab_settings, app.tab_console, app.tab_preview)[int(m.group(2)) - 1])
+        n = int(m.group(2))
+        app.notebook.select(app.tab_settings) if n == 1 else app.notebook.select(app.tab_console) if n == 2 else \
+            app._set_tx_mode("edit" if n == 3 else "code")
+    elif sequence == f"<{MOD}-Key-e>":
+        app._set_tx_mode()
     elif sequence == "<Control-Shift-Key-L>":
         app._insert_marker("[laughs]")
     elif sequence in ("<Down>", "<Up>"):
@@ -468,11 +472,22 @@ def main():
     shot(app, "editor-episodes")
     ok("episodes: phases shown, interview clip found at 70.0 s by its sound and added")
 
-    # coding: the Coding tab with the demo codebook; code a selection for real; stripes; a moment without speech
+    # coding: Code mode with the demo codebook; code a selection for real; stripes; a moment without speech
+    from condense.gui.widgets import EDIT_MOD, MOD
     app._render_doc(TD.load(docs[0].path))
-    app.notebook.select(app.tab_coding)
+    app.notebook.select(app.tab_preview)
+    pump(app, 0.3)
+    app._goto_segment(9)
+    pump(app, 0.3)
+    key(app, app.preview_text, f"<{MOD}-Key-e>")                    # Edit → Code: ⌘E / Ctrl+E
     pump(app, 1.0)
-    assert app._cd["words"] and app._cd["resolved"], "the Coding tab shows nothing"
+    assert app.tx_mode == "code" and app._cd_visible(), "⌘E did not switch to Code mode"
+    assert app._cd["words"] and app._cd["resolved"], "Code mode shows nothing"
+    assert app.cd_left.winfo_ismapped() and app.cd_text.winfo_ismapped(), "no codebook / coding text in Code mode"
+    assert not app.tx_edit_panel.winfo_ismapped() and not app.preview_text.winfo_ismapped(), "Edit mode still shown"
+    assert app.cd_bar.winfo_ismapped() and not app.tx_bar.winfo_ismapped()
+    w9 = app._cd["words"][app._cd["word"]]
+    assert w9[3] == 9, w9                                              # the same place as in Edit mode
     ct = app.cd_text
     words = app._cd["words"]
     first = next(n for n, w in enumerate(words) if w[3] == 9)       # "Green, because green is the colour of the river."
@@ -489,6 +504,20 @@ def main():
     pump(app, 0.5)
     assert app._cd.get("stripe_hits"), "no coding stripes drawn"
     shot(app, "coding")
+    # speakers in Code mode: the selected words' segments (a real key press)
+    roster = app._roster()
+    spk10 = app.active_doc.segments[10]["speaker"]
+    other = next(k for k, r in enumerate(roster) if r != spk10) + 1
+    w10 = [n for n, w in enumerate(app._cd["words"]) if w[3] == 10]
+    ws = app._cd["words"]
+    ct.tag_add("sel", f"{ws[w10[0]][0]}.{ws[w10[0]][1]}", f"{ws[w10[-1]][0]}.{ws[w10[-1]][2]}")
+    key(app, ct, f"<{EDIT_MOD}-Key-{other}>")
+    pump(app, 0.4)
+    assert app.active_doc.segments[10]["speaker"] == roster[other - 1], "no speaker from Code mode"
+    app._undo()
+    pump(app, 0.4)
+    assert app.active_doc.segments[10]["speaker"] == spk10
+    ct.tag_remove("sel", "1.0", "end")
     w_m, tdlg = app._cd_time_dialog(30.0, 36.0)
     pump(app, 0.3)
     shot(app, "coding-moment", w_m)
@@ -531,10 +560,13 @@ def main():
     app._toggle_side_panel(True)
     pump(app, 0.4)
     assert not app.side_collapsed
-    app.notebook.select(app.tab_preview)
-    pump(app, 0.3)
-    ok("Coding tab: demo codebook, a real selection coded, stripes drawn, moment and code dialogs; timeline: coded by "
-       "I/O, zoomed to 2 min with video frames; side panel collapsed and back")
+    app._cd_show_word(12, 0)
+    key(app, app.cd_text, f"<{MOD}-Key-e>")                          # Code → Edit, at the same place
+    pump(app, 0.5)
+    assert app.tx_mode == "edit" and app.tx_edit_panel.winfo_ismapped() and app.preview_text.winfo_ismapped()
+    assert not app.cd_left.winfo_ismapped() and app.edit_seg_idx == 12, app.edit_seg_idx
+    ok("Code mode (⌘E): demo codebook, a real selection coded, stripes, speakers by key, moment and code dialogs; "
+       "timeline: coded by I/O, zoomed to 2 min with video frames; side panel collapsed and back; ⌘E back to Edit")
 
     res = app._trim_dialog(video)
     assert res is not None

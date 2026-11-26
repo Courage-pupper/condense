@@ -314,11 +314,15 @@ class ReviewMarksMixin:
             self._assign_speaker(self.var_seg_speaker.get().strip())
 
     def _assign_speaker_number(self, number: int):
+        """⌃1–9 / Alt+1–9: the n-th speaker for what is selected in the mode shown — in Code mode the selected (or
+        clicked) words' segments, in Edit mode the selected segments or the one being edited."""
         doc = self.active_doc
         if doc is None:
             return
         roster = self._roster()
         if 1 <= number <= len(roster):
+            if self._cd_visible():
+                return self._cd_assign_speaker(roster[number - 1])
             self._assign_speaker(roster[number - 1])
 
     def _add_speaker_quick(self):

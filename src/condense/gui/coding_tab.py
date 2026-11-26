@@ -1,5 +1,6 @@
-"""The Coding tab: the project's codebook on the left, the open transcript on the right with a coloured stripe for
-every coding, and the transcript's codings below.
+"""Code mode of the Transcript tab: the project's codebook on the left, the open transcript with a coloured stripe
+for every coding, and the transcript's codings below. Edit mode (editor.py) is the same tab with the segment editor;
+⌘E / Ctrl+E switches, and the player, the video and the timeline belong to both.
 
 Code words: select them in the text, then double-click a code (or press Return to use the selected code, or 1–9 for
 the recent codes, or N for a new code). Code by time — what happens without words, or before the transcript is
@@ -19,11 +20,14 @@ STRIPE_W, STRIPE_GAP, MAX_COLS = 5, 3, 8
 class CodingMixin:
     # ================================================================== building
     def _build_coding_tab(self):
+        """Code mode of the Transcript tab: the codebook left of the text, the transcript with stripes, the codings under
+        it; its toolbar in place of the Edit toolbar. The player, the video and the timeline are the tab's own."""
         T = THEME
-        tab = self.tab_coding
         self._cd = {"doc": None, "words": [], "line_words": {}, "resolved": [], "sel": None, "tl_drag": None,
                     "recent": [], "rendered_for": None}
-        self.cd_none = tk.Frame(tab, bg=T["bg_panel"])
+        # ---- codebook (or: open a project first) ----
+        self.cd_left = tk.Frame(self.tx_paned, bg=T["bg_panel"], padx=4)
+        self.cd_none = tk.Frame(self.cd_left, bg=T["bg_panel"])
         self.cd_none_lbl = self._wrapping_label(self.cd_none, "", font="small", fg=T["fg_secondary"], bg=T["bg_panel"])
         self.cd_none_lbl.pack(fill=tk.X, pady=(0, 8))
         row = tk.Frame(self.cd_none, bg=T["bg_panel"])
@@ -31,13 +35,7 @@ class CodingMixin:
         self._tool(row, "New Project…", self._new_project_dialog, primary=True).pack(side=tk.LEFT)
         self._tool(row, "Open Project…", self._open_project_dialog).pack(side=tk.LEFT, padx=(6, 0))
 
-        # the tab: codebook | transcript | video on top, the timeline under all of them (its height can be dragged)
-        self.cd_area = tk.PanedWindow(tab, orient=tk.VERTICAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
-        self.cd_main = tk.PanedWindow(self.cd_area, orient=tk.HORIZONTAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
-        self.cd_area.add(self.cd_main, minsize=260, stretch="always")  # the timeline is under the tabs (app.py)
-        # ---- codebook ----
-        left = tk.Frame(self.cd_main, bg=T["bg_panel"], padx=4)
-        self.cd_main.add(left, minsize=220, width=280)
+        left = self.cd_book = tk.Frame(self.cd_left, bg=T["bg_panel"])
         hdr = tk.Frame(left, bg=T["bg_panel"])
         hdr.pack(fill=tk.X)
         self._label(hdr, "Codebook", font="body_bold", bg=T["bg_panel"]).pack(side=tk.LEFT)
@@ -77,24 +75,24 @@ class CodingMixin:
         self.lbl_cd_info = self._wrapping_label(left, "", font="small", fg=T["fg_secondary"], bg=T["bg_panel"])
         self.lbl_cd_info.pack(fill=tk.X, pady=(6, 0))
 
-        # ---- transcript with stripes ----
-        right = tk.Frame(self.cd_main, bg=T["bg_panel"], padx=4)
-        self.cd_main.add(right, minsize=420, stretch="always")
-        top = self._flow(right, padx=3, pady=3, bg=T["bg_panel"])
-        top.pack(fill=tk.X)
-        self.lbl_cd_doc = self._label(top, "", font="small_bold", bg=T["bg_panel"])
-        top.add(self.lbl_cd_doc)
+        # ---- the Code toolbar (in place of the Edit toolbar) ----
+        top = self._flow(self.mode_holder, padx=5, pady=5, bg=T["bg_panel"])
+        self.cd_bar = top
         top.add(self._tool(top, "Code selection (↩)", lambda: self._cd_apply(self._cd_selected_code())))
         top.add(self._tool(top, "New code from selection (N)", lambda: self._cd_new_code(parent=self._cd_selected_code(), apply=True)))
         top.add(self._tool(top, "Code by time…", lambda: self._cd_time_dialog(*(self._cdt_mark() or (None, None)))))
         top.add(self._tool(top, "▶ Play selection", self._cd_play_selection))
         top.add(self._tool(top, "⇔ Video size", self._cd_video_size))
-        self.cd_recent = self._flow(right, padx=3, pady=2, bg=T["bg_panel"])
-        self.cd_recent.pack(fill=tk.X, pady=(0, 4))
-        body = tk.PanedWindow(right, orient=tk.VERTICAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
-        body.pack(fill=tk.BOTH, expand=True)
-        txt_frame = tk.Frame(body, bg="#0b0d13")
-        body.add(txt_frame, minsize=160, stretch="always")
+        self.cd_recent = self._flow(self.mode_holder, padx=5, pady=2, bg=T["bg_panel"])
+        # ---- the transcript with stripes, the codings under it (in the tab's text column) ----
+        body = tk.PanedWindow(self.tx_paned, orient=tk.VERTICAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
+        self.cd_body = body
+        right = tk.Frame(body, bg=T["bg_panel"])
+        body.add(right, minsize=160, stretch="always")
+        self.lbl_cd_doc = self._label(right, "", font="small_bold", bg=T["bg_panel"], anchor="w")
+        self.lbl_cd_doc.pack(fill=tk.X, pady=(0, 2))
+        txt_frame = tk.Frame(right, bg="#0b0d13")
+        txt_frame.pack(fill=tk.BOTH, expand=True)
         self.cd_stripes = tk.Canvas(txt_frame, width=STRIPE_W * 3, bg="#0b0d13", highlightthickness=0, bd=0)
         self.cd_stripes.pack(side=tk.LEFT, fill=tk.Y)
         self.cd_text = tk.Text(txt_frame, bg="#0b0d13", fg=T["fg_primary"], font=self.f["transcript"], relief=tk.FLAT, padx=12, pady=10,
@@ -122,8 +120,6 @@ class CodingMixin:
         self.cd_stripes.bind("<Button-1>", self._cd_stripe_click)
         self.cd_text.bind("<Configure>", lambda e: self._cd_draw_stripes())
 
-        self._build_cd_video()  # the video column (added to cd_main when Show the video is on)
-
         # ---- codings of this transcript ----
         lst = tk.Frame(body, bg=T["bg_panel"])
         body.add(lst, minsize=110, height=190)
@@ -148,6 +144,12 @@ class CodingMixin:
         self.cd_list = cl
         self.notebook.bind("<<NotebookTabChanged>>", lambda e: self._cd_on_tab(), add="+")
         self._cd_show_state()
+        for seq in (f"<{MOD}-Key-e>", f"<{MOD}-Key-E>"):
+            self.bind_all(seq, lambda e: (self._set_tx_mode(), "break")[-1])
+        self._mode_buttons()
+        mode = self.settings.get("tx_mode")
+        if mode == "code":
+            self.after_idle(lambda: self._set_tx_mode("code", select_tab=False))
 
     # ================================================================== state
     def _cd_project(self) -> Optional[Path]:
@@ -171,23 +173,172 @@ class CodingMixin:
     def _cd_show_state(self):
         project = self._cd_project()
         if project is None:
-            self.cd_area.pack_forget()
+            self.cd_book.pack_forget()
             self.cd_none_lbl.config(text="Coding works in a project: the codebook is kept in the study's folder and shared by all its "
                                          "transcripts. Open or create the project of this study first.")
-            self.cd_none.pack(fill=tk.X, padx=10, pady=10)
+            self.cd_none.pack(fill=tk.X, padx=6, pady=10)
             return False
         self.cd_none.pack_forget()
-        self.cd_area.pack(fill=tk.BOTH, expand=True)
+        self.cd_book.pack(fill=tk.BOTH, expand=True)
         return True
 
     def _cd_visible(self) -> bool:
+        """Is Code mode on screen (the Transcript tab open, in Code mode)?"""
+        if self.__dict__.get("tx_mode") != "code":
+            return False
         try:
-            return self.notebook.select() == str(self.tab_coding)
+            return self.notebook.select() == str(self.tab_preview)
         except Exception:
             return False
 
+    # ================================================================== Code / Edit
+    def _mode_buttons(self):
+        code = self.__dict__.get("tx_mode") == "code"
+        self.btn_mode_code.configure(style="Primary.TButton" if code else "Tool.TButton")
+        self.btn_mode_edit.configure(style="Tool.TButton" if code else "Primary.TButton")
+
+    def _tx_word_now(self) -> Optional[Tuple[int, int]]:
+        """(segment, word) of where you are in the mode shown: the word clicked or selected, else the playhead's."""
+        doc = self.active_doc
+        if doc is None:
+            return None
+        if self.__dict__.get("tx_mode") == "code":
+            words = self._cd.get("words") or []
+            span = self._cd_selection_words()
+            n = span[0] if span else self._cd.get("word")
+            if n is not None and n < len(words) and self._cd.get("doc") is doc:
+                return words[n][3], words[n][4]
+        else:
+            i = self.__dict__.get("current_span")
+            spans = self.__dict__.get("word_spans") or []
+            if i is not None and i < len(spans):
+                sp = spans[i]
+                if sp.get("seg") is not None:
+                    return sp["seg"], sp.get("w", 0)
+        return None
+
+    def _set_tx_mode(self, mode: Optional[str] = None, select_tab: bool = True):
+        """Code (codebook, stripes, codings) or Edit (segment editor, speakers, review marks) — one transcript, one
+        video, one timeline. ⌘E / Ctrl+E switches; you stay at the same place in the transcript."""
+        cur = self.__dict__.get("tx_mode", "edit")
+        mode = ("edit" if cur == "code" else "code") if mode is None else mode
+        if select_tab:
+            self.notebook.select(self.tab_preview)
+        if mode == cur:
+            if mode == "code":
+                self._cd_refresh()
+            return mode
+        here = self._tx_word_now()
+        pos = self._current_pos() if self.active_doc is not None else None
+        video = self.video_frame if self.__dict__.get("_video_panel_shown") else None
+        if mode == "code":
+            self._autosave_edit(rerender=False)  # a correction still being typed is kept
+            if self.__dict__.get("_find_visible"):
+                self._hide_find()
+            self.tx_bar.pack_forget()
+            self.cd_bar.pack(fill=tk.X)
+            self.cd_recent.pack(fill=tk.X)
+            self.tx_edit_panel.pack_forget()
+            self.tx_paned.forget(self.tx_text_frame)
+            kw = {"before": video} if video is not None else {}
+            self.tx_paned.add(self.cd_left, minsize=200, width=int(self.settings.get("codebook_width", 260)), stretch="never", **kw)
+            self.tx_paned.add(self.cd_body, minsize=320, stretch="always", **kw)
+        else:
+            try:
+                self.settings["codebook_width"] = max(200, int(self.cd_left.winfo_width()))
+            except Exception:
+                pass
+            self.cd_bar.pack_forget()
+            self.cd_recent.pack_forget()
+            self.tx_bar.pack(fill=tk.X)
+            self.tx_paned.forget(self.cd_left)
+            self.tx_paned.forget(self.cd_body)
+            kw = {"before": video} if video is not None else {}
+            self.tx_paned.add(self.tx_text_frame, minsize=300, stretch="always", **kw)
+            self.tx_edit_panel.pack(side=tk.BOTTOM, fill=tk.X, pady=(8, 0), before=self.tx_paned)
+        self.tx_mode = mode
+        self.settings["tx_mode"] = mode
+        self._mode_buttons()
+        if mode == "code":
+            self._cd_refresh()
+            if here is not None:
+                self._cd_show_word(*here)
+            elif pos is not None:
+                self._cd_follow_to(pos)
+            try:
+                self.cd_text.focus_set()
+            except Exception:
+                pass
+        else:
+            if here is not None:
+                key = (here[0], here[1])
+                i = (self.__dict__.get("span_lookup") or {}).get(key)
+                if i is not None:
+                    self._select_span(i)
+            try:
+                self.preview_text.focus_set()
+            except Exception:
+                pass
+        self.after(150, lambda: self._video_resized(self._video_screen()))  # the column changed: fit the picture again
+        self._cdt_draw()
+        return mode
+
+    def _cd_show_word(self, seg: int, word: int):
+        """Scroll Code mode's text to a word and remember it as the place you are."""
+        words = self._cd.get("words") or []
+        n = next((k for k, w in enumerate(words) if w[3] == seg and w[4] >= word), None)
+        if n is None:
+            n = next((k for k, w in enumerate(words) if w[3] >= seg), None)
+        if n is None:
+            return None
+        self._cd["word"] = n
+        line, c0, _c1 = words[n][0], words[n][1], words[n][2]
+        try:
+            self.cd_text.see(f"{line}.{c0}")
+            self.cd_text.mark_set(tk.INSERT, f"{line}.{c0}")
+        except Exception:
+            pass
+        return n
+
+    def _cd_follow_to(self, pos: float):
+        doc = self._cd.get("doc")
+        words = self._cd.get("words") or []
+        if doc is None or not words:
+            return None
+        starts = [float(doc.segments[w[3]]["words"][w[4]]["start"]) for w in words]
+        n = max(0, bisect.bisect_right(starts, pos) - 1)
+        return self._cd_show_word(words[n][3], words[n][4])
+
+    def _cd_speaker_segments(self) -> List[int]:
+        """Code mode: the segments ⌃1–9 / Alt+1–9 give a speaker — those of the selected words, else the clicked word's."""
+        words = self._cd.get("words") or []
+        span = self._cd_selection_words()
+        if span is not None:
+            return sorted({words[k][3] for k in range(span[0], span[1] + 1)})
+        n = self._cd.get("word")
+        return [words[n][3]] if n is not None and n < len(words) else []
+
+    def _cd_assign_speaker(self, name: str) -> int:
+        doc = self._cd_current()
+        segs = self._cd_speaker_segments() if doc is not None else []
+        if not segs:
+            self.lbl_status.config(text="Click a word (or select a stretch), then press "
+                                        f"{'⌃' if IS_MAC else 'Alt+'}1–9 for its speaker.")
+            return 0
+        changed = [k for k in segs if doc.set_segment_speaker(k, name)]
+        if not changed:
+            self.lbl_status.config(text=f"Already {name}.")
+            return 0
+        if self._commit(f"Assigned {name} to {len(changed)} segment(s) ({'⌘' if IS_MAC else 'Ctrl+'}Z undoes).") is not None:
+            self._rerender()
+            sel = self.cd_text.tag_ranges("sel")
+            self._cd_render(self.active_doc)
+            if sel:
+                self.cd_text.tag_add("sel", sel[0], sel[-1])
+            self.lbl_status.config(text=f"{name}: {len(changed)} segment(s).")
+        return len(changed)
+
     def _cd_on_tab(self):
-        self.after_idle(lambda: self._video_retarget())  # the video moves to the tab in view
         if self._cd_visible():
             self._cd_refresh()
 
@@ -706,15 +857,15 @@ class CodingMixin:
 
     def _cd_video_size(self):
         """The video column: a third of the tab, or more than half of it (for watching closely)."""
-        if not self.__dict__.get("_cd_video_shown"):
+        if not self.__dict__.get("_video_panel_shown"):
             self.var_show_video.set(True)
             self._toggle_video_panel()
         try:
-            panes = self.cd_main.panes()
-            width = int(self.cd_main.winfo_width())
+            panes = self.tx_paned.panes()
+            width = int(self.tx_paned.winfo_width())
             big = not self.__dict__.get("_cd_video_big")
             x = int(width * (0.42 if big else 0.67))
-            self.cd_main.sash_place(len(panes) - 2, x, 0)
+            self.tx_paned.sash_place(len(panes) - 2, x, 0)
             self._cd_video_big = big
             self.after(120, lambda: self._video_resized(self._video_screen()))
         except Exception:
@@ -914,6 +1065,7 @@ class CodingMixin:
         n = next((n for n in ws if self._cd["words"][n][1] <= col <= self._cd["words"][n][2]), None)
         if n is None:
             return None
+        self._cd["word"] = n  # where you are: ⌃1–9 / Alt+1–9 give this word's segment a speaker, ⌘E edits it
         hits = []
         for r in self._cd["resolved"]:
             span = self._cd_word_index(r)

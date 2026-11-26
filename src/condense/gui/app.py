@@ -393,8 +393,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         v.add_separator()
         v.add_command(label="Settings", accelerator=f"{acc}1", command=lambda: self.notebook.select(self.tab_settings))
         v.add_command(label="Console", accelerator=f"{acc}2", command=lambda: self.notebook.select(self.tab_console))
-        v.add_command(label="Transcript", accelerator=f"{acc}3", command=lambda: self.notebook.select(self.tab_preview))
-        v.add_command(label="Coding", accelerator=f"{acc}4", command=lambda: self.notebook.select(self.tab_coding))
+        v.add_command(label="Transcript: Edit", accelerator=f"{acc}3", command=lambda: self._set_tx_mode("edit"))
+        v.add_command(label="Transcript: Code", accelerator=f"{acc}4", command=lambda: self._set_tx_mode("code"))
+        v.add_command(label="Switch Code / Edit", accelerator=f"{acc}E", command=lambda: self._set_tx_mode())
         v.add_separator()
         v.add_command(label="Keyboard Shortcuts", accelerator=f"{acc}/", command=self._show_shortcuts)
         mb.add_cascade(label="View", menu=v)
@@ -439,7 +440,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             "equal": lambda: self._set_zoom(self.ui_scale + 0.1), "plus": lambda: self._set_zoom(self.ui_scale + 0.1),
             "minus": lambda: self._set_zoom(self.ui_scale - 0.1), "0": lambda: self._set_zoom(1.0),
             "1": lambda: self.notebook.select(self.tab_settings), "2": lambda: self.notebook.select(self.tab_console),
-            "3": lambda: self.notebook.select(self.tab_preview), "4": lambda: self.notebook.select(self.tab_coding),
+            "3": lambda: self._set_tx_mode("edit"), "4": lambda: self._set_tx_mode("code"),
             "bracketleft": lambda: self._seek_rel(-5), "bracketright": lambda: self._seek_rel(+5),
             "j": self._goto_time_dialog,
             "s": self._save_segment_edit,
@@ -573,8 +574,6 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.notebook.add(self.tab_settings, text="Settings")
         self.notebook.add(self.tab_console, text="Console")
         self.notebook.add(self.tab_preview, text="Transcript")
-        self.tab_coding = tk.Frame(self.notebook, bg=THEME["bg_panel"], padx=8, pady=8)
-        self.notebook.add(self.tab_coding, text="Coding")
         self._build_settings_tab()
         self._build_console_tab()
         self._build_preview_tab()
@@ -584,9 +583,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.after(50, self._tl_show_for_tab)
 
     def _tl_visible(self) -> bool:
-        """Is the timeline on screen (Transcript or Coding tab open)?"""
+        """Is the timeline on screen (the Transcript tab open, in Code or Edit mode)?"""
         try:
-            return self.notebook.select() in (str(self.tab_preview), str(self.tab_coding))
+            return self.notebook.select() == str(self.tab_preview)
         except Exception:
             return False
 

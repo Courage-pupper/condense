@@ -100,12 +100,13 @@ You can also cut parts out after transcribing (see [Cutting parts out](#7-cuttin
 ## 4. Reviewing a transcript
 
 Open a finished task (click it in the queue) or *File ▸ Open Transcript…* (⇧⌘O / Ctrl+Shift+O). The *Transcript*
-tab opens:
+tab opens. It has two modes, switched with **Code | Edit** at the left of its toolbar or **⌘E / Ctrl+E**: *Edit* for
+reviewing (below) and *Code* for coding ([Coding](#9-coding)). Switching keeps your place, the video and the timeline.
 
 ![Transcript editor](images/editor.png)
 
 - **Top:** the player and the video.
-- **Under the tab:** the **timeline**, the same one as in the Coding tab (see *Coding video on the timeline*):
+- **Under the tab:** the **timeline**, in both modes (see *Coding video on the timeline*):
   frames of the video, one colour per speaker, red ticks for uncertain words, a green bar under checked segments, cut
   parts hatched, episodes behind, and the codings in their lanes. Drag the line above it to give it more or less room.
 - **Middle:** the transcript. Click a word to jump there; double-click to play from it. Words Whisper was unsure
@@ -287,10 +288,16 @@ again updates the episodes instead of adding them twice.
 
 ## 9. Coding
 
-The **Coding** tab (⌘4 / Ctrl+4) codes the open transcript with the project's codebook. The codebook is kept in the
-study folder (`condense-codebook.json`) and shared by all its transcripts. Coding needs a project (see [Projects](#10-projects-many-sessions-of-one-study)).
+**Code mode** of the Transcript tab (**Code** at the left of the toolbar, ⌘4 / Ctrl+4, or ⌘E / Ctrl+E to switch) codes
+the open transcript with the project's codebook: the codebook on the left, the transcript with a stripe per coding, the
+codings under it, and the same video and timeline as in Edit mode. The codebook is kept in the study folder
+(`condense-codebook.json`) and shared by all its transcripts. Coding needs a project (see [Projects](#10-projects-many-sessions-of-one-study)).
 
-![The Coding tab](images/coding.png)
+![Code mode](images/coding.png)
+
+**A mistake in the text?** Click the word and press **⌘E / Ctrl+E**: Edit mode opens that segment; fix it, then ⌘E
+again to go on coding at the same place. **Speakers** work in both modes: **⌃1–9** (Mac) / **Alt+1–9** give the
+selected words' segments (or the clicked word's) that speaker.
 
 **The codebook grows while you code.**
 - **New code from what you've selected:** select words in the transcript and press **N** (or *New code from selection*):
@@ -308,8 +315,8 @@ study folder (`condense-codebook.json`) and shared by all its transcripts. Codin
 - press **1–9** for a recent code (shown above the transcript);
 - or right-click the selection.
 
-The video plays next to the text while you code (its own ▶ button, **⤢** for a window of its own), so you see what
-happens while you code what is said.
+The video plays next to the text while you code (the player is the tab's own; **⤢** for a window of its own), so you
+see what happens while you code what is said.
 
 Each coding shows as a coloured **stripe** next to the text and as a bar on the timeline. Click a stripe or coded words
 to select a coding; the list below shows all codings of the transcript (or *only the selected code*) with their speaker
@@ -317,7 +324,7 @@ and text. **Memo…**, **Change code…** and **Delete coding** (or Del) work on
 
 ### Coding video on the timeline
 
-The **timeline** under the Transcript and Coding tabs (one timeline, shared by both) shows the recording in time: a ruler, frames of the video, who speaks (the
+The **timeline** under the Transcript tab (the same in Code and Edit mode) shows the recording in time: a ruler, frames of the video, who speaks (the
 episodes behind it), and one **lane per code**. Codings of words are solid bars, codings by time outlined ones. Drag
 the line above the timeline to give it more height.
 
