@@ -220,7 +220,8 @@ class CodingTimelineMixin:
             rows["frames"] = (y + 2, y + 2 + FRAMES_H)
             y += FRAMES_H + 4
         rows["speakers"] = (y + 1, y + 1 + SPEAKERS_H)
-        y += SPEAKERS_H + 4
+        rows["checked"] = (y + SPEAKERS_H + 2, y + SPEAKERS_H + 5)
+        y += SPEAKERS_H + 8
         rows["lanes"] = (y, y + max(1, n_lanes) * LANE_H)
         rows["bottom"] = (0, y + max(1, n_lanes) * LANE_H + 4)
         return rows
@@ -230,15 +231,23 @@ class CodingTimelineMixin:
         ('episode', x0, x1, colour) · ('tick', x, label) · ('speaker', x0, x1, colour) · ('lane', y0, y1, code, name, colour)
         · ('bar', x0, x1, y0, y1, colour, kind, coding_id, selected) · ('live', x0, x1, y0, y1, colour) · ('mark', x0, x1)
         · ('in', x) · ('frame', x0, x1, t)."""
-        doc = self._cd.get("doc") if self.__dict__.get("_cd") else None
+        doc = self.active_doc
         if doc is None:
             self.cdt["hits"], self.cdt["lanes"] = [], []
             return []
+        if self.cdt.get("path") != str(doc.path):  # another transcript: its whole recording, nothing marked
+            self.cdt.update(view=None, live={}, loop=None, thumbs={}, path=str(doc.path))
+            self.cdt["in"] = self.cdt["out"] = None
+            self._cdt_show_mark()
         a, b = self._cdt_view()
         x0p, x1p = self._cdt_plot()
         X = self._cdt_xfun()
         cb = self._cd_codebook()
-        resolved = self._cd.get("resolved") or []
+        cd = self.__dict__.get("_cd") or {}
+        if cd.get("doc") is doc and self._cd_visible() and cd.get("resolved") is not None:
+            resolved = cd["resolved"]           # the Coding tab has just worked them out
+        else:
+            resolved = cod.resolve(doc)         # e.g. after editing in the Transcript tab: where they are now
         lanes = self._cdt_lane_codes(resolved)
         self.cdt["lanes"] = lanes
         rows = self._cdt_rows(len(lanes))
@@ -247,7 +256,10 @@ class CodingTimelineMixin:
         for ep in doc.episodes:
             if ep["end"] >= a and ep["start"] <= b:
                 items.append(("episode", max(x0p, X(ep["start"])), min(x1p, max(X(ep["start"]) + 2, X(ep["end"]))),
-                              self._episode_color(ep["type"])))
+                              self._episode_color(ep["type"]), bool(ep.get("approx"))))
+        for s0, s1 in doc.cuts:                 # cut parts: hatched over everything
+            if s1 >= a and s0 <= b:
+                items.append(("cut", max(x0p, X(s0)), min(x1p, max(X(s0) + 2, X(s1)))))
         step = tick_step(b - a, x1p - x0p)
         t = (int(a) // step) * step
         while t <= b:
@@ -264,6 +276,7 @@ class CodingTimelineMixin:
         roster = self._roster()
         colors = {spk: SPEAKER_COLORS[i % len(SPEAKER_COLORS)] for i, spk in enumerate(roster)}
         merged: List[List] = []
+        checks: List[List] = []                 # segments marked as checked: a green bar under the speakers
         for seg in doc.segments:
             s0, s1 = float(seg.get("start", 0.0)), float(seg.get("end", 0.0))
             if s1 < a or s0 > b:
@@ -274,7 +287,20 @@ class CodingTimelineMixin:
                 merged[-1][2] = max(merged[-1][2], sx1)
             else:
                 merged.append(["speaker", sx0, sx1, col])
-        items += [tuple(m) for m in merged]
+            if seg.get("checked"):
+                if checks and sx0 <= checks[-1][2] + 1:
+                    checks[-1][2] = max(checks[-1][2], sx1)
+                else:
+                    checks.append(["checked", sx0, sx1])
+        items += [tuple(m) for m in merged] + [tuple(c) for c in checks]
+        spans = self.__dict__.get("word_spans") or []
+        seen_px = set()
+        for i in self.__dict__.get("low_conf") or []:   # words Whisper was unsure of: red ticks over the speakers
+            if i < len(spans):
+                t_w = float(spans[i]["start"])
+                if a <= t_w <= b and int(X(t_w)) not in seen_px:
+                    seen_px.add(int(X(t_w)))
+                    items.append(("lowconf", X(t_w)))
         ly0 = rows["lanes"][0]
         hits = []
         lane_of = {cid: k for k, cid in enumerate(lanes)}
@@ -329,8 +355,17 @@ class CodingTimelineMixin:
         for it in items:
             kind = it[0]
             if kind == "episode":
-                cv.create_rectangle(it[1], RULER_H, it[2], height, fill=self._dim(it[3], 0.16), outline="")
-                cv.create_rectangle(it[1], RULER_H, it[2], RULER_H + 2, fill=it[3], outline="")
+                approx = len(it) > 4 and it[4]
+                cv.create_rectangle(it[1], RULER_H, it[2], height, fill=self._dim(it[3], 0.10 if approx else 0.16), outline="")
+                cv.create_rectangle(it[1], RULER_H, it[2], RULER_H + 2, fill=self._dim(it[3], 0.6) if approx else it[3], outline="")
+            elif kind == "cut":
+                cv.create_rectangle(it[1], RULER_H, it[2], height, fill="#000000", stipple="gray50", outline="#f59e0b")
+            elif kind == "checked":
+                y0, y1 = rows["checked"]
+                cv.create_rectangle(it[1], y0, it[2], y1, fill=T["ok"], outline="")
+            elif kind == "lowconf":
+                y0, _y1 = rows["speakers"]
+                cv.create_line(it[1], y0 - 1, it[1], y0 + 5, fill="#f87171")
             elif kind == "tick":
                 cv.create_line(it[1], RULER_H - 5, it[1], height, fill=T["border"])
                 cv.create_text(it[1] + 3, 2, anchor="nw", text=it[2], fill=T["fg_dim"], font=f["mono_small"])
@@ -386,8 +421,8 @@ class CodingTimelineMixin:
 
     def _cdt_fit_height(self, height: int):
         """Make room for every lane: the line between the tab and the timeline moves up (to half the tab at most)."""
-        area, frame = self.__dict__.get("cd_area"), self.__dict__.get("cdt_frame")
-        if area is None or frame is None:
+        area, frame = self.__dict__.get("right_area"), self.__dict__.get("tl_frame")
+        if area is None or frame is None or not self.__dict__.get("tl_shown"):
             return None
         try:
             area_h = int(area.winfo_height())
@@ -397,7 +432,7 @@ class CodingTimelineMixin:
             want = min(height + bar_h + 16, area_h // 2)
             have = int(frame.winfo_height())
             if want > have or want < have - 40:
-                area.sash_place(0, 0, max(260, area_h - want))
+                area.sash_place(0, 0, max(300, area_h - want))
                 return want
         except Exception:
             return None
@@ -405,8 +440,8 @@ class CodingTimelineMixin:
 
     def _cdt_playhead(self, pos: Optional[float] = None):
         cv, ph = self.__dict__.get("cd_timeline"), (self.__dict__.get("cdt") or {}).get("playhead")
-        if cv is None or ph is None:
-            return
+        if cv is None or ph is None or self.__dict__.get("_scrub_target") is not None:
+            return  # (being dragged: the playhead is under the mouse)
         pos = self._current_pos() if pos is None else pos
         a, b = self._cdt_view()
         x = self._cdt_x(pos) if a <= pos <= b else -10
@@ -415,7 +450,7 @@ class CodingTimelineMixin:
 
     def _cdt_tick(self, pos: float):
         """While playing: the playhead, a zoomed view that follows it, running codings, the loop."""
-        if self.__dict__.get("cdt") is None or not self._cd_visible():
+        if self.__dict__.get("cdt") is None or not self._tl_visible():
             return
         if not self.__dict__.get("playing"):
             self._cdt_playhead(pos)
@@ -631,13 +666,20 @@ class CodingTimelineMixin:
             pass
         if self.active_doc is None:
             return None
-        if event.y < RULER_H:
+        whole = self.cdt.get("view") is None
+        if event.y < RULER_H and not whole:
             self.cdt["drag"] = {"mode": "pan", "x": event.x, "view": self._cdt_view(), "moved": False}
             return "pan"
         hit = self._cdt_hit(event.x, event.y) if event.x >= LABEL_W else None
         if hit and hit[2]:
             self.cdt["drag"] = {"mode": "edge", "kid": hit[0], "edge": hit[2], "t": None}
             return "edge"
+        # scrub: grab the playhead, or the ruler when the whole recording is shown (nothing to pan) — the playhead
+        # follows the mouse and Condense jumps once; dragging anywhere else still marks a range to code
+        near_playhead = event.x >= LABEL_W and abs(event.x - self._cdt_x(self._current_pos())) <= 6
+        if event.y < RULER_H or near_playhead:
+            self.cdt["drag"] = {"mode": "scrub", "x": event.x, "moved": False}
+            return "scrub"
         self.cdt["drag"] = {"mode": "range", "t0": self._cdt_t(event.x), "x": event.x, "kid": hit[0] if hit else None, "moved": False}
         return "range"
 
@@ -656,6 +698,9 @@ class CodingTimelineMixin:
         elif d["mode"] == "edge":
             d["t"] = self._cdt_t(event.x)
             self._cdt_draw()
+        elif d["mode"] == "scrub":
+            d["moved"] = d["moved"] or abs(event.x - d["x"]) > 3
+            self._cdt_scrub_to(self._cdt_t(event.x))
         else:
             if abs(event.x - d["x"]) > 3:
                 d["moved"] = True
@@ -677,6 +722,15 @@ class CodingTimelineMixin:
         if d["mode"] == "edge":
             t = self._cdt_t(event.x)
             return self._cdt_move_edge(d["kid"], d["edge"], t)
+        if d["mode"] == "scrub":
+            job = self.__dict__.get("_scrub_job")
+            if job is not None:
+                try:
+                    self.after_cancel(job)
+                except Exception:
+                    pass
+            self._scrub_job = self._scrub_target = None
+            return self._cdt_jump(self._cdt_t(event.x))
         if not d["moved"]:  # a click: select the coding there, or jump
             if d.get("kid"):
                 self._cd_select_coding(d["kid"])
@@ -688,6 +742,27 @@ class CodingTimelineMixin:
         self._cdt_show_mark()
         self._cdt_draw()
         return self._cdt_mark()
+
+    def _cdt_scrub_to(self, t: float):
+        """While dragging: only the playhead and the time move; the jump (text, video frame, playback) waits until the
+        mouse rests or is released — a drag over hours doesn't start dozens of ffmpeg/ffplay processes."""
+        self._scrub_target = t
+        cv, ph = self.__dict__.get("cd_timeline"), self.cdt.get("playhead")
+        if cv is not None and ph is not None:
+            x = self._cdt_x(t)
+            cv.coords(ph, x, 0, x, (self.cdt.get("rows") or {}).get("bottom", (0, 60))[1])
+        try:
+            self.lbl_time.configure(text=f"{short_ts(t)[:-2]} / {short_ts(self._duration())[:-2]}")
+        except Exception:
+            pass
+        job = self.__dict__.get("_scrub_job")
+        if job is not None:
+            try:
+                self.after_cancel(job)
+            except Exception:
+                pass
+        self._scrub_job = self.after(180, self._timeline_settle)
+        return t
 
     def _cdt_double(self, event):
         hit = self._cdt_hit(event.x, event.y)

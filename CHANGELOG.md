@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.25.0 — unreleased
+
+### One timeline
+- **The Transcript tab and the Coding tab share one timeline**, under both tabs: frames of the video, speakers,
+  episodes, the codes' lanes and the zoom — and, from the Transcript tab's old strip, uncertain words (red ticks),
+  checked segments (a green bar) and cut parts (hatched). It is built once and drawn for the tab that is open, so
+  switching tabs no longer loads a second timeline; Settings and Console don't show it.
+- **Scrubbing:** drag the playhead, or the ruler when the whole recording is shown; the playhead follows and Condense
+  jumps once, when the mouse rests or is let go. Dragging anywhere else marks a range to code, as in the Coding tab. A click jumps; ⌘J / Ctrl+J still goes to a typed time.
+- **Codings stay where they are after editing in the Transcript tab:** the timeline places them by the transcript as
+  it is now, not by what the Coding tab showed last.
+- Mark a range and code it by time (I / O, then ↩ or 1–9) from the Transcript tab too.
+
 ## 0.24.0 — unreleased
 
 ### Smaller videos: AV1

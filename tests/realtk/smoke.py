@@ -262,6 +262,13 @@ def main():
     app._goto_segment(2)
     pump(app, 0.8)
     shot(app, "editor")
+    # one timeline, under the Transcript and Coding tabs (not Settings / Console)
+    assert app.tl_shown and app.tl_frame.winfo_ismapped() and app.cd_timeline.winfo_height() > 60, "no timeline"
+    assert "speaker" in {it[0] for it in app._cdt_items()}, {it[0] for it in app._cdt_items()}
+    app.notebook.select(app.tab_settings); pump(app, 0.3)
+    assert not app.tl_shown and not app.tl_frame.winfo_ismapped(), "timeline under Settings"
+    app.notebook.select(app.tab_preview); pump(app, 0.5)
+    assert app.tl_shown and app.tl_frame.winfo_ismapped()
     roster = app._roster()
     key(app, pt, "<Key-2>")
     assert TD.load(docs[0].path).segments[2]["speaker"] == roster[1], TD.load(docs[0].path).segments[2]["speaker"]

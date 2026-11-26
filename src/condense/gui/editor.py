@@ -112,16 +112,6 @@ class EditorMixin:
             ("Keyboard shortcuts…", self._show_shortcuts),
         ]))
 
-        self.timeline = tk.Canvas(tab, height=30, bg=T["bg_input"], highlightthickness=0, bd=0, cursor="hand2")
-        self.timeline.pack(fill=tk.X, pady=(4, 0))
-        self.timeline.bind("<Configure>", lambda e: self._timeline_redraw())
-        self.timeline.bind("<Button-1>", self._timeline_click)
-        self.timeline.bind("<B1-Motion>", self._timeline_scrub)  # dragging: only the playhead follows …
-        self.timeline.bind("<ButtonRelease-1>", lambda e: self._timeline_settle())  # … the jump happens once
-        self.timeline.bind("<Motion>", self._timeline_hover)
-        self.timeline.bind("<Leave>", lambda e: self._timeline_hover(None))
-        self._tl_playhead = None
-
         info = tk.Frame(tab, bg=T["bg_panel"])
         info.pack(fill=tk.X, pady=(6, 4))
         # Fixed heights for the lines that change on every ↑/↓: if they grew or shrank, the transcript would jump.

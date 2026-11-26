@@ -93,9 +93,9 @@ assert cd.content.split("\n")[w[0] - 1][w[1]:w[2]] == app.active_doc.segments[w[
 ok("the Coding tab: first draw in a few inserts, a change redraws one line")
 
 print("[3] timeline and exports")
-items = app._timeline_items(1000)
+items = app._cdt_items()
 print(f"    {len(items)} timeline shapes for {len(app.active_doc.segments)} segments and {len(app.low_conf)} uncertain words")
-assert len(items) < len(app.active_doc.segments) + 1000 and sum(1 for i in items if i[0] == "tick") <= 1001
+assert len(items) < len(app.active_doc.segments) + 1000 and sum(1 for i in items if i[0] == "lowconf") <= 1001
 ok("timeline: shapes on the same pixels are merged")
 app._select_span(app.span_lookup[(mid + 30, 0)])
 app.edit_text.content = "exported later"
@@ -112,12 +112,21 @@ jumps = []
 real_jump = app._timeline_jump
 app._timeline_jump = lambda pos: (jumps.append(pos), real_jump(pos))
 class Ev:
-    def __init__(self, x): self.x = x
-for x in range(100, 600, 5):
-    app._timeline_scrub(Ev(x))
+    def __init__(self, x, y=5): self.x, self.y, self.state = x, y, 0  # y: on the ruler (the whole recording shown)
+app._cdt_zoom("whole")
+assert app._cdt_press(Ev(200)) == "scrub"
+for x in range(200, 600, 5):
+    app._cdt_motion(Ev(x))
 assert jumps == [] and app._scrub_target is not None and app.lbl_time.cget("text").startswith(pipe.short_ts(app._scrub_target)[:-2])
-app._timeline_settle()
-assert len(jumps) == 1 and abs(jumps[0] - 595 / 1000 * app._duration()) < 1e-6
+app._timeline_settle()  # the mouse rests …
+assert len(jumps) == 1 and abs(jumps[0] - app._cdt_t(595)) < 1e-6
+app._cdt_release(Ev(595))  # … and is released: the same place again, no harm
+assert app._scrub_target is None
+app._cdt_zoom("120")
+px = app._cdt_x(app._current_pos())
+assert app._cdt_press(Ev(px, 40)) == "scrub"; app._cdt_release(Ev(px, 40))  # grabbing the playhead scrubs …
+assert app._cdt_press(Ev(px + 60, 40)) == "range"; app._cdt_release(Ev(px + 60, 40))  # … elsewhere a drag marks a range
+app._cdt_zoom("whole")
 ok("dragging along the timeline moves the playhead only; one jump when the mouse rests or is released")
 app._goto_time_dialog("2:15:30")
 assert abs(app.play_pos - 8130) < 1e-6 and abs(app.word_spans[app.current_span]["start"] - 8130) < 30

@@ -61,7 +61,7 @@ paras = (out / "Workshop demo_paragraphs.rtf").read_text()
 assert "phone" not in paras and "draw" in paras
 assert "CUT" in pt.used_tags and "CUT_HDR" in pt.used_tags, pt.used_tags
 assert "✂ 1 cut(s)" in app.lbl_ci_summary.cget("text"), app.lbl_ci_summary.cget("text")
-assert any(it[0] == "cut" for it in app._timeline_items(400))
+assert any(it[0] == "cut" for it in app._cdt_items())
 doc.set_checked(0, True); doc.set_checked(2, True); doc.save()
 assert abs(doc.checked_fraction() - 2.5 / (2.5 + 1.5 + 3.0 + 3.5)) < 1e-6   # cut segment 2 does not count
 app._render_doc(TD.load(d.path)); app._goto_segment(2); app._extend_selection(2, 3)

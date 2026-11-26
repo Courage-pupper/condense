@@ -104,7 +104,10 @@ tab opens:
 
 ![Transcript editor](images/editor.png)
 
-- **Top:** a timeline of the session (one colour per speaker; the ticks above it mark uncertain words), the player and the video.
+- **Top:** the player and the video.
+- **Under the tab:** the **timeline**, the same one as in the Coding tab (see *Coding video on the timeline*):
+  frames of the video, one colour per speaker, red ticks for uncertain words, a green bar under checked segments, cut
+  parts hatched, episodes behind, and the codings in their lanes. Drag the line above it to give it more or less room.
 - **Middle:** the transcript. Click a word to jump there; double-click to play from it. Words Whisper was unsure
   about are coloured: yellow, then orange, then red and underlined for the least certain.
 - **Bottom:** the segment editor. It shows exactly the highlighted segment. Correct the text while listening.
@@ -121,8 +124,9 @@ own (resize it, move it to a second screen, **F** or double-click for full scree
 *Playback ▾ ▸ Sharper preview* decodes the camera's original recording instead of the compressed copy, when the
 transcript is on the original's timeline (not trimmed or merged) — sharper, a little heavier for the computer.
 
-**Long sessions:** hover over the timeline to see the time under the mouse, drag along it to scrub (Condense jumps
-when you let go), or press ⌘J / Ctrl+J and type a time such as `2:15:30`. For sessions over about an hour the
+**Long sessions:** hover over the timeline to see the time under the mouse, drag the playhead (or the ruler, when the
+whole recording is shown) to scrub (Condense jumps when you let go; a drag elsewhere marks a range to code), zoom in (− / + or the wheel with ⌘ / Ctrl), or press ⌘J / Ctrl+J and type a time
+such as `2:15:30`. For sessions over about an hour the
 exports are updated in the background a moment after each change.
 
 **No video next to the transcript?** That happens when the recording was trimmed (LosslessCut) and transcribed without
@@ -313,7 +317,7 @@ and text. **Memo…**, **Change code…** and **Delete coding** (or Del) work on
 
 ### Coding video on the timeline
 
-The **timeline** under the Coding tab shows the recording in time: a ruler, frames of the video, who speaks (the
+The **timeline** under the Transcript and Coding tabs (one timeline, shared by both) shows the recording in time: a ruler, frames of the video, who speaks (the
 episodes behind it), and one **lane per code**. Codings of words are solid bars, codings by time outlined ones. Drag
 the line above the timeline to give it more height.
 

@@ -34,11 +34,7 @@ class CodingMixin:
         # the tab: codebook | transcript | video on top, the timeline under all of them (its height can be dragged)
         self.cd_area = tk.PanedWindow(tab, orient=tk.VERTICAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
         self.cd_main = tk.PanedWindow(self.cd_area, orient=tk.HORIZONTAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
-        self.cd_area.add(self.cd_main, minsize=260, stretch="always")
-        tl_frame = tk.Frame(self.cd_area, bg=T["bg_panel"], padx=4, pady=2)
-        self.cd_area.add(tl_frame, minsize=70, height=170, stretch="never")
-        self.cdt_frame = tl_frame
-        self._build_cd_timeline(tl_frame)
+        self.cd_area.add(self.cd_main, minsize=260, stretch="always")  # the timeline is under the tabs (app.py)
         # ---- codebook ----
         left = tk.Frame(self.cd_main, bg=T["bg_panel"], padx=4)
         self.cd_main.add(left, minsize=220, width=280)
@@ -521,10 +517,6 @@ class CodingMixin:
     # ================================================================== the transcript with stripes
     def _cd_render(self, doc):
         t = self.cd_text
-        if self._cd.get("rendered_for") != str(doc.path) and self.__dict__.get("cdt") is not None:
-            self.cdt.update(view=None, live={}, loop=None, thumbs={})  # another transcript: its whole recording, nothing marked
-            self.cdt["in"] = self.cdt["out"] = None
-            self._cdt_show_mark()
         self._cd["doc"] = doc
         y = t.yview()[0] if self._cd.get("rendered_for") == str(doc.path) else 0.0
         words: List[Tuple] = []  # (line, c0, c1, seg, wi, wid)

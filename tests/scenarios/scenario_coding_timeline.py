@@ -255,3 +255,28 @@ assert calls["layout"] == 1   # a coding by time is a ◆ line in the text: laid
 textrender.show_lines = real_show
 app._duration = real_duration
 ok("the timeline asks for the length ≤ 4 times per drawing; coding / recoding / deleting words: no new layout")
+
+print("[13] one timeline: under the Transcript and the Coding tab, with the Transcript tab's rows")
+app.notebook.select(app.tab_settings); app._tl_show_for_tab()
+assert not app.tl_shown                                          # Settings, Console: no timeline
+app.notebook.select(app.tab_preview); app._tl_show_for_tab()
+assert app.tl_shown
+app.notebook.select(app.tab_coding); app._tl_show_for_tab()
+assert app.tl_shown                                              # the same one: no second timeline to load
+app.notebook.select(app.tab_preview); app._tl_show_for_tab()
+cd_visible = app._cd_visible
+app._cd_visible = lambda: False                                  # (the Transcript tab is open)
+d = TD.load(doc.path)
+dur = app._duration(); d.set_checked(3, True); d.cut_range(dur * 0.4, dur * 0.5); d.save()
+app.active_doc = TD.load(doc.path)
+app.low_conf = [5]
+app._cdt_zoom("whole")
+items = app._cdt_items()
+kinds = {i[0] for i in items}
+assert {"checked", "cut", "lowconf", "speaker"} <= kinds, kinds
+stale = dict(app._cd); app._cd["resolved"] = []                 # what the Coding tab worked out last: out of date
+bars = [i for i in items if i[0] == "bar"]
+assert bars and len([i for i in app._cdt_items() if i[0] == "bar"]) == len(bars)  # codings come from the transcript itself
+app._cd.update(stale); app._cd_visible = cd_visible
+ok("the timeline is shown for the Transcript and Coding tabs only; checked, uncertain words, cuts and codings in both")
+print("\nALL TESTS PASSED")

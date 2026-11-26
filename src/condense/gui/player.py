@@ -10,136 +10,19 @@ class PlayerMixin:
         b = [int(bg[i:i + 2], 16) for i in (1, 3, 5)]
         return "#" + "".join(f"{int(b[k] + (c[k] - b[k]) * f):02x}" for k in range(3))
 
-    def _timeline_items(self, width: int, height: int = 30) -> List[Tuple]:
-        """Shapes to draw: ('band', x0, x1, colour), ('check', x0, x1), ('tick', x). Pure geometry, so it can be tested."""
-        doc = self.active_doc
-        dur = self._duration()
-        if doc is None or dur <= 0 or width <= 2:
-            return []
-        sx = width / dur
-        roster = self._roster()
-        items: List[Tuple] = []
-        for ep in doc.episodes:  # drawn first, behind everything: like the coloured blocks of a session plan
-            items.append(("episode", ep["start"] * sx, max(ep["start"] * sx + 2, ep["end"] * sx), self._episode_color(ep["type"]),
-                          bool(ep.get("approx"))))
-        # A long session has thousands of segments on a few hundred pixels: shapes that touch (≤ 1 px apart) and look
-        # the same are drawn as one, so the strip has hundreds of items instead of tens of thousands.
-        colors = {spk: SPEAKER_COLORS[i % len(SPEAKER_COLORS)] for i, spk in enumerate(roster)}
-        bands: List[List] = []
-        checks: List[List] = []
-        for seg in doc.segments:
-            x0, x1 = float(seg.get("start", 0.0)) * sx, max(float(seg.get("start", 0.0)) * sx + 1, float(seg.get("end", 0.0)) * sx)
-            color = colors.get(seg.get("speaker"), "#64748b")
-            if bands and bands[-1][3] == color and x0 <= bands[-1][2] + 1:
-                bands[-1][2] = max(bands[-1][2], x1)
-            else:
-                bands.append(["band", x0, x1, color])
-            if seg.get("checked"):
-                if checks and x0 <= checks[-1][2] + 1:
-                    checks[-1][2] = max(checks[-1][2], x1)
-                else:
-                    checks.append(["check", x0, x1])
-        items += [tuple(b) for b in bands] + [tuple(c) for c in checks]
-        tick_px = set()
-        for i in self.low_conf:
-            x = self.word_spans[i]["start"] * sx
-            if int(x) not in tick_px:
-                tick_px.add(int(x))
-                items.append(("tick", x))
-        for s, e in doc.cuts:
-            items.append(("cut", s * sx, max(s * sx + 2, e * sx)))
-        return items
-
+    # The timeline (rows, zoom, lanes, scrubbing) is coding_timeline.py: one, under the Transcript and Coding tabs.
     def _timeline_redraw(self):
-        tl = self.__dict__.get("timeline")
-        if tl is None:
-            return
-        tl.delete("all")
-        width, height = tl.winfo_width(), int(tl.cget("height") or 30)
-        for item in self._timeline_items(width, height):
-            if item[0] == "band":
-                _, x0, x1, color = item
-                tl.create_rectangle(x0, 9, x1, height - 7, fill=self._dim(color), outline="")
-            elif item[0] == "check":
-                _, x0, x1 = item
-                tl.create_rectangle(x0, height - 5, x1, height - 2, fill=THEME["ok"], outline="")
-            elif item[0] == "episode":
-                _, x0, x1, color, approx = item
-                tl.create_rectangle(x0, 0, x1, height, fill=self._dim(color, 0.16 if approx else 0.3), outline="")
-                tl.create_rectangle(x0, 0, x1, 3, fill=self._dim(color, 0.6 if approx else 1.0), outline="")
-            elif item[0] == "cut":
-                _, x0, x1 = item
-                tl.create_rectangle(x0, 0, x1, height, fill="#000000", stipple="gray50", outline="#f59e0b")
-            else:
-                tl.create_line(item[1], 1, item[1], 7, fill="#f87171")
-        self._tl_playhead = tl.create_line(0, 0, 0, height, fill="#ffffff", width=2)
-        self._tl_hover = tl.create_text(0, height // 2, text="", anchor="w", fill="#ffffff", font=self.f["mono_small"])
-        self._timeline_playhead()
+        return self._cdt_draw()
 
     def _timeline_playhead(self):
-        if self.__dict__.get("_scrub_target") is not None:
-            return  # being dragged: the playhead is under the mouse
-        tl, ph = self.__dict__.get("timeline"), self.__dict__.get("_tl_playhead")
-        dur = self._duration() if self.active_doc else 0
-        if tl is None or ph is None or dur <= 0:
-            return
-        x = self._current_pos() / dur * tl.winfo_width()
-        tl.coords(ph, x, 0, x, int(tl.cget("height") or 30))
-
-    def _timeline_pos(self, x: float) -> Optional[float]:
-        dur = self._duration()
-        width = self.timeline.winfo_width()
-        if self.active_doc is None or dur <= 0 or width <= 2:
-            return None
-        return max(0.0, min(dur, x / width * dur))
-
-    def _timeline_hover(self, event):
-        """The time under the mouse, next to it: on a 5-hour session one pixel of the strip is ~20 seconds."""
-        tl, item = self.__dict__.get("timeline"), self.__dict__.get("_tl_hover")
-        if tl is None or item is None:
-            return
-        pos = self._timeline_pos(event.x) if event is not None else None
-        if pos is None:
-            tl.itemconfigure(item, text="")
-            return
-        width = tl.winfo_width()
-        left = event.x > width - 90  # near the right end: the label goes left of the mouse
-        tl.itemconfigure(item, text=short_ts(pos)[:-2], anchor="e" if left else "w")
-        tl.coords(item, event.x - 8 if left else event.x + 8, int(tl.cget("height") or 30) // 2)
-        tl.tag_raise(item)
-
-    def _timeline_scrub(self, event):
-        """Dragging along the strip: move the playhead and the time only. Jumping (editor, transcript, video frame,
-        restarting playback) waits until the mouse rests or is released, so a drag over hours does not start dozens
-        of ffmpeg/ffplay processes."""
-        pos = self._timeline_pos(event.x)
-        if pos is None:
-            return
-        self._timeline_hover(event)
-        self._scrub_target = pos
-        tl, ph = self.timeline, self.__dict__.get("_tl_playhead")
-        if ph is not None:
-            tl.coords(ph, event.x, 0, event.x, int(tl.cget("height") or 30))
-        self.lbl_time.configure(text=f"{short_ts(pos)[:-2]} / {short_ts(self._duration())[:-2]}")
-        job = self.__dict__.get("_scrub_job")
-        if job is not None:
-            try:
-                self.after_cancel(job)
-            except Exception:
-                pass
-        self._scrub_job = self.after(180, self._timeline_settle)
+        return self._cdt_playhead()
 
     def _timeline_settle(self):
+        """The mouse rested (or was released) after dragging along the timeline: jump there once."""
         self._scrub_job = None
         pos = self.__dict__.get("_scrub_target")
         self._scrub_target = None
         if pos is not None:
-            self._timeline_jump(pos)
-
-    def _timeline_click(self, event):
-        pos = self._timeline_pos(event.x)
-        if pos is not None:
-            self._scrub_target = None
             self._timeline_jump(pos)
 
     def _goto_time_dialog(self, text: Optional[str] = None):

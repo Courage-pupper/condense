@@ -125,8 +125,9 @@ ep_id = ed["apply"]()
 assert TD.load(doc.path).get_episode(ep_id)["label"] == "Intro & Icebreaker"
 text = app.preview_text.get("1.0", "end")
 assert "▶ Phase Intro & Icebreaker   ≈ 0:00:11 – 0:00:24" in text and "■ end of Phase Intro & Icebreaker" in text, text[:600]
-items = app._timeline_items(1000)
-assert items[0][0] == "episode" and items[0][4] is True
+items = app._cdt_items()
+eps = [i for i in items if i[0] == "episode"]
+assert eps and eps[0][4] is True  # approximate: drawn fainter
 app.var_show_filter.set("In Phase"); app._rerender()
 assert "segment 2 says" in app.preview_text.get("1.0", "end") and "segment 7 says" not in app.preview_text.get("1.0", "end")
 app.var_show_filter.set("All segments"); app._rerender()
