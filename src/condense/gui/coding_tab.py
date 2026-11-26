@@ -113,6 +113,8 @@ class CodingMixin:
         t.tag_raise("sel")
         # read-only, but selectable: block typing, keep selection keys
         t.bind("<Key>", self._cd_key)
+        for d in range(1, 10):  # speakers (more specific than <Key>, so it doesn't depend on which state bit Alt is)
+            t.bind(f"<{EDIT_MOD}-Key-{d}>", lambda e, d=d: (self._assign_speaker_number(d), "break")[-1])
         t.bind("<Double-Button-1>", self._cd_play_word)
         t.bind("<ButtonRelease-1>", lambda e: self._cd_click(e))
         for seq in ("<Button-3>",) + (("<Button-2>", "<Control-Button-1>") if IS_MAC else ()):
@@ -231,6 +233,11 @@ class CodingMixin:
         here = self._tx_word_now()
         pos = self._current_pos() if self.active_doc is not None else None
         video = self.video_frame if self.__dict__.get("_video_panel_shown") else None
+        try:  # the widths now: the video column keeps its width, the text gets the rest
+            total = int(self.tx_paned.winfo_width())
+            video_w = int(video.winfo_width()) if video is not None else 0
+        except Exception:
+            total, video_w = 0, 0
         if mode == "code":
             self._autosave_edit(rerender=False)  # a correction still being typed is kept
             if self.__dict__.get("_find_visible"):
@@ -241,8 +248,10 @@ class CodingMixin:
             self.tx_edit_panel.pack_forget()
             self.tx_paned.forget(self.tx_text_frame)
             kw = {"before": video} if video is not None else {}
-            self.tx_paned.add(self.cd_left, minsize=200, width=int(self.settings.get("codebook_width", 260)), stretch="never", **kw)
+            book_w = int(self.settings.get("codebook_width", 260))
+            self.tx_paned.add(self.cd_left, minsize=200, width=book_w, stretch="never", **kw)
             self.tx_paned.add(self.cd_body, minsize=320, stretch="always", **kw)
+            self._tx_place_sashes(total, video_w, [book_w] if video is not None else [])
         else:
             try:
                 self.settings["codebook_width"] = max(200, int(self.cd_left.winfo_width()))
@@ -255,6 +264,7 @@ class CodingMixin:
             self.tx_paned.forget(self.cd_body)
             kw = {"before": video} if video is not None else {}
             self.tx_paned.add(self.tx_text_frame, minsize=300, stretch="always", **kw)
+            self._tx_place_sashes(total, video_w, [])
             self.tx_edit_panel.pack(side=tk.BOTTOM, fill=tk.X, pady=(8, 0), before=self.tx_paned)
         self.tx_mode = mode
         self.settings["tx_mode"] = mode
@@ -282,6 +292,27 @@ class CodingMixin:
         self.after(150, lambda: self._video_resized(self._video_screen()))  # the column changed: fit the picture again
         self._cdt_draw()
         return mode
+
+    def _tx_place_sashes(self, total: int, video_w: int, lefts: List[int]):
+        """After a mode switch: the panes on the left at their widths, the video column as wide as before, the text
+        in between (a pane added next to the video otherwise starts with no width and stays hidden)."""
+        if total <= 0 or video_w <= 0:
+            return None
+        sash = 6
+        x = 0
+        try:
+            self.update_idletasks()
+            places = []
+            for w in lefts:
+                x += w
+                places.append(x)
+                x += sash
+            places.append(max(x + 320, total - video_w - sash))
+            for k, at in enumerate(places):
+                self.tx_paned.sash_place(k, at, 0)
+        except Exception:
+            return None
+        return places
 
     def _cd_show_word(self, seg: int, word: int):
         """Scroll Code mode's text to a word and remember it as the place you are."""
