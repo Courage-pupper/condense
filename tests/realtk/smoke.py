@@ -514,6 +514,12 @@ def main():
     need = app.cdt["rows"]["bottom"][1]
     assert app.cd_timeline.winfo_height() >= need - 2, (app.cd_timeline.winfo_height(), need)  # every lane in view
     shot(app, "coding-timeline")
+    # the video in a window of its own is not tied to the main window (on macOS a tied window can't go to another screen)
+    pop = app._video_pop_out()
+    pump(app, 0.5)
+    assert str(app.tk.call("wm", "transient", pop.win._w)) == "", "the video window is transient"
+    app._video_pop_in()
+    pump(app, 0.2)
     app._cdt_clear_mark()
     app._toggle_side_panel(True)
     pump(app, 0.4)

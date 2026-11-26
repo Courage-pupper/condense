@@ -90,13 +90,11 @@ class CodingTimelineMixin:
 
     # ================================================================== the view (what part of the recording)
     def _cdt_duration(self) -> float:
-        doc = self.active_doc
-        last = max((float(s.get("end", 0)) for s in doc.segments), default=0.0) if doc is not None else 0.0
         try:
             dur = float(self._duration())
         except Exception:
             dur = 0.0
-        return max(dur, last, 1.0)
+        return max(dur, 1.0)
 
     def _cdt_view(self) -> Tuple[float, float]:
         dur = self._cdt_duration()
@@ -158,6 +156,13 @@ class CodingTimelineMixin:
         a, b = self._cdt_view()
         x0, x1 = self._cdt_plot()
         return x0 + (t - a) / max(b - a, 1e-6) * (x1 - x0)
+
+    def _cdt_xfun(self):
+        """_cdt_x for many shapes at once: the view and the width looked up once."""
+        a, b = self._cdt_view()
+        x0, x1 = self._cdt_plot()
+        k = (x1 - x0) / max(b - a, 1e-6)
+        return lambda t: x0 + (t - a) * k
 
     def _cdt_t(self, x: float) -> float:
         a, b = self._cdt_view()
@@ -231,7 +236,7 @@ class CodingTimelineMixin:
             return []
         a, b = self._cdt_view()
         x0p, x1p = self._cdt_plot()
-        X = self._cdt_x
+        X = self._cdt_xfun()
         cb = self._cd_codebook()
         resolved = self._cd.get("resolved") or []
         lanes = self._cdt_lane_codes(resolved)
@@ -252,9 +257,10 @@ class CodingTimelineMixin:
         if "frames" in rows:
             n = max(1, int((x1p - x0p) // 72))
             w = (x1p - x0p) / n
+            span = (b - a) / max(x1p - x0p, 1)
             for k in range(n):
                 fx0 = x0p + k * w
-                items.append(("frame", fx0, fx0 + w, round(self._cdt_t(fx0 + w / 2), 1)))
+                items.append(("frame", fx0, fx0 + w, round(a + (k * w + w / 2) * span, 1)))
         roster = self._roster()
         colors = {spk: SPEAKER_COLORS[i % len(SPEAKER_COLORS)] for i, spk in enumerate(roster)}
         merged: List[List] = []
@@ -725,7 +731,7 @@ class CodingTimelineMixin:
             self._cdt_draw()
             return None
         self._cd_commit(f"Coding moved: {short_ts(min(start, end))[:-2]} – {short_ts(max(start, end))[:-2]}")
-        self._cd_render(doc)
+        self._cd_render(doc) if c.get("kind") == "time" else self._cd_refresh_codings(doc)
         self._cd_select_coding(kid)
         return kid
 

@@ -17,8 +17,24 @@ PROJECT_FILE = "condense-project.json"
 GENERIC_SPEAKER = ("SPEAKER_", "Speaker ")
 
 
+_FOUND: Dict[str, Path] = {}   # start folder -> its project file (found ones only; checked to still exist)
+_SETTINGS: Dict[str, Tuple] = {}  # project file -> (mtime_ns, size, settings)
+
+
 def find_project_file(start: Path, levels: int = 7) -> Optional[Path]:
-    """The nearest condense-project.json in start or one of its parents."""
+    """The nearest condense-project.json in start or one of its parents. Remembered once found (drawing asks for it
+    for every episode — walking up the folders each time was slow, on network drives above all)."""
+    key = str(start)
+    hit = _FOUND.get(key)
+    if hit is not None and hit.is_file():
+        return hit
+    found = _find_project_file(start, levels)
+    if found is not None:
+        _FOUND[key] = found
+    return found
+
+
+def _find_project_file(start: Path, levels: int = 7) -> Optional[Path]:
     p = Path(start).resolve()
     if p.is_file():
         p = p.parent
@@ -71,6 +87,23 @@ def update_project(folder: Path, **fields) -> Path:
 
 
 def project_settings(folder: Path) -> Dict:
+    """The project's settings, read again only when its file changed."""
+    path = Path(folder) / PROJECT_FILE
+    try:
+        st = path.stat()
+        stamp = (st.st_mtime_ns, st.st_size)
+    except OSError:
+        stamp = None
+    hit = _SETTINGS.get(str(path))
+    if stamp is not None and hit is not None and hit[:2] == stamp:
+        return dict(hit[2])
+    out = _project_settings(folder)
+    if stamp is not None:
+        _SETTINGS[str(path)] = (stamp[0], stamp[1], out)
+    return dict(out)
+
+
+def _project_settings(folder: Path) -> Dict:
     data = load_project(Path(folder) / PROJECT_FILE)
     from condense.core.episodes import DEFAULT_TYPES
     from condense.core.structure import from_project

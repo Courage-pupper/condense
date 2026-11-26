@@ -229,3 +229,29 @@ ok("◂ / ⌘B collapse Tasks & Project to a strip; ▸ (or clicking Tasks / Pro
 print("[11] the video column: bigger and back")
 assert app._cd_video_size() in (True, False, None)
 ok("⇔ Video size")
+
+print("[12] long sessions: drawing asks for the length once, coding words doesn't lay the text out again")
+from condense.gui import textrender
+calls = {"duration": 0, "layout": 0}
+real_duration, real_show = app._duration, textrender.show_lines
+app._duration = lambda: (calls.__setitem__("duration", calls["duration"] + 1), real_duration())[1]
+textrender.show_lines = lambda *a, **k: (calls.__setitem__("layout", calls["layout"] + 1), real_show(*a, **k))[1]
+app._cdt_zoom("whole")
+calls["duration"] = 0
+items = app._cdt_items()
+assert len(items) > 20 and calls["duration"] <= 4, calls   # was: twice per shape (thousands for 5 hours)
+calls["layout"] = 0
+d = app._cd_current()
+wl = app._cd["words"]
+a, b = wl[40], wl[44]
+app.cd_text.tags["sel"] = (f"{a[0]}.{a[1]}", f"{b[0]}.{b[2]}")
+k_new = app._cd_apply(making)
+assert k_new and calls["layout"] == 0 and k_new in [r["id"] for r in app._cd["resolved"]]
+assert app._cd_selection_words() is None   # the coded selection is gone, as before
+app._cd_change_code(k_new, feel); assert calls["layout"] == 0 and cod.get_coding(TD.load(doc.path), k_new)["code"] == feel
+app._cd_remove(k_new); assert calls["layout"] == 0 and k_new not in [r["id"] for r in app._cd["resolved"]]
+app._cdt_set_mark(140.0, 150.0); app._cdt_code_mark(making)
+assert calls["layout"] == 1   # a coding by time is a ◆ line in the text: laid out again
+textrender.show_lines = real_show
+app._duration = real_duration
+ok("the timeline asks for the length ≤ 4 times per drawing; coding / recoding / deleting words: no new layout")

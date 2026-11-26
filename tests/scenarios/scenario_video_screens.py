@@ -75,6 +75,7 @@ ok("in the Coding tab the frame goes to its column (640×360), with its own play
 
 print("[3] a window of its own")
 pop = app._video_pop_out()
+assert pop.win.condense_free  # not made transient: it can go to another screen (macOS)
 size(pop, 1600, 900)
 app._video_retarget()
 img = frame_now()

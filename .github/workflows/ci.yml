@@ -47,6 +47,21 @@ jobs:
           sudo apt-get install -y xvfb
           xvfb-run -a -s "-screen 0 1600x1000x24" python -m pytest -q -rs
 
+      - name: Measure a 5-hour session in the real app (timings, informational)
+        if: runner.os != 'Linux'
+        continue-on-error: true
+        env:
+          PYTHONPATH: src${{ runner.os == 'Windows' && ';' || ':' }}tests/realtk
+          PYTHONUTF8: "1"
+        run: python tests/realtk/perf_long.py
+
+      - name: Measure a 5-hour session in the real app (Linux, timings, informational)
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        env:
+          PYTHONPATH: src:tests/realtk
+        run: xvfb-run -a -s "-screen 0 1600x1000x24" python tests/realtk/perf_long.py
+
       - name: Check the PowerShell scripts (Windows PowerShell 5.1 syntax)
         if: runner.os == 'Windows'
         shell: powershell

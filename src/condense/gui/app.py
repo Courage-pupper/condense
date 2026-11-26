@@ -182,8 +182,10 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             self._front["seen"].add(str(w))
             opener = self._front.get("last")
             try:
-                if opener is not None and opener is not w and opener.winfo_exists():
-                    w.transient(opener)  # stays above the window it was opened from
+                # stays above the window it was opened from — except windows of their own (the video): on macOS a
+                # transient window can't go to another screen, it disappears when dragged there
+                if opener is not None and opener is not w and opener.winfo_exists() and not getattr(w, "condense_free", False):
+                    w.transient(opener)
             except Exception:
                 pass
 

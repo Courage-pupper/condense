@@ -425,8 +425,10 @@ class PlayerMixin:
         self._speed_apply_now()
 
     def _duration(self) -> float:
+        """Where the transcript ends. Segments are in order of time, so the last ones end last (looking at all of them
+        on every call was what made long sessions slow: the timelines ask for every shape they draw)."""
         segs = self.active_doc.segments if self.active_doc else []
-        return max((float(s.get("end", 0.0)) for s in segs), default=0.0)
+        return max((float(s.get("end", 0.0)) for s in segs[-30:]), default=0.0)
 
     def _kill_player(self):
         if self._play_proc is not None and self._play_proc.poll() is None:
