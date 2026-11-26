@@ -257,9 +257,10 @@ class CodingTimelineMixin:
         if "frames" in rows:
             n = max(1, int((x1p - x0p) // 72))
             w = (x1p - x0p) / n
+            span = (b - a) / max(x1p - x0p, 1)
             for k in range(n):
                 fx0 = x0p + k * w
-                items.append(("frame", fx0, fx0 + w, round(self._cdt_t(fx0 + w / 2), 1)))
+                items.append(("frame", fx0, fx0 + w, round(a + (k * w + w / 2) * span, 1)))
         roster = self._roster()
         colors = {spk: SPEAKER_COLORS[i % len(SPEAKER_COLORS)] for i, spk in enumerate(roster)}
         merged: List[List] = []
@@ -730,7 +731,7 @@ class CodingTimelineMixin:
             self._cdt_draw()
             return None
         self._cd_commit(f"Coding moved: {short_ts(min(start, end))[:-2]} – {short_ts(max(start, end))[:-2]}")
-        self._cd_render(doc)
+        self._cd_render(doc) if c.get("kind") == "time" else self._cd_refresh_codings(doc)
         self._cd_select_coding(kid)
         return kid
 

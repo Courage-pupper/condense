@@ -338,15 +338,26 @@ def project_transcripts(project: Path) -> List[Path]:
     return proj.transcripts_under(project, skip=proj.project_settings(project)["skip"])
 
 
-def counts(project: Path, paths: Optional[Iterable[Path]] = None) -> Dict[str, int]:
-    from condense.core.transcript import TranscriptDocument
+def counts(project: Path, paths: Optional[Iterable[Path]] = None, cache=None, stop=None) -> Dict[str, int]:
+    """How often each code is used in the project. cache: a project.RowCache — then only transcripts that changed
+    since are read (a study of many long sessions is hundreds of megabytes)."""
     out: Dict[str, int] = {}
     for p in paths if paths is not None else project_transcripts(project):
+        if stop is not None and stop():
+            break
         try:
-            for c in json.loads(Path(p).read_text(encoding="utf-8")).get("codings") or []:
-                out[c["code"]] = out.get(c["code"], 0) + 1
+            if cache is not None:
+                used = cache.row(Path(p)).get("codes") or {}
+            else:
+                used = {}
+                for c in json.loads(Path(p).read_text(encoding="utf-8")).get("codings") or []:
+                    used[c["code"]] = used.get(c["code"], 0) + 1
+            for code, n in used.items():
+                out[code] = out.get(code, 0) + int(n)
         except Exception:
             continue
+    if cache is not None:
+        cache.save()
     return out
 
 

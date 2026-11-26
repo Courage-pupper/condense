@@ -213,6 +213,50 @@ class CodingMixin:
         sel = self.cd_tree.selection()
         return sel[0] if sel else None
 
+    def _cd_exact_counts(self, project: Path) -> Dict[str, int]:
+        """The counts now (not the ones being counted in the background): before merging or deleting a code."""
+        try:
+            return cod.counts(project, cache=proj.RowCache(self._overview_cache(project).path))
+        except Exception:
+            return cod.counts(project)
+
+    def _cd_recount(self, project: Path, wait: bool = False):
+        """Count the codings of every transcript in the background (from the overview's cache: only changed
+        transcripts are read); the codebook shows at once and gets its numbers when they are ready."""
+        if self.__dict__.get("_cd_counting") == str(project):
+            return None
+        self._cd_counting = str(project)
+        if self.__dict__.get("_cd_counts") is None:
+            self._cd_counts = {}
+        own = cod.counts(project, paths=[self.active_doc.path]) if self.active_doc is not None else {}
+        result = {}
+
+        def work():
+            try:
+                result["counts"] = cod.counts(project, cache=proj.RowCache(self._overview_cache(project).path))
+            except Exception:
+                result["counts"] = None
+
+        def done():
+            if "counts" not in result:
+                self.after(150, done)
+                return
+            self._cd_counting = None
+            if result["counts"] is not None and self._cd_project() == project:
+                self._cd_counts = result["counts"]
+                self._cd_fill_codebook()
+            return result["counts"]
+
+        if own:  # this transcript's numbers right away, the project's when counted
+            for code, n in own.items():
+                self._cd_counts[code] = max(self._cd_counts.get(code, 0), n)
+        if wait:
+            work()
+            return done()
+        threading.Thread(target=work, daemon=True).start()
+        self.after(150, done)
+        return None
+
     def _cd_fill_codebook(self, recount: bool = False):
         cb = self._cd_codebook()
         tree = self.cd_tree
@@ -222,8 +266,8 @@ class CodingMixin:
         if cb is None:
             return
         if recount or self.__dict__.get("_cd_counts") is None:
-            self._cd_counts = cod.counts(cb.path.parent)
-        counts = self._cd_counts
+            self._cd_recount(cb.path.parent)
+        counts = self.__dict__.get("_cd_counts") or {}
         q = self.var_cd_search.get().strip().lower()
         shown_on_tl = set(self._cdt_shown_codes()) if self.__dict__.get("cdt") is not None else set()
         shown = set()
@@ -412,7 +456,7 @@ class CodingMixin:
             return win, {"var": v, "go": go}
         if cb.get(target) is None:
             return None
-        n = (self.__dict__.get("_cd_counts") or {}).get(cid, 0)
+        n = self._cd_exact_counts(cb.path.parent).get(cid, 0)
         if not messagebox.askyesno("Merge code", f"Merge “{c['name']}” into “{cb.get(target)['name']}”?\n\n{n} coding(s) change code. Its "
                                    "subcodes move under the new code. Each changed transcript keeps a backup and can be undone "
                                    "when open; the codebook change is recorded in its log.", parent=self):
@@ -437,14 +481,14 @@ class CodingMixin:
         if c is None:
             return None
         ids = [cid] + cb.descendants(cid)
-        counts = self.__dict__.get("_cd_counts") or {}
+        counts = self._cd_exact_counts(cb.path.parent)
         n = sum(counts.get(i, 0) for i in ids)
         sub = f" and its {len(ids) - 1} subcode(s)" if len(ids) > 1 else ""
         if not messagebox.askyesno("Delete code", f"Delete “{c['name']}”{sub}?" + (f"\n\nIts {n} coding(s) are removed from the transcripts "
                                    "(each keeps a backup and can be undone when open)." if n else ""), parent=self):
             return None
         self._cd_flush_active()
-        if n:
+        if True:  # every transcript is checked, whatever the (cached) count said
             from condense.core.transcript import TranscriptDocument as TD
             for p in cod.project_transcripts(cb.path.parent):
                 try:
@@ -538,14 +582,35 @@ class CodingMixin:
         self._cd["pos_index"] = {(w[3], w[4]): n for n, w in enumerate(words)}
         self._cd_mark_coded()
         t.yview_moveto(y)
-        n_word = sum(1 for r in res if r.get("words"))
-        n_orph = sum(1 for r in res if r.get("orphan"))
-        self.lbl_cd_doc.config(text=f"{doc.base_name} · {len(res)} coding(s)" + (f" · {len(moments)} coded by time" if moments else "")
-                               + (f" · ⚠ {n_orph} coding(s) whose words were deleted" if n_orph else ""))
+        self._cd_header(doc, res)
         self._cd_fill_list()
         self._cd_fill_recent()
         self.after_idle(self._cd_draw_stripes)
         self._cd_draw_timeline()
+
+    def _cd_header(self, doc, res: List[Dict]):
+        moments = sum(1 for r in res if r.get("kind") == "time")
+        n_orph = sum(1 for r in res if r.get("orphan"))
+        self.lbl_cd_doc.config(text=f"{doc.base_name} · {len(res)} coding(s)" + (f" · {moments} coded by time" if moments else "")
+                               + (f" · ⚠ {n_orph} coding(s) whose words were deleted" if n_orph else ""))
+
+    def _cd_refresh_codings(self, doc):
+        """After a change to codings of words (the text is the same): only what shows codings — highlights, the list,
+        the stripes, the timeline. A 5-hour transcript's 40,000 words are not laid out again. Codings by time are in the
+        text (◆ lines), so a change to one of them redraws everything."""
+        if self._cd.get("doc") is not doc or self._cd.get("rendered_for") != str(doc.path):
+            return self._cd_render(doc)
+        res = cod.resolve(doc)
+        self._cd["resolved"] = res
+        for tag in ("sel", "KSEL"):  # as after a full redraw: the selection is coded, so it goes
+            self.cd_text.tag_remove(tag, "1.0", tk.END)
+        self._cd_mark_coded()
+        self._cd_header(doc, res)
+        self._cd_fill_list()
+        self._cd_fill_recent()
+        self.after_idle(self._cd_draw_stripes)
+        self._cd_draw_timeline()
+        return res
 
     def _cd_put_moment(self, put, r, cb):
         c = cb.get(r["code"]) if cb else None
@@ -727,7 +792,7 @@ class CodingMixin:
         self._cd_commit(f"Coded “{cb.get(code_id)['name']}”: {short_ts(float(wa['start']))[:-2]}")
         self._cd_count(code_id, +1)
         self._cd_use_recent(code_id)
-        self._cd_render(doc)
+        self._cd_refresh_codings(doc)
         self._cd_fill_codebook()
         self._cd_select_coding(kid)
         return kid
@@ -932,7 +997,7 @@ class CodingMixin:
         self._cd_count(c["code"], -1)
         self._cd_commit("Coding removed")
         self._cd["sel"] = None
-        self._cd_render(doc)
+        self._cd_render(doc) if c.get("kind") == "time" else self._cd_refresh_codings(doc)
         self._cd_fill_codebook()
         return True
 
@@ -961,7 +1026,7 @@ class CodingMixin:
         self._cd_count(c["code"], -1)
         self._cd_count(code_id, +1)
         self._cd_commit(f"Coding moved to “{cb.get(code_id)['name']}”")
-        self._cd_render(doc)
+        self._cd_render(doc) if c.get("kind") == "time" else self._cd_refresh_codings(doc)
         self._cd_fill_codebook()
         self._cd_select_coding(kid)
         return kid
