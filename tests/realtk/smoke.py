@@ -108,7 +108,11 @@ def _direct(app, sequence):
     if m and m.group(1) in (None, EDIT_MOD):
         app._assign_speaker_number(int(m.group(2)))
     elif m and m.group(1) == MOD:
-        app.notebook.select((app.tab_settings, app.tab_console, app.tab_preview)[int(m.group(2)) - 1])
+        n = int(m.group(2))
+        app.notebook.select(app.tab_settings) if n == 1 else app.notebook.select(app.tab_console) if n == 2 else \
+            app._set_tx_mode("edit" if n == 3 else "code")
+    elif sequence == f"<{MOD}-Key-e>":
+        app._set_tx_mode()
     elif sequence == "<Control-Shift-Key-L>":
         app._insert_marker("[laughs]")
     elif sequence in ("<Down>", "<Up>"):
@@ -187,6 +191,7 @@ def main():
     lines = pt.winfo_height() / app.f["transcript"].metrics("linespace")
     if app.winfo_height() >= 820:  # some CI machines have a 1024x768 screen; a laptop has more
         assert lines >= 4, f"the transcript shows only {lines:.1f} lines in a {app.winfo_width()}x{app.winfo_height()} window"
+    assert lines >= 2, f"the timeline left the transcript {lines:.1f} lines in a {app.winfo_width()}x{app.winfo_height()} window"
     print(f"    (transcript: {lines:.1f} lines in a {app.winfo_width()}x{app.winfo_height()} window)")
     app.var_autoplay.set(False)
     app._goto_segment(0)
@@ -215,7 +220,7 @@ def main():
 
     d0 = TD.load(docs[0].path)
     k = next(i for i in range(10, len(d0.segments) - 2) if d0.segments[i]["speaker"] != d0.segments[i - 1]["speaker"])
-    if lines < 4:  # too small a screen on this CI machine to see a jump; Linux CI runs this at laptop size
+    if lines < 5:  # too small a screen on this CI machine to see a jump; Linux CI runs this at laptop size
         print("    (screen too small here to measure jumps; checked on Linux)")
         y_before = y_after = y_merged = "-"
     else:
@@ -262,6 +267,13 @@ def main():
     app._goto_segment(2)
     pump(app, 0.8)
     shot(app, "editor")
+    # one timeline, under the Transcript and Coding tabs (not Settings / Console)
+    assert app.tl_shown and app.tl_frame.winfo_ismapped() and app.cd_timeline.winfo_height() > 60, "no timeline"
+    assert "speaker" in {it[0] for it in app._cdt_items()}, {it[0] for it in app._cdt_items()}
+    app.notebook.select(app.tab_settings); pump(app, 0.3)
+    assert not app.tl_shown and not app.tl_frame.winfo_ismapped(), "timeline under Settings"
+    app.notebook.select(app.tab_preview); pump(app, 0.5)
+    assert app.tl_shown and app.tl_frame.winfo_ismapped()
     roster = app._roster()
     key(app, pt, "<Key-2>")
     assert TD.load(docs[0].path).segments[2]["speaker"] == roster[1], TD.load(docs[0].path).segments[2]["speaker"]
@@ -461,11 +473,22 @@ def main():
     shot(app, "editor-episodes")
     ok("episodes: phases shown, interview clip found at 70.0 s by its sound and added")
 
-    # coding: the Coding tab with the demo codebook; code a selection for real; stripes; a moment without speech
+    # coding: Code mode with the demo codebook; code a selection for real; stripes; a moment without speech
+    from condense.gui.widgets import EDIT_MOD, MOD
     app._render_doc(TD.load(docs[0].path))
-    app.notebook.select(app.tab_coding)
+    app.notebook.select(app.tab_preview)
+    pump(app, 0.3)
+    app._goto_segment(9)
+    pump(app, 0.3)
+    key(app, app.preview_text, f"<{MOD}-Key-e>")                    # Edit → Code: ⌘E / Ctrl+E
     pump(app, 1.0)
-    assert app._cd["words"] and app._cd["resolved"], "the Coding tab shows nothing"
+    assert app.tx_mode == "code" and app._cd_visible(), "⌘E did not switch to Code mode"
+    assert app._cd["words"] and app._cd["resolved"], "Code mode shows nothing"
+    assert app.cd_left.winfo_ismapped() and app.cd_text.winfo_ismapped(), "no codebook / coding text in Code mode"
+    assert not app.tx_edit_panel.winfo_ismapped() and not app.preview_text.winfo_ismapped(), "Edit mode still shown"
+    assert app.cd_bar.winfo_ismapped() and not app.tx_bar.winfo_ismapped()
+    w9 = app._cd["words"][app._cd["word"]]
+    assert w9[3] == 9, w9                                              # the same place as in Edit mode
     ct = app.cd_text
     words = app._cd["words"]
     first = next(n for n, w in enumerate(words) if w[3] == 9)       # "Green, because green is the colour of the river."
@@ -482,6 +505,22 @@ def main():
     pump(app, 0.5)
     assert app._cd.get("stripe_hits"), "no coding stripes drawn"
     shot(app, "coding")
+    # speakers in Code mode: the selected words' segments (a real key press)
+    roster = app._roster()
+    spk10 = app.active_doc.segments[10]["speaker"]
+    other = next(k for k, r in enumerate(roster) if r != spk10) + 1
+    w10 = [n for n, w in enumerate(app._cd["words"]) if w[3] == 10]
+    ws = app._cd["words"]
+    ct.tag_add("sel", f"{ws[w10[0]][0]}.{ws[w10[0]][1]}", f"{ws[w10[-1]][0]}.{ws[w10[-1]][2]}")
+    key(app, ct, f"<{EDIT_MOD}-Key-{other}>")
+    pump(app, 0.4)
+    assert app.active_doc.segments[10]["speaker"] == roster[other - 1], (
+        "no speaker from Code mode", app.lbl_status.cget("text"), app.tx_mode, app._cd_visible(), ct.tag_ranges("sel"),
+        app._cd_speaker_segments(), str(app.focus_get()), ct.bindtags(), errors[-1:] if errors else None)
+    app._undo()
+    pump(app, 0.4)
+    assert app.active_doc.segments[10]["speaker"] == spk10
+    ct.tag_remove("sel", "1.0", "end")
     w_m, tdlg = app._cd_time_dialog(30.0, 36.0)
     pump(app, 0.3)
     shot(app, "coding-moment", w_m)
@@ -512,7 +551,9 @@ def main():
     assert {"tick", "frame", "speaker", "lane", "bar", "mark"} <= kinds, kinds
     assert len(app.cd_timeline.find_all()) > 20
     need = app.cdt["rows"]["bottom"][1]
-    assert app.cd_timeline.winfo_height() >= need - 2, (app.cd_timeline.winfo_height(), need)  # every lane in view
+    tab_h = app.right_area.winfo_height() - app.tl_frame.winfo_height()
+    assert app.cd_timeline.winfo_height() >= need - 2 or tab_h <= app._tl_keep() + 40, (
+        app.cd_timeline.winfo_height(), need, tab_h)  # every lane in view (a short screen: the text keeps its room)
     shot(app, "coding-timeline")
     # the video in a window of its own is not tied to the main window (on macOS a tied window can't go to another screen)
     pop = app._video_pop_out()
@@ -524,10 +565,16 @@ def main():
     app._toggle_side_panel(True)
     pump(app, 0.4)
     assert not app.side_collapsed
-    app.notebook.select(app.tab_preview)
-    pump(app, 0.3)
-    ok("Coding tab: demo codebook, a real selection coded, stripes drawn, moment and code dialogs; timeline: coded by "
-       "I/O, zoomed to 2 min with video frames; side panel collapsed and back")
+    app._cd_show_word(12, 0)
+    mode_before = app.tx_mode
+    key(app, app.cd_text, f"<{MOD}-Key-e>")                          # Code → Edit, at the same place
+    pump(app, 0.5)
+    assert app.tx_mode == "edit" and app.tx_edit_panel.winfo_ismapped() and app.preview_text.winfo_ismapped(), (
+        mode_before, app.tx_mode, app.tx_edit_panel.winfo_ismapped(), app.preview_text.winfo_ismapped(), str(app.focus_get()),
+        app.lbl_status.cget("text"), errors[-1:] if errors else None)
+    assert not app.cd_left.winfo_ismapped() and app.edit_seg_idx == 12, app.edit_seg_idx
+    ok("Code mode (⌘E): demo codebook, a real selection coded, stripes, speakers by key, moment and code dialogs; "
+       "timeline: coded by I/O, zoomed to 2 min with video frames; side panel collapsed and back; ⌘E back to Edit")
 
     res = app._trim_dialog(video)
     assert res is not None
@@ -554,6 +601,8 @@ def main():
     dropdowns = {}
     def collect(w):
         for c in w.winfo_children():
+            if c in (app.cd_left, app.cd_bar, app.cd_body):
+                continue  # Code mode's own menus (its codebook has a More ▾ too)
             if hasattr(c, "menu"):
                 dropdowns[c.cget("text")] = c.menu
             collect(c)

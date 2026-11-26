@@ -393,8 +393,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         v.add_separator()
         v.add_command(label="Settings", accelerator=f"{acc}1", command=lambda: self.notebook.select(self.tab_settings))
         v.add_command(label="Console", accelerator=f"{acc}2", command=lambda: self.notebook.select(self.tab_console))
-        v.add_command(label="Transcript", accelerator=f"{acc}3", command=lambda: self.notebook.select(self.tab_preview))
-        v.add_command(label="Coding", accelerator=f"{acc}4", command=lambda: self.notebook.select(self.tab_coding))
+        v.add_command(label="Transcript: Edit", accelerator=f"{acc}3", command=lambda: self._set_tx_mode("edit"))
+        v.add_command(label="Transcript: Code", accelerator=f"{acc}4", command=lambda: self._set_tx_mode("code"))
+        v.add_command(label="Switch Code / Edit", accelerator=f"{acc}E", command=lambda: self._set_tx_mode())
         v.add_separator()
         v.add_command(label="Keyboard Shortcuts", accelerator=f"{acc}/", command=self._show_shortcuts)
         mb.add_cascade(label="View", menu=v)
@@ -439,7 +440,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             "equal": lambda: self._set_zoom(self.ui_scale + 0.1), "plus": lambda: self._set_zoom(self.ui_scale + 0.1),
             "minus": lambda: self._set_zoom(self.ui_scale - 0.1), "0": lambda: self._set_zoom(1.0),
             "1": lambda: self.notebook.select(self.tab_settings), "2": lambda: self.notebook.select(self.tab_console),
-            "3": lambda: self.notebook.select(self.tab_preview), "4": lambda: self.notebook.select(self.tab_coding),
+            "3": lambda: self._set_tx_mode("edit"), "4": lambda: self._set_tx_mode("code"),
             "bracketleft": lambda: self._seek_rel(-5), "bracketright": lambda: self._seek_rel(+5),
             "j": self._goto_time_dialog,
             "s": self._save_segment_edit,
@@ -560,20 +561,55 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         if self.settings.get("side_collapsed"):
             self.after(120, lambda: self._toggle_side_panel(False))
 
-        self.notebook = ttk.Notebook(right)
-        self.notebook.pack(fill=tk.BOTH, expand=True)
+        # the tabs on top; under them one timeline, shown for the Transcript and the Coding tab (its height can be dragged)
+        self.right_area = tk.PanedWindow(right, orient=tk.VERTICAL, sashwidth=6, bd=0, bg=THEME["bg_root"], showhandle=False)
+        self.right_area.pack(fill=tk.BOTH, expand=True)
+        self.notebook = ttk.Notebook(self.right_area)
+        self.right_area.add(self.notebook, minsize=300, stretch="always")
+        self.tl_frame = tk.Frame(self.right_area, bg=THEME["bg_panel"], padx=6, pady=2)
+        self.tl_shown = False
         self.tab_settings = tk.Frame(self.notebook, bg=THEME["bg_panel"])
         self.tab_console = tk.Frame(self.notebook, bg=THEME["bg_panel"], padx=8, pady=8)
         self.tab_preview = tk.Frame(self.notebook, bg=THEME["bg_panel"], padx=10, pady=8)
         self.notebook.add(self.tab_settings, text="Settings")
         self.notebook.add(self.tab_console, text="Console")
         self.notebook.add(self.tab_preview, text="Transcript")
-        self.tab_coding = tk.Frame(self.notebook, bg=THEME["bg_panel"], padx=8, pady=8)
-        self.notebook.add(self.tab_coding, text="Coding")
         self._build_settings_tab()
         self._build_console_tab()
         self._build_preview_tab()
         self._build_coding_tab()
+        self._build_cd_timeline(self.tl_frame)
+        self.notebook.bind("<<NotebookTabChanged>>", lambda e: self._tl_show_for_tab(), add="+")
+        self.after(50, self._tl_show_for_tab)
+
+    def _tl_visible(self) -> bool:
+        """Is the timeline on screen (the Transcript tab open, in Code or Edit mode)?"""
+        try:
+            return self.notebook.select() == str(self.tab_preview)
+        except Exception:
+            return False
+
+    def _tl_show_for_tab(self):
+        want = self._tl_visible()
+        if want and not self.tl_shown:
+            height = int(self.settings.get("timeline_height", 170))
+            try:  # a short screen: the tab's text keeps its room, the timeline gets what is left
+                area_h = int(self.right_area.winfo_height())
+                if area_h > 200:
+                    height = max(110, min(height, area_h - self._tl_keep()))
+            except Exception:
+                pass
+            self.right_area.add(self.tl_frame, minsize=70, height=height, stretch="never")
+            self.tl_shown = True
+            self.after_idle(lambda: self._cdt_draw(request_frames=True))
+        elif not want and self.tl_shown:
+            try:
+                self.settings["timeline_height"] = max(70, int(self.tl_frame.winfo_height()))
+            except Exception:
+                pass
+            self.right_area.forget(self.tl_frame)
+            self.tl_shown = False
+        return self.tl_shown
 
     def _toggle_side_panel(self, show=None):
         """Collapse the Tasks / Project panel to a strip at the left, or bring it back (show: True, False, "tasks" or

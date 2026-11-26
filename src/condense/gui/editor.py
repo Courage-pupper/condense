@@ -16,9 +16,24 @@ class EditorMixin:
         T = THEME
         tab = self.tab_preview
 
-        # ---- toolbar: what you use while reviewing stays visible; the rest is one click away in a menu ----
-        bar = self._flow(tab, padx=5, pady=5, bg=T["bg_panel"])
+        # ---- the mode (Code / Edit, ⌘E), then the toolbar of that mode ----
+        toprow = tk.Frame(tab, bg=T["bg_panel"])
+        toprow.pack(fill=tk.X)
+        switch = tk.Frame(toprow, bg=T["bg_panel"])
+        switch.pack(side=tk.LEFT, anchor="n", padx=(5, 2), pady=5)
+        self.btn_mode_code = self._tool(switch, "Code", lambda: self._set_tx_mode("code"))
+        self.btn_mode_edit = self._tool(switch, "Edit", lambda: self._set_tx_mode("edit"))
+        for b in (self.btn_mode_code, self.btn_mode_edit):
+            b.configure(width=6)  # the same width: a switch, whichever is on
+        self.btn_mode_code.pack(side=tk.LEFT)
+        self.btn_mode_edit.pack(side=tk.LEFT, padx=(1, 0))
+        self.mode_holder = tk.Frame(toprow, bg=T["bg_panel"])
+        self.mode_holder.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        self.tx_mode = "edit"
+        # ---- the Edit toolbar: what you use while reviewing stays visible; the rest is one click away in a menu ----
+        bar = self._flow(self.mode_holder, padx=5, pady=5, bg=T["bg_panel"])
         bar.pack(fill=tk.X)
+        self.tx_bar = bar
         bar.add(self._dropdown(bar, "Transcript ▾", [
             ("Open…", self._open_transcript),
             ("-",),
@@ -112,16 +127,6 @@ class EditorMixin:
             ("Keyboard shortcuts…", self._show_shortcuts),
         ]))
 
-        self.timeline = tk.Canvas(tab, height=30, bg=T["bg_input"], highlightthickness=0, bd=0, cursor="hand2")
-        self.timeline.pack(fill=tk.X, pady=(4, 0))
-        self.timeline.bind("<Configure>", lambda e: self._timeline_redraw())
-        self.timeline.bind("<Button-1>", self._timeline_click)
-        self.timeline.bind("<B1-Motion>", self._timeline_scrub)  # dragging: only the playhead follows …
-        self.timeline.bind("<ButtonRelease-1>", lambda e: self._timeline_settle())  # … the jump happens once
-        self.timeline.bind("<Motion>", self._timeline_hover)
-        self.timeline.bind("<Leave>", lambda e: self._timeline_hover(None))
-        self._tl_playhead = None
-
         info = tk.Frame(tab, bg=T["bg_panel"])
         info.pack(fill=tk.X, pady=(6, 4))
         # Fixed heights for the lines that change on every ↑/↓: if they grew or shrank, the transcript would jump.
@@ -149,6 +154,7 @@ class EditorMixin:
         # --- segment editor (bottom) ---
         ep = tk.Frame(tab, bg=T["bg_card"], padx=10, pady=8)
         ep.pack(side=tk.BOTTOM, fill=tk.X, pady=(8, 0))
+        self.tx_edit_panel = ep  # Edit mode only
         row = self._flow(ep, padx=6, pady=4, bg=T["bg_card"])
         row.pack(fill=tk.X)
         self.edit_row = row
@@ -204,6 +210,7 @@ class EditorMixin:
         self._build_find_bar(tab, before=self.tx_paned)
         frame = tk.Frame(self.tx_paned, bg=T["bg_panel"])
         self.tx_paned.add(frame, minsize=300, stretch="always")
+        self.tx_text_frame = frame  # Edit mode; Code mode shows the codebook and the coding view here
         frame.rowconfigure(0, weight=1)
         frame.columnconfigure(0, weight=1)
         self._build_video_panel()

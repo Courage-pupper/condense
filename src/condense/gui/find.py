@@ -82,6 +82,8 @@ class FindMixin:
             self.ent_find.select_range(0, tk.END)
             return
         self.notebook.select(self.tab_preview)
+        if self.__dict__.get("tx_mode") == "code":
+            self._set_tx_mode("edit")  # Find searches the transcript in Edit mode
         self.find_bar.pack(fill=tk.X, pady=(0, 4), before=self._find_before)
         self._find_visible = True
         self.ent_find.focus_set()

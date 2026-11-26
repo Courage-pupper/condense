@@ -88,14 +88,15 @@ print("    ", app2.lbl_word.cget("text"))
 ok("reopening the transcript returns to the same segment and playback position")
 
 print("[6] timeline")
-items = app2._timeline_items(800)
-bands = [i for i in items if i[0] == "band"]; checks = [i for i in items if i[0] == "check"]; ticks = [i for i in items if i[0] == "tick"]
+items = app2._cdt_items()
+bands = [i for i in items if i[0] == "speaker"]; checks = [i for i in items if i[0] == "checked"]; ticks = [i for i in items if i[0] == "lowconf"]
 print(f"    {len(bands)} speaker bands, {len(checks)} checked, {len(ticks)} uncertain ticks; first band x={bands[0][1]:.0f}–{bands[0][2]:.0f} {bands[0][3]}")
 dur = app2._duration()
-assert len(bands) == 3 and abs(bands[1][1] - 3.0 / dur * 800) < 1e-6 and bands[0][3] != bands[1][3] and len(ticks) >= 3
+assert len(bands) == 3 and abs(bands[1][1] - app2._cdt_x(3.0)) < 1e-6 and bands[0][3] != bands[1][3] and len(ticks) >= 3
 app2._timeline_redraw()
-class E: x = app2.timeline.winfo_width() // 2
-app2._timeline_click(E())
+x0, x1 = app2._cdt_plot()
+class E: x = (x0 + x1) / 2; y = 30; state = 0  # a click on the frames jumps
+app2._cdt_press(E()); app2._cdt_release(E())
 assert abs(app2.play_pos - dur / 2) < 1e-6 and app2.word_spans[app2.current_span]["start"] <= dur / 2
 ok("timeline: speaker-coloured bands, checked bars, uncertain ticks; clicking jumps there and selects the word")
 print("\nALL TESTS PASSED")

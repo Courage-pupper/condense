@@ -164,11 +164,14 @@ def main():
     timed(app, "an undo step (pack the previous file)", lambda: app._pack_state(text))
     timed(app, "find the codings (coding.resolve)", lambda: cod.resolve(d))
 
-    print("\nCoding tab", flush=True)
-    timed(app, "switch to the Coding tab (first time)", lambda: app.notebook.select(app.tab_coding))
-    timed(app, "back to Transcript, then Coding again", lambda: (app.notebook.select(app.tab_preview), app.update(),
-                                                                   app.notebook.select(app.tab_coding)))
-    timed(app, "redraw the Coding tab (_cd_render)", lambda: app._cd_render(app.active_doc))
+    print("\nCode mode", flush=True)
+    app.notebook.select(app.tab_preview)
+    timed(app, "switch to Code mode (first time)", lambda: app._set_tx_mode("code"))
+    timed(app, "Code → Edit (⌘E)", lambda: app._set_tx_mode("edit"))
+    timed(app, "Edit → Code again", lambda: app._set_tx_mode("code"))
+    timed(app, "a speaker from Code mode (⌃2)", lambda: (app._cd.__setitem__("word", len(app._cd["words"]) // 3),
+                                                       app._assign_speaker_number(2)))
+    timed(app, "redraw Code mode (_cd_render)", lambda: app._cd_render(app.active_doc))
     timed(app, "  the coding list (_cd_fill_list)", app._cd_fill_list)
     timed(app, "  the stripes (_cd_draw_stripes)", app._cd_draw_stripes)
     timed(app, "  the timeline (_cdt_draw)", app._cdt_draw)
@@ -202,7 +205,7 @@ def main():
     app.var_show_video.set(True)
     app._toggle_video_panel()
     pump(app, 0.5)
-    responsiveness(app, "idle, Coding tab open", 2.0)
+    responsiveness(app, "idle, Code mode open", 2.0)
     app.play_pos = 20.0
     app._player_start(20.0)
     pump(app, 0.5)

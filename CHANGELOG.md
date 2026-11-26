@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.25.0 — unreleased
+
+### One workspace: Code and Edit mode
+- **The Coding tab is now Code mode of the Transcript tab.** *Code | Edit* at the left of the toolbar, or ⌘E / Ctrl+E,
+  switches; ⌘3 opens Edit mode, ⌘4 Code mode. One transcript, one player, one video and one timeline for both, so
+  a mistake noticed while coding is fixed without changing tabs: click the word, ⌘E, fix it, ⌘E — you are back where
+  you were. The mode you used last is kept.
+- **Code mode:** the codebook on the left, the transcript with its stripes, the codings under it, the coding toolbar
+  and the recent codes (1–9) in place of the review toolbar.
+- **Edit mode:** as the Transcript tab was: the segment editor, speakers, checked, cuts, episodes, Find (which opens
+  Edit mode).
+- **Speakers in both modes:** ⌃1–9 (Mac) / Alt+1–9 give the speaker to what is selected in the mode you see — in Code
+  mode the segments of the selected words, or of the word you clicked. Before, these keys in the Coding tab changed the
+  segment that was selected in the (hidden) Transcript tab.
+- The video has one place in the tab instead of a column in each tab.
+
+### One timeline
+- **The Transcript tab and the Coding tab share one timeline**, under both tabs: frames of the video, speakers,
+  episodes, the codes' lanes and the zoom — and, from the Transcript tab's old strip, uncertain words (red ticks),
+  checked segments (a green bar) and cut parts (hatched). It is built once and drawn for the tab that is open, so
+  switching tabs no longer loads a second timeline; Settings and Console don't show it.
+- **Scrubbing:** drag the playhead, or the ruler when the whole recording is shown; the playhead follows and Condense
+  jumps once, when the mouse rests or is let go. Dragging anywhere else marks a range to code, as in the Coding tab. A click jumps; ⌘J / Ctrl+J still goes to a typed time.
+- **Codings stay where they are after editing in the Transcript tab:** the timeline places them by the transcript as
+  it is now, not by what the Coding tab showed last.
+- Mark a range and code it by time (I / O, then ↩ or 1–9) from the Transcript tab too.
+
 ## 0.24.0 — unreleased
 
 ### Smaller videos: AV1

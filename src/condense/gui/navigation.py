@@ -137,7 +137,8 @@ class NavigationMixin:
     def _show_shortcuts(self):
         c = "⌘" if IS_MAC else "Ctrl+"
         text = (
-            "In the transcript (click it first)\n"
+            f"Transcript tab: {c}E switches Code / Edit ({c}3 Edit, {c}4 Code)\n\n"
+            "Edit mode, in the transcript (click it first)\n"
             "  1 – 9            assign speaker 1–9 (to every selected segment)\n"
             "  0                add a new speaker and assign it\n"
             "  ↑ / ↓            previous / next segment\n"
@@ -150,17 +151,22 @@ class NavigationMixin:
             "  C                mark checked / not checked (all selected)\n"
             "  X                cut / restore the selected segments\n"
             "  E                mark the selected segments as an episode (interview, phase)\n"
-            "Coding tab\n"
-            "  select words, then Return   code them with the selected code (or double-click a code)\n"
-            "  N                new code from the selected words\n"
-            "  1 – 9            code the selection with a recent code\n"
-            "  Del              delete the selected coding · drag on the timeline: a moment without speech\n"
             "  S / M / I        split before the selected word / merge with the next / insert a segment\n"
             + ("  ⌫ (delete)       delete the open segment (asks first)\n" if IS_MAC else "  Del              delete the open segment (asks first)\n") +
             "  Return           edit the open segment's text\n"
             f"  {c}Return          save, mark checked, next segment\n"
             f"  {c}F               find & replace\n"
             "  double-click     play from that word\n\n"
+            "Code mode, in the transcript\n"
+            "  select words, then Return   code them with the selected code (or double-click a code)\n"
+            "  N                new code from the selected words\n"
+            "  1 – 9            code the selection with a recent code (while playing: start / end a coding)\n"
+            "  Del              delete the selected coding\n"
+            + ("  ⌃1 – ⌃9          speaker 1–9 for the selected words' segments (or the clicked word's)\n\n" if IS_MAC else
+               "  Alt+1 – Alt+9    speaker 1–9 for the selected words' segments (or the clicked word's)\n\n") +
+            "On the timeline (both modes)\n"
+            "  drag, or I / O   mark a range; Return or 1–9 codes it by time\n"
+            "  drag the playhead   scrub (one jump when you let go)\n\n"
             "While typing in the segment box\n"
             f"  {c}Return          save, mark checked, next segment\n"
             f"  {c}S               save the segment\n"
@@ -178,7 +184,8 @@ class NavigationMixin:
             f"  {c}Z / {c}⇧Z         undo / redo a transcript change\n"
             f"  {c}⇧R              re-transcribe a passage\n"
             f"  {c}I               insert a missing segment\n"
-            f"  {c}1 – {c}4       Settings / Console / Transcript / Coding tab\n"
+            f"  {c}1 – {c}4       Settings / Console / Transcript: Edit / Transcript: Code\n"
+            f"  {c}E               Code ⇄ Edit\n"
             f"  {c}+ / {c}- / {c}0     zoom (everything)\n"
             + ("  ⌘⌥+ / ⌘⌥-        transcript text larger / smaller (or ⌘ + scroll wheel)" if IS_MAC else
                "  Ctrl+Alt++ / Ctrl+Alt+-   transcript text larger / smaller (or Ctrl + scroll wheel)"))
