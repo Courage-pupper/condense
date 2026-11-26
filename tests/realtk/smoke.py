@@ -513,7 +513,9 @@ def main():
     ct.tag_add("sel", f"{ws[w10[0]][0]}.{ws[w10[0]][1]}", f"{ws[w10[-1]][0]}.{ws[w10[-1]][2]}")
     key(app, ct, f"<{EDIT_MOD}-Key-{other}>")
     pump(app, 0.4)
-    assert app.active_doc.segments[10]["speaker"] == roster[other - 1], "no speaker from Code mode"
+    assert app.active_doc.segments[10]["speaker"] == roster[other - 1], (
+        "no speaker from Code mode", app.lbl_status.cget("text"), app.tx_mode, app._cd_visible(), ct.tag_ranges("sel"),
+        app._cd_speaker_segments(), str(app.focus_get()), ct.bindtags(), errors[-1:] if errors else None)
     app._undo()
     pump(app, 0.4)
     assert app.active_doc.segments[10]["speaker"] == spk10
@@ -561,9 +563,12 @@ def main():
     pump(app, 0.4)
     assert not app.side_collapsed
     app._cd_show_word(12, 0)
+    mode_before = app.tx_mode
     key(app, app.cd_text, f"<{MOD}-Key-e>")                          # Code → Edit, at the same place
     pump(app, 0.5)
-    assert app.tx_mode == "edit" and app.tx_edit_panel.winfo_ismapped() and app.preview_text.winfo_ismapped()
+    assert app.tx_mode == "edit" and app.tx_edit_panel.winfo_ismapped() and app.preview_text.winfo_ismapped(), (
+        mode_before, app.tx_mode, app.tx_edit_panel.winfo_ismapped(), app.preview_text.winfo_ismapped(), str(app.focus_get()),
+        app.lbl_status.cget("text"), errors[-1:] if errors else None)
     assert not app.cd_left.winfo_ismapped() and app.edit_seg_idx == 12, app.edit_seg_idx
     ok("Code mode (⌘E): demo codebook, a real selection coded, stripes, speakers by key, moment and code dialogs; "
        "timeline: coded by I/O, zoomed to 2 min with video frames; side panel collapsed and back; ⌘E back to Edit")
@@ -593,6 +598,8 @@ def main():
     dropdowns = {}
     def collect(w):
         for c in w.winfo_children():
+            if c in (app.cd_left, app.cd_bar, app.cd_body):
+                continue  # Code mode's own menus (its codebook has a More ▾ too)
             if hasattr(c, "menu"):
                 dropdowns[c.cget("text")] = c.menu
             collect(c)

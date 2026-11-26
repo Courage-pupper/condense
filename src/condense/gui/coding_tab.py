@@ -319,8 +319,9 @@ class CodingMixin:
         return [words[n][3]] if n is not None and n < len(words) else []
 
     def _cd_assign_speaker(self, name: str) -> int:
+        segs = self._cd_speaker_segments()  # first: bringing the view up to date (below) would clear the selection
         doc = self._cd_current()
-        segs = self._cd_speaker_segments() if doc is not None else []
+        segs = segs if doc is not None else []
         if not segs:
             self.lbl_status.config(text="Click a word (or select a stretch), then press "
                                         f"{'⌃' if IS_MAC else 'Alt+'}1–9 for its speaker.")
