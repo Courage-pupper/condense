@@ -121,8 +121,27 @@ class TranscriptDocument:
         self.ensure_word_ids()
         self.data["updated"] = now_iso()
         tmp = self.path.with_name(self.path.name + ".tmp")
-        tmp.write_text(json.dumps(self.data, ensure_ascii=False, indent=2), encoding="utf-8")
+        text = json.dumps(self.data, ensure_ascii=False, indent=2)
+        tmp.write_text(text, encoding="utf-8")
         os.replace(tmp, self.path)  # atomic: a crash never leaves a half-written master file
+        try:
+            st = self.path.stat()
+            self._saved = (st.st_mtime_ns, st.st_size, text)
+        except OSError:
+            self._saved = None
+
+    def saved_text(self) -> str:
+        """The file as it is on disk — from memory when this object wrote it last (an undo step for a 5-hour session
+        no longer reads megabytes back from the drive before every change)."""
+        saved = self.__dict__.get("_saved")
+        if saved is not None:
+            try:
+                st = self.path.stat()
+                if (st.st_mtime_ns, st.st_size) == saved[:2]:
+                    return saved[2]
+            except OSError:
+                pass
+        return self.path.read_text(encoding="utf-8")
 
     # ----- word IDs -----
     # Every word has a permanent id ("wid"). Codings and anything else that points into the text refer to word ids

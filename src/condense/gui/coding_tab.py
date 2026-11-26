@@ -808,7 +808,7 @@ class CodingMixin:
         if doc is None:
             return
         try:
-            previous = doc.path.read_text(encoding="utf-8") if doc.path.exists() else None
+            previous = doc.saved_text() if doc.path.exists() else None
             doc.save(backup=True)
         except Exception as exc:
             messagebox.showerror("Could not save transcript", str(exc), parent=self)

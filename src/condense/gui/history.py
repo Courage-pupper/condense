@@ -51,7 +51,7 @@ class HistoryMixin:
         now (empty when they are written in the background), or None."""
         doc = self.active_doc
         try:
-            previous = doc.path.read_text(encoding="utf-8") if (undoable and doc.path.exists()) else None
+            previous = doc.saved_text() if (undoable and doc.path.exists()) else None
             doc.save(backup=True)
             created = self._export(doc, now=export_now)
         except Exception as exc:
@@ -104,7 +104,7 @@ class HistoryMixin:
         doc = self.active_doc
         label, packed = from_stack.pop()
         text = self._unpack_state(packed)
-        to_stack.append((label, self._pack_state(doc.path.read_text(encoding="utf-8"))))
+        to_stack.append((label, self._pack_state(doc.saved_text())))
         keep_seg = self.edit_seg_idx
         doc.data = json.loads(text)
         try:
