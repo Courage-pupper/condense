@@ -205,6 +205,10 @@ def main():
     app.play_pos = 20.0
     app._player_start(20.0)
     pump(app, 0.5)
+    proc = app.__dict__.get("_play_proc")
+    print(f"  (player: playing={app.playing}, audio process={'running' if proc is not None and proc.poll() is None else proc and proc.poll()}, "
+          f"video stream={'on' if app.__dict__.get('_video_proc') is not None else 'off'}, media={app._preview_media()}, "
+          f"screen={app._video_size()})", flush=True)
     responsiveness(app, "playing, video in the tab", 4.0)
     app._player_pause()
     pump(app, 0.3)

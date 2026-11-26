@@ -250,6 +250,7 @@ class VideoMixin:
     def _video_start(self, pos: float):
         self._video_stop()
         media = self._preview_media()
+        self._video_caption_media = media  # for the caption: not looked up again for every frame (disk checks)
         if media is None or self._video_screen() is None or not shutil.which("ffmpeg"):
             return
         vpos, change_at = self._video_map(pos)
@@ -304,6 +305,7 @@ class VideoMixin:
         if self._video_screen() is None:
             return
         media = self._preview_media()
+        self._video_caption_media = media
         if media is None:
             self._show_no_video()
             return
@@ -379,7 +381,7 @@ class VideoMixin:
         scr = self._video_target()
         scr.label.configure(image=img, text="")
         self._set_link_button(False)
-        media = self._preview_media()
+        media = self.__dict__.get("_video_caption_media")
         scr.caption.configure(text=f"{short_ts(pos)[:-2]}  ·  {media.name if media else ''}")
 
     def _video_pump(self):
