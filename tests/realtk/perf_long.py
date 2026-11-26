@@ -114,7 +114,7 @@ def make_session(folder: Path, hours: float = 5.0):
     video = folder / "session.mp4"
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=1920x1080:r=25:d=120",
                     "-c:v", "libx264", "-preset", "ultrafast", "-g", "50", str(video)], check=True)
-    doc = TD.create(folder, "G1D1_session", {"segments": segs}, "large-v3-turbo", {}, {}, {"playback": str(video)}, {"inputs": []})
+    doc = TD.create(folder, "G1D1_session", {"segments": segs}, "large-v3-turbo", {}, {}, {"playback": str(video), "video": str(video)}, {"inputs": []})
     for i in range(20):
         a = i * 900 + 30
         doc.add_episode("Interview" if i % 2 else "Phase", f"G1D1_I{i}", a, a + 600, False)
