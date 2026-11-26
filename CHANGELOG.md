@@ -18,6 +18,25 @@
 - *Compatible: H.264 MP4* for files that play everywhere; *Custom* keeps the encoder settings as before (and tasks saved
   before this version keep theirs).
 
+### Long sessions: coding without waiting
+Measured with a 5-hour session (2,300 segments, 600 codings) on a Mac, in the real app:
+- **The Coding tab opens in half a second** instead of 19 seconds; coding words, coding by time, changing a code or
+  deleting a coding take about half a second instead of 4–6, undo under a second instead of 5, and showing the whole
+  recording on the timeline 0.15 instead of 13 seconds. The cause: the timeline worked out the recording's length again
+  for every shape it drew — thousands of times, each going through every segment.
+- **Coding words doesn't lay out the transcript again** (only highlights, list, stripes and timeline change).
+- **The project's code counts are counted in the background**, from the overview's cache (only transcripts that changed
+  are read), so the Coding tab no longer waits for every transcript of the study to be read.
+- The project's settings and folder are looked up once, not for every episode drawn (slow on network drives); saving no
+  longer reads the whole file back first; the video caption doesn't check the disk for every frame.
+- **Smaller transcript files:** one segment per line (with its words) instead of one line per word — 40 % smaller,
+  quicker to save and back up. They open as before, in Condense and any JSON reader.
+- Video playback was measured too: 15 frames/s with the window staying responsive, in the tab and popped out.
+
+### Fixed
+- **The video window can go to another screen.** On macOS it disappeared when dragged to a second display: like every
+  window, it was tied to the main window, and macOS keeps such windows on their parent's screen.
+
 ### MAXQDA
 - **Copy for MAXQDA (H.264 MP4)** (Transcript ▾, or right-click transcripts in the Project tab): MAXQDA recommends
   H.264 and may not play AV1. 720p (MAXQDA's advice) or 1080p, timed like the transcript, next to it as
