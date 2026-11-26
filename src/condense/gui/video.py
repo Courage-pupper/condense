@@ -143,6 +143,7 @@ class VideoMixin:
                 pass
             return pop
         win = tk.Toplevel(self)
+        win.condense_free = True  # a window of its own: it can go to another screen (see raise_new in app.py)
         win.title("Video — " + (self.active_doc.base_name if self.active_doc is not None else "Condense"))
         win.configure(bg="#000000")
         win.geometry(self.settings.get("video_popout_geometry", "960x600"))
