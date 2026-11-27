@@ -388,8 +388,9 @@ class EditorMixin:
         return out or None
 
     def _place_word(self, t: float, y: int) -> Optional[int]:
-        """Scroll so that the word at time t is y pixels from the top (to the pixel: its own display line, not its
-        paragraph's first). Returns where it ended up."""
+        """Scroll so that the word at time t is y pixels from the top, to within a display line (its own line, not its
+        paragraph's first). By whole display lines, not pixels: on Linux, pixel scrolling made Tk lay out a long
+        transcript again and again. Returns where it ended up."""
         i = self._span_near(t)
         if i is None:
             return None
@@ -402,10 +403,13 @@ class EditorMixin:
             if got is None:  # a paragraph taller than the window: bring the word itself into view
                 pt.see(index)
                 got = self._word_y(i)
-            for _ in range(2):  # … then by pixels to where it was (twice: the first move can re-wrap lines)
-                if got is None or got[0] == y:
+            for _ in range(2):  # … then by display lines to where it was (twice: lines can re-wrap)
+                if got is None or got[1] <= 0:
                     break
-                pt.yview_scroll(int(got[0] - y), "pixels")
+                lines = int(round((got[0] - y) / got[1]))
+                if not lines:
+                    break
+                pt.yview_scroll(lines, "units")
                 got = self._word_y(i)
         except Exception:
             return None

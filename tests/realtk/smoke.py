@@ -736,7 +736,7 @@ def check_top_stays(app, pt, k, d0):
         assert TD.load(app.active_doc.path).segments[j]["speaker"] == speaker
         i_top = app._span_near(before["top"][0])
         y_top = app._word_y(i_top)
-        assert y_top is not None and abs(y_top[0] - before["top"][1]) <= 2, f"the view moved: {before['top']} → {y_top}"
+        assert y_top is not None and abs(y_top[0] - before["top"][1]) < line_h, f"the view moved: {before['top']} → {y_top}"
         cur = app._word_y(app.current_span)
         assert cur is not None and 0 <= cur[0] and cur[0] + cur[1] <= h, f"the open segment left the screen: {cur}, {h}"
         n_done += 1
