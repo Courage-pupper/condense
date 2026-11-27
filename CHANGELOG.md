@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.27.0 — unreleased
+## 0.27.0 — 2026-11-27
 
 ### Name recordings by a pattern
 - **Project ▸ Name Recordings by Pattern…**: names that say what a recording is — `final video.mp4` in
