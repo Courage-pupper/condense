@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.26.0 — unreleased
+## 0.26.0 — 2026-11-27
 
 ### Comments and commentary over time
 - **Comments:** a note on a passage or a stretch of the recording, without a code — e.g. a description of what the
