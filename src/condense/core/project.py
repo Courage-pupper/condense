@@ -511,12 +511,18 @@ def inventory(folder: Path, stop=None, max_dirs: int = 20000, cache: Optional["R
 
     items: List[Dict] = []
     used = set()
-    for m in media:
-        # 1. Condense's default: results in a folder named like the recording, next to it
+    own: Dict[Path, Path] = {}
+    for m in media:  # 1. Condense's default, first for every recording: results in a folder named like it, next to it
         sub = m.parent / m.stem
         cands = sorted(sub.glob(f"*{TranscriptDocument.SUFFIX}")) if sub.is_dir() else []
         t = next((c for c in cands if not c.name.startswith(".") and c not in used), None)
-        # 2. a transcript that names this file, preferably in the same day/group
+        if t is not None:
+            own[m] = t
+            used.add(t)
+    for m in media:
+        t = own.get(m)
+        # 2. a transcript that names this file, preferably in the same day/group (a merged video's transcript names its
+        # parts too: it belongs to the merged video, matched above)
         same = [c for c in by_path.get(str(m.resolve()), []) if c not in used]
         t = t or next((c for c in same if group_of(c) == group_of(m)), None) or next(iter(same), None)
         # 3. same file name, same level folder (the drive may be mounted elsewhere on another computer)

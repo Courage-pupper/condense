@@ -319,6 +319,45 @@ class CodingMixin:
             return None
         return places
 
+    def _cd_top_word(self) -> Optional[Tuple[float, int]]:
+        """(time, y on screen) of the first word in view of Code mode's text."""
+        t, doc, words = self.cd_text, self._cd.get("doc"), self._cd.get("words") or []
+        try:
+            line0 = int(str(t.index("@0,0")).split(".")[0])
+            for line in range(line0, line0 + 60):
+                for n in self._cd.get("line_words", {}).get(line, []):
+                    w = words[n]
+                    bb = t.bbox(f"{w[0]}.{w[1]}")
+                    if isinstance(bb, tuple) and len(bb) == 4 and bb[1] >= 0:
+                        return float(doc.segments[w[3]]["words"][w[4]]["start"]), int(bb[1])
+        except Exception:
+            return None
+        return None
+
+    def _cd_place_word(self, when: float, y: int) -> Optional[int]:
+        """Scroll Code mode's text so that the word at time `when` is (to within a line) y pixels from the top. By
+        whole display lines, not pixels: on Linux, pixel scrolling made Tk lay out a long transcript again and again."""
+        doc, words, t = self._cd.get("doc"), self._cd.get("words") or [], self.cd_text
+        if doc is None or not words:
+            return None
+        try:
+            starts = [float(doc.segments[w[3]]["words"][w[4]]["start"]) for w in words]
+            n = min(len(words) - 1, max(0, bisect.bisect_left(starts, when - 1e-6)))
+            index = f"{words[n][0]}.{words[n][1]}"
+            t.yview(index)
+            bb = t.bbox(index)
+            for _ in range(3):  # lines differ in height (speaker headers have space around them): correct again
+                if not (isinstance(bb, tuple) and len(bb) == 4 and bb[3] > 0):
+                    break
+                lines = int(round((int(bb[1]) - y) / bb[3]))
+                if not lines:
+                    break
+                t.yview_scroll(lines, "units")
+                bb = t.bbox(index)
+            return int(bb[1]) if isinstance(bb, tuple) and len(bb) == 4 else None
+        except Exception:
+            return None
+
     def _cd_show_word(self, seg: int, word: int):
         """Scroll Code mode's text to a word and remember it as the place you are."""
         words = self._cd.get("words") or []
@@ -706,7 +745,9 @@ class CodingMixin:
     def _cd_render(self, doc):
         t = self.cd_text
         self._cd["doc"] = doc
-        y = t.yview()[0] if self._cd.get("rendered_for") == str(doc.path) else 0.0
+        same = self._cd.get("rendered_for") == str(doc.path)
+        y = t.yview()[0] if same else 0.0
+        top_word = self._cd_top_word() if same else None  # (time, y): stays where it is, as in Edit mode
         words: List[Tuple] = []  # (line, c0, c1, seg, wi, wid)
         line_words: Dict[int, List[int]] = {}
         roster = self._roster()
@@ -762,6 +803,8 @@ class CodingMixin:
         self._cd["pos_index"] = {(w[3], w[4]): n for n, w in enumerate(words)}
         self._cd_mark_coded()
         t.yview_moveto(y)
+        if top_word is not None:
+            self._cd_place_word(*top_word)
         self._cd_header(doc, res)
         self._cd_fill_list()
         self._cd_fill_recent()

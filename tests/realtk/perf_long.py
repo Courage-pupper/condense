@@ -240,4 +240,7 @@ def main():
 
 
 if __name__ == "__main__":
+    import faulthandler
+    # a hang shows where it is (and ends the step) instead of keeping CI waiting: the whole run takes under a minute
+    faulthandler.dump_traceback_later(int(os.environ.get("CONDENSE_PERF_TIMEOUT", "180")), exit=True)
     main()

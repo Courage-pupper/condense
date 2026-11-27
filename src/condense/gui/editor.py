@@ -343,8 +343,10 @@ class EditorMixin:
         self._highlight_edit_segment()
 
     # A redraw can regroup paragraphs (a segment joins another speaker's turn, two segments merge, a cut header
-    # appears). Keeping the same *fraction* of the text in view then lands somewhere else, so the view is anchored to
-    # a word instead: the open segment's (or the first word on screen) stays at the same height on screen.
+    # appears or goes). Keeping the same *fraction* of the text in view then lands somewhere else, so the view is
+    # anchored to words, as in a document editor: the first word on screen stays exactly where it was, and what changed
+    # below it moves (a segment given to the speaker above joins that paragraph, a line or so higher). Only if the open
+    # segment would then be off screen does the view follow it instead (back to the height it had).
     def _span_near(self, t: float) -> Optional[int]:
         import bisect
         if not self.span_starts:
@@ -353,40 +355,81 @@ class EditorMixin:
         cands = [j for j in (i - 1, i) if 0 <= j < len(self.span_starts)]
         return min(cands, key=lambda j: abs(self.span_starts[j] - t)) if cands else None
 
-    def _view_anchor(self) -> Optional[Tuple[float, int]]:
+    def _word_y(self, i: int) -> Optional[Tuple[int, int]]:
+        """(top, height) on screen of word span i, or None when it is not in view."""
+        sp = self.word_spans[i]
+        try:
+            bb = self.preview_text.bbox(f"{sp['line']}.{sp['c0']}")
+        except Exception:
+            return None
+        return (int(bb[1]), int(bb[3])) if isinstance(bb, tuple) and len(bb) == 4 else None
+
+    def _view_anchor(self) -> Optional[Dict]:
+        """Where the first word on screen and the open segment's word are now: {"top": (time, y), "cur": (time, y)}."""
         pt = self.preview_text
+        out: Dict = {}
         try:
             idx = self.current_span
             if idx is not None and idx < len(self.word_spans):
-                sp = self.word_spans[idx]
-                bb = pt.bbox(f"{sp['line']}.{sp['c0']}")
-                if isinstance(bb, tuple) and len(bb) == 4:
-                    return sp["start"], int(bb[1])
+                y = self._word_y(idx)
+                if y is not None:
+                    out["cur"] = (self.word_spans[idx]["start"], y[0])
             top_line = int(str(pt.index("@0,0")).split(".")[0])
             for line in range(top_line, top_line + 60):
                 for i in self.line_spans.get(line, []):
-                    sp = self.word_spans[i]
-                    bb = pt.bbox(f"{sp['line']}.{sp['c0']}")
-                    if isinstance(bb, tuple) and len(bb) == 4:
-                        return sp["start"], int(bb[1])
+                    y = self._word_y(i)
+                    if y is not None and y[0] >= 0:
+                        out["top"] = (self.word_spans[i]["start"], y[0])
+                        break
+                if "top" in out:
+                    break
         except Exception:
-            return None
-        return None
+            return out or None
+        return out or None
 
-    def _restore_view_anchor(self, anchor: Tuple[float, int]) -> bool:
-        t, y = anchor
+    def _place_word(self, t: float, y: int) -> Optional[int]:
+        """Scroll so that the word at time t is y pixels from the top, to within a display line (its own line, not its
+        paragraph's first). By whole display lines, not pixels: on Linux, pixel scrolling made Tk lay out a long
+        transcript again and again. Returns where it ended up."""
         i = self._span_near(t)
         if i is None:
-            return False
+            return None
         sp = self.word_spans[i]
         pt = self.preview_text
+        index = f"{sp['line']}.{sp['c0']}"
         try:
-            pt.yview(f"{sp['line']}.{sp['c0']}")  # that word's display line at the top …
-            if y > 0:
-                pt.yview_scroll(-int(y), "pixels")  # … then back down to where it was on screen
+            pt.yview(index)  # its paragraph at the top (the word may be some display lines further down) …
+            got = self._word_y(i)
+            if got is None:  # a paragraph taller than the window: bring the word itself into view
+                pt.see(index)
+                got = self._word_y(i)
+            for _ in range(3):  # … then by display lines to where it was (again: lines differ in height, can re-wrap)
+                if got is None or got[1] <= 0:
+                    break
+                lines = int(round((got[0] - y) / got[1]))
+                if not lines:
+                    break
+                pt.yview_scroll(lines, "units")
+                got = self._word_y(i)
         except Exception:
-            return False
-        return True
+            return None
+        return got[0] if got else None
+
+    def _restore_view_anchor(self, anchor) -> bool:
+        if isinstance(anchor, tuple):  # (time, y) of one word
+            anchor = {"cur": anchor}
+        placed = False
+        if anchor.get("top"):
+            placed = self._place_word(*anchor["top"]) is not None
+        cur = anchor.get("cur")
+        if cur:
+            i = self._span_near(cur[0])
+            got = self._word_y(i) if i is not None else None
+            h = max(1, int(self.preview_text.winfo_height()))
+            line_h = got[1] if got else int(self.f["transcript"].metrics("linespace"))
+            if got is None or got[0] < 0 or got[0] + 2 * line_h > h:  # the open segment would be out of view: follow it
+                placed = self._place_word(cur[0], max(0, min(cur[1], h - 3 * line_h))) is not None or placed
+        return placed
 
     def _render_doc(self, doc: TranscriptDocument, reset_editor: bool = True):
         if reset_editor and self.active_doc is not None and doc is not self.active_doc:

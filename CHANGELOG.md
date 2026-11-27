@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.27.0 — 2026-11-27
+
+### Name recordings by a pattern
+- **Project ▸ Name Recordings by Pattern…**: names that say what a recording is — `final video.mp4` in
+  *Day 3 2026-08-12 / Group 4* becomes `G4_Day3_2026.08.12_Session.mp4` — only when you ask for it. A pattern for
+  sessions (`G{group}_Day{day}_{date}_{type}{part}` by default) and one for interviews; `{date}` (yyyy.mm.dd) from the
+  folder names, else the video's recording date.
+- Split recordings get `_part1`, `_part2` …; a video merged in Condense keeps the plain name and its parts are numbered
+  in the order they were merged.
+- A preview first: leave recordings out, write a name yourself; missing dates, clashes and names that are already right
+  are shown. The recording's results folder, transcript, backups, copies (compressed, trimmed, MAXQDA) and exports go
+  along, and every link in the project's transcripts is updated. **Undo the last renaming** puts it all back.
+- Optionally, new interview clips are named by the new pattern too (the old names stay recognised for numbering);
+  `{date}` can be part of a clip name.
+- Fixed: the project overview could give a merged video's transcript to one of its parts.
+
+### Steady view
+- **The transcript no longer shifts when you give a segment a speaker** (or merge, split, cut): the first line on
+  screen stays where it is, as in a document editor, and what changed moves below it (a sentence given to the
+  speaker above joins that paragraph). Before, the view kept the clicked word in place, so everything above it slid
+  down by a speaker header each time, and a small error added up until the selection left the screen. The view only
+  follows the open segment when it would otherwise be out of sight. The same in Code mode.
+
 ## 0.26.0 — 2026-11-27
 
 ### Comments and commentary over time

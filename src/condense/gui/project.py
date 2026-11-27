@@ -86,6 +86,7 @@ class ProjectMixin:
         pm.add_separator()
         pm.add_command(label="Project Overview…", command=self._project_overview)
         pm.add_command(label="Commentary over Time (Spreadsheet)…", command=self._commentary_dialog)
+        pm.add_command(label="Name Recordings by Pattern…", command=self._rename_dialog)
         pm.add_command(label="Attributes…", command=lambda: self._attributes_dialog(self._project_dir()) if self._project_dir() else self._project_start_dialog())
         pm.add_command(label="Names & Pseudonyms…", command=lambda: self._names_dialog(self._project_dir()) if self._project_dir() else self._project_start_dialog())
         pm.add_command(label="Speakers (Project and Groups)…", command=lambda: self._project_speakers_dialog())
