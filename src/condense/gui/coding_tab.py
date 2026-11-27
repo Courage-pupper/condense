@@ -346,10 +346,13 @@ class CodingMixin:
             index = f"{words[n][0]}.{words[n][1]}"
             t.yview(index)
             bb = t.bbox(index)
-            if isinstance(bb, tuple) and len(bb) == 4 and bb[3] > 0:
+            for _ in range(3):  # lines differ in height (speaker headers have space around them): correct again
+                if not (isinstance(bb, tuple) and len(bb) == 4 and bb[3] > 0):
+                    break
                 lines = int(round((int(bb[1]) - y) / bb[3]))
-                if lines:
-                    t.yview_scroll(lines, "units")
+                if not lines:
+                    break
+                t.yview_scroll(lines, "units")
                 bb = t.bbox(index)
             return int(bb[1]) if isinstance(bb, tuple) and len(bb) == 4 else None
         except Exception:

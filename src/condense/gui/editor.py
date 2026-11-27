@@ -403,7 +403,7 @@ class EditorMixin:
             if got is None:  # a paragraph taller than the window: bring the word itself into view
                 pt.see(index)
                 got = self._word_y(i)
-            for _ in range(2):  # … then by display lines to where it was (twice: lines can re-wrap)
+            for _ in range(3):  # … then by display lines to where it was (again: lines differ in height, can re-wrap)
                 if got is None or got[1] <= 0:
                     break
                 lines = int(round((got[0] - y) / got[1]))
