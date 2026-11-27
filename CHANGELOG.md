@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.28.1 — unreleased
+## 0.28.1 — 2026-11-27
 
 - **Re-transcribing or translating a passage on a Mac uses the GPU (MLX) again** for transcripts made on a Windows or
   Linux computer. The re-run took the backend recorded in the transcript ("PyTorch GPU"), which a Mac doesn't have, so
