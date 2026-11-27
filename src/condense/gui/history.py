@@ -62,6 +62,7 @@ class HistoryMixin:
         self.lbl_status.config(text=message)
         self._update_task_progress(doc)
         self._timeline_redraw()
+        self._sync_linked_clips(doc)  # interview clips linked to this session follow it
         return created
 
     # ----- undo / redo / backups -----
@@ -119,6 +120,7 @@ class HistoryMixin:
             self._load_segment_into_editor(min(keep_seg or 0, len(doc.segments) - 1))
         self._update_task_progress(doc)
         self.lbl_status.config(text=f"{verb}: {label}")
+        self._sync_linked_clips(doc)
         self._append_log(f"{verb}: {label}", "INFO")
 
     def _undo(self):

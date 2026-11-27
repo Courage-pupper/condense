@@ -1,5 +1,5 @@
 """Condense: local video, audio and transcript processing for qualitative research."""
-__version__ = "0.27.0"
+__version__ = "0.28.0"
 
 from condense.platform import setup_environment as _setup_environment
 
