@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.28.0 — unreleased
+## 0.28.0 — 2026-11-27
 
 ### Checked interview transcripts into the session
 - **Use the clips' transcripts here** (*Episodes ▸ Find Interview Clips in Recording…*): interviews cut out of a session
