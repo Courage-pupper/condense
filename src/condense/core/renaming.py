@@ -264,7 +264,7 @@ def files_of(r: Dict) -> List[Tuple[Path, Path]]:
         out.append((Path(m), here / f"{new}{Path(m).suffix}"))
     seen, uniq = set(), []
     for a, b in out:
-        if a not in seen and a != b:
+        if a not in seen and str(a) != str(b):  # (as written: on Windows paths that differ only in case are "equal")
             seen.add(a)
             uniq.append((a, b))
     return uniq
