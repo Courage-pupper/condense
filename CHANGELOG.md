@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.28.0 — 2026-11-27
+
+### Checked interview transcripts into the session
+- **Use the clips' transcripts here** (*Episodes ▸ Find Interview Clips in Recording…*): interviews cut out of a session
+  before and transcribed and checked on their own bring their transcripts into the session, at the place found by
+  their sound. Text, speakers, checked marks, notes, codings and comments replace the session's stretch (also checked
+  segments); session segments over the edges are cut there at word level. One undo step. Speakers new to the session
+  are added to it.
+- **Linked from then on:** every change of the session in that stretch — text, speakers, checked, codings, comments,
+  and undo — is written into the clip's transcript too. A clip changed on its own is not overwritten (the status line
+  and the window say so): take it over again, or *Write the session into the clips*.
+- The clip's place is the one found by sound: moving the episode's edges later doesn't shift what is written into it.
+
 ## 0.27.0 — 2026-11-27
 
 ### Name recordings by a pattern

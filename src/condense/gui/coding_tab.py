@@ -1104,6 +1104,7 @@ class CodingMixin:
         if previous is not None:
             self._push_undo(doc.path, message, previous)
         self.lbl_status.config(text=message)
+        self._sync_linked_clips(doc)  # codings and comments in a linked interview go into its clip too
 
     def _cd_count(self, code_id: str, delta: int):
         counts = self.__dict__.get("_cd_counts")

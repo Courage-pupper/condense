@@ -286,6 +286,19 @@ again updates the episodes instead of adding them twice.
 
 ![Finding a cut-out interview in the session](images/find-clips.png)
 
+**Their checked transcripts, too.** If you transcribed and checked such clips before (on their own), *Use the clips'
+transcripts here* in the same window brings each clip's transcript into the session at the place found: its text,
+speakers, checked marks, notes, codings and comments replace the session's text for that stretch — also segments of the
+session you had already checked. A session segment that runs over the start or end of the interview is cut there, so
+what was said just before and after stays. One step: ⌘Z / Ctrl+Z undoes it. The *Transcript* column shows which clips
+have a transcript and which are linked.
+
+**From then on the session leads.** A correction in the session — text, speaker, checked mark, a coding or a comment —
+is written into the clip's transcript as well (also when you undo), so the clip and the session say the same. If the
+clip's transcript was changed on its own in the meantime, it is not overwritten: the status line says so, and the
+window shows *the clip was changed on its own*. Then either take the clip over again (*Use the clips' transcripts
+here*: the clip wins) or *Write the session into the clips* (the session wins).
+
 ## 9. Coding
 
 **Code mode** of the Transcript tab (**Code** at the left of the toolbar, ⌘4 / Ctrl+4, or ⌘E / Ctrl+E to switch) codes

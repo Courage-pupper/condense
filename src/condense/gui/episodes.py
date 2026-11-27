@@ -5,6 +5,7 @@ import threading
 
 from condense import __version__
 from condense.core import align
+from condense.core import cliplink as cl
 from condense.core import episodes as eplib
 from condense.core import project as proj
 from condense.core.util import is_system_junk
@@ -471,6 +472,42 @@ class EpisodesMixin:
         self._forget_project_cache()
 
     # ================================================================== find cut-out clips in the recording
+    def _sync_linked_clips(self, doc=None):
+        """After a change of the session (or undo): its stretch written into each linked clip that differs (see
+        core/cliplink.py). A clip changed on its own is left alone, and the status line says so."""
+        doc = doc or self.active_doc
+        if doc is None:
+            return 0
+        eps = cl.linked_episodes(doc)
+        if not eps:
+            return 0
+        cache = self.__dict__.setdefault("_clip_sync_cache", {})
+        from condense.core import coding as codlib
+        resolved = codlib.resolve(doc)
+        written, changed = 0, []
+        for ep in eps:
+            key = (str(doc.path), ep["id"])
+            try:
+                h = cl.session_hash(doc, ep, resolved)
+                if cache.get(key) == h:
+                    continue
+                state = cl.push(doc, ep, resolved=resolved)
+            except Exception as exc:
+                self._append_log(f"Could not update the clip of {ep.get('label')}: {exc}", "WARN")
+                continue
+            if state in ("written", "same"):
+                cache[key] = h
+                written += state == "written"
+            elif state == "clip changed":
+                changed.append(ep.get("label") or "a clip")
+        if changed:
+            self.lbl_status.config(text=f"⚠ {', '.join(changed)}: changed on its own, so the session's corrections were not "
+                                        "written into it (Episodes ▸ Find Interview Clips… to take it over again, or to "
+                                        "write the session into it).")
+        elif written:
+            self._append_log(f"Corrections written into {written} linked clip(s).", "INFO")
+        return written
+
     def _candidate_clips(self) -> List[Path]:
         """Videos in this group's interview folders (…Interview…), when the transcript is in a project with levels."""
         doc = self.active_doc
@@ -512,13 +549,16 @@ class EpisodesMixin:
         win.configure(bg=T["bg_panel"], padx=14, pady=12)
         win.transient(self)
         self._label(win, "Interviews you cut out of this recording earlier are found again by their sound and marked as "
-                         "Interview episodes at the right place.", font="small", fg=T["fg_secondary"], bg=T["bg_panel"],
-                    wraplength=640, justify=tk.LEFT).pack(anchor="w")
-        cols = ("found", "score", "status")
+                         "Interview episodes at the right place. Clips with a checked transcript can bring it into the "
+                         "session (Use the clips' transcripts here); from then on, corrections in the session are written "
+                         "into the clip too.", font="small", fg=T["fg_secondary"], bg=T["bg_panel"],
+                    wraplength=760, justify=tk.LEFT).pack(anchor="w")
+        cols = ("found", "score", "status", "transcript")
         tree = ttk.Treeview(win, columns=cols, show="tree headings", height=8, style="Queue.Treeview")
         tree.heading("#0", text="Clip")
         tree.column("#0", width=260)
-        for c, w, title in (("found", 170, "Found at"), ("score", 70, "Match"), ("status", 220, "")):
+        for c, w, title in (("found", 170, "Found at"), ("score", 70, "Match"), ("status", 200, ""),
+                            ("transcript", 230, "Transcript")):
             tree.heading(c, text=title)
             tree.column(c, width=w, anchor="center" if c != "status" else "w")
         tree.pack(fill=tk.BOTH, expand=True, pady=8)
@@ -526,6 +566,20 @@ class EpisodesMixin:
         lbl.pack(anchor="w")
         st: Dict = {"clips": [], "results": {}, "stop": threading.Event(), "busy": False}
         linked = {str(Path((e.get("source") or {}).get("clip", "")).resolve()) for e in doc.episodes if (e.get("source") or {}).get("clip")}
+
+        def clip_episode(p: Path) -> Optional[Dict]:
+            d = self.active_doc
+            return next((e for e in d.episodes if (e.get("source") or {}).get("clip")
+                         and Path(e["source"]["clip"]).resolve() == p.resolve()), None) if d is not None else None
+
+        def transcript_note(p: Path) -> str:
+            ep = clip_episode(p)
+            if ep is not None and (ep.get("source") or {}).get("linked"):
+                state = cl.clip_state(ep)
+                return {"in step": "✓ linked, in step", "clip changed": "⚠ linked, the clip was changed on its own",
+                        "missing": "⚠ linked, its transcript is gone"}[state]
+            t = cl.clip_transcript_for(p)
+            return f"{t.name[: -len('.transcript.json')]} (not taken over yet)" if t is not None else "no transcript"
 
         def show():
             for item in tree.get_children():
@@ -539,7 +593,7 @@ class EpisodesMixin:
                 else:
                     vals = (f"{short_ts(r['start'])[:-2]} – {short_ts(r['end'])[:-2]}", f"{r['score'] * 100:.0f}%",
                             "✓ found" if r["confident"] else "? unsure — check by listening")
-                tree.insert("", tk.END, iid=str(i), text=p.name, values=vals)
+                tree.insert("", tk.END, iid=str(i), text=p.name, values=vals + (transcript_note(p),))
             found = sum(1 for r in st["results"].values() if r.get("confident"))
             if st["results"]:
                 lbl.config(text=f"{found} of {len(st['clips'])} clip(s) found.")
@@ -640,6 +694,70 @@ class EpisodesMixin:
             on_done and on_done()
             return added, updated
 
+        def take_over(wait: bool = False, include_unsure: bool = False):
+            """The clips' transcripts into the session, each at the place found (one undo step), then linked."""
+            d = self.active_doc
+            todo = []
+            for p in st["clips"]:
+                r = st["results"].get(str(p))
+                t = cl.clip_transcript_for(p)
+                if t is None or not r or "error" in r or not (r["confident"] or include_unsure):
+                    continue
+                todo.append((p, r, t))
+            if not todo:
+                lbl.config(text="Nothing to take over: find the clips first (only clips found for sure, with a transcript).")
+                return None
+            checked = sum(1 for _p, r, _t in todo for s in d.segments
+                          if s.get("checked") and r["start"] <= (float(s["start"]) + float(s["end"])) / 2 < r["end"])
+            if not wait and not messagebox.askyesno(
+                    "Use the clips' transcripts", f"Replace the session's text in {len(todo)} interview(s) by the clips' "
+                    f"transcripts (speakers, checked marks, notes, codings and comments)?"
+                    + (f"\n\n{checked} checked segment(s) of the session in those stretches are replaced." if checked else "")
+                    + f"\n\n{'⌘' if IS_MAC else 'Ctrl+'}Z undoes it in the session. From then on, corrections in the session "
+                      "are written into the clips too.", parent=win):
+                return None
+            self._autosave_edit(rerender=False)
+            n_seg = n_cod = 0
+            pushed = []
+            for p, r, t in todo:
+                clip_doc = TranscriptDocument.load(t)
+                length = float(r.get("end", r["start"])) - float(r["start"])
+                source = {"clip": str(p), "match": r["score"], "found": now_iso(), "transcript": str(t),
+                          "offset": round(float(r["start"]), 3), "length": round(length, 3), "linked": now_iso()}
+                ep = clip_episode(p)
+                if ep is not None:
+                    d.update_episode(ep["id"], start=r["start"], end=r["end"], source=source)
+                    ep_id = ep["id"]
+                else:
+                    ep_id = d.add_episode("Interview", p.stem, r["start"], r["end"], source=source)
+                res = cl.adopt(d, clip_doc, float(r["start"]), length, ep_id)
+                n_seg += res["added"]
+                n_cod += res["codings"]
+                pushed.append(ep_id)
+            if self._commit(f"Interview transcripts taken over: {len(todo)} clip(s), {n_seg} segment(s), {n_cod} "
+                            f"coding(s)/comment(s)") is None:
+                return None
+            self._rerender()
+            lbl.config(text=f"{len(todo)} clip transcript(s) taken over and linked: {n_seg} segment(s), {n_cod} "
+                            f"coding(s) and comment(s).")
+            show()
+            on_done and on_done()
+            return {"clips": len(todo), "segments": n_seg, "codings": n_cod}
+
+        def write_session():
+            """Linked clips that were changed on their own: the session's text written into them anyway."""
+            d = self.active_doc
+            n = 0
+            from condense.core import coding as codlib
+            cod_resolved = codlib.resolve(d)
+            for ep in cl.linked_episodes(d):
+                if cl.push(d, ep, force=True, resolved=cod_resolved) == "written":
+                    n += 1
+            self._clip_sync_cache = {}
+            lbl.config(text=f"The session's text written into {n} clip(s).")
+            show()
+            return n
+
         def close():
             st["stop"].set()
             win.destroy()
@@ -649,10 +767,13 @@ class EpisodesMixin:
         self._tool(bar, "Add clips…", add_clips).pack(side=tk.LEFT)
         self._tool(bar, "Find in recording", find, primary=True).pack(side=tk.LEFT, padx=(6, 0))
         self._tool(bar, "Add found as episodes", add_episodes).pack(side=tk.LEFT, padx=(6, 0))
+        self._tool(bar, "Use the clips' transcripts here", lambda: take_over()).pack(side=tk.LEFT, padx=(6, 0))
+        self._tool(bar, "Write the session into the clips", write_session).pack(side=tk.LEFT, padx=(6, 0))
         self._tool(bar, "Close", close).pack(side=tk.RIGHT)
         win.protocol("WM_DELETE_WINDOW", close)
         win.bind("<Escape>", lambda e: (close(), "break")[-1])
         st["clips"] = self._candidate_clips()
         show()
-        st.update(tree=tree, lbl=lbl, find=find, add=add_episodes, add_clips=add_clips, show=show, close=close)
+        st.update(tree=tree, lbl=lbl, find=find, add=add_episodes, add_clips=add_clips, show=show, close=close,
+                  take_over=take_over, write_session=write_session)
         return win, st
