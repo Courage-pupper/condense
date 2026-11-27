@@ -63,6 +63,18 @@ assert [s["text"].strip() for s in TD.load(d.path).segments][1] == "we wen plagr
 app._redo()
 ok("the new segment opens in the editor with a note; ⌘Z / ⇧⌘Z undo and redo the re-transcription")
 
+print("[2b] a transcript made on another kind of computer: this computer's backend")
+from condense.gui import rerun as rerun_mod
+foreign = next(b for b in ("MLX (Apple Silicon GPU)", "PyTorch GPU (ROCm / CUDA)") if b not in rerun_mod.WHISPER_BACKENDS)
+prov = app.active_doc.data.setdefault("provenance", {}).setdefault("whisper", {})
+own = prov.get("backend_setting")
+prov["backend_setting"] = foreign
+assert app._rerun_backend() in rerun_mod.WHISPER_BACKENDS and app._rerun_backend() != foreign
+prov["backend_setting"] = rerun_mod.WHISPER_BACKENDS[-1]
+assert app._rerun_backend() == rerun_mod.WHISPER_BACKENDS[-1]          # its own, when this computer has it
+prov["backend_setting"] = own
+ok(f"made with {foreign!r} elsewhere: re-run with {app._rerun_backend()!r} here")
+
 print("[3] translate a passage")
 logs.clear()
 assert app._launch_retranscription("0:00:01.2", "0:00:02.6", "large-v3-turbo", "de (German)", "Translate to English", "Sam", "") is None

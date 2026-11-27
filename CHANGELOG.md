@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.1 — unreleased
+
+- **Re-transcribing or translating a passage on a Mac uses the GPU (MLX) again** for transcripts made on a Windows or
+  Linux computer. The re-run took the backend recorded in the transcript ("PyTorch GPU"), which a Mac doesn't have, so
+  it ran on the CPU; now the transcript's backend is used only when this computer has it, else this computer's own.
+- On a Mac, the message for that case names MLX instead of ROCm/CUDA.
+
 ## 0.28.0 — 2026-11-27
 
 ### Checked interview transcripts into the session

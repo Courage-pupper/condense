@@ -136,7 +136,11 @@ if result is None and transcribe_fn is None:
                 whisper_device = "cuda"
                 gpu_label = f"{gpu_api_label(torch)} GPU ({torch.cuda.get_device_name(0)})"
             else:
-                print("PyTorch sees no GPU (check the ROCm/CUDA build of torch and your GPU driver); using the CPU.", flush=True)
+                if sys.platform == "darwin":  # a Mac's GPU is used through MLX, not PyTorch
+                    print("This backend uses an NVIDIA/AMD GPU, which a Mac doesn't have; using the CPU. On a Mac, choose "
+                          "'MLX (Apple Silicon GPU)' (Settings ▸ Backend).", flush=True)
+                else:
+                    print("PyTorch sees no GPU (check the ROCm/CUDA build of torch and your GPU driver); using the CPU.", flush=True)
         except ImportError:
             print("PyTorch is not installed in this Python; using the CPU.", flush=True)
     import whisper
