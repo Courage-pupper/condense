@@ -1,6 +1,26 @@
 # Changelog
 
-## 0.25.0 — unreleased
+## 0.26.0 — 2026-11-27
+
+### Comments and commentary over time
+- **Comments:** a note on a passage or a stretch of the recording, without a code — e.g. a description of what the
+  participants do every 5 minutes. On selected words (Code mode), selected segments (Edit mode), a range marked on the
+  timeline, or a whole block (right-click the timeline). **M** in Code mode and on the timeline, **⌘K** / **Ctrl+Shift+K**
+  anywhere, *✎ Comment* in the Code toolbar, right-click in both modes. Paragraphs are kept.
+- They follow their words through edits like codings, have a *✎ Comments* lane on the timeline (in both modes), a
+  stripe in Code mode and a row in the codings list; edit, delete, undo, or turn one into a coding later.
+- **Commentary over time** (*Transcript ▾*, *Project ▸ Commentary over Time*): comments, coding memos and segment
+  notes as a spreadsheet, in blocks of 1–30 minutes (5 by default). Every block is a row, also empty ones, with one
+  video frame from its middle; each comment sits in the block where it starts, with its start, end, speakers and
+  passage. For one transcript or the whole project (one sheet, with Day, Group, Type and attributes; optionally a sheet
+  per transcript). Excel with frames, or CSV.
+- New dependencies, installed by the installer: openpyxl (MIT) and Pillow (MIT-CMU), for the spreadsheet and its
+  pictures. Without them (an older installation) the export offers CSV.
+- Memos of codings keep their line breaks.
+
+## 0.25.0 — 2026-11-26
+
+0.24.0 was not released on its own: everything below up to 0.23.0 is in this release.
 
 ### One workspace: Code and Edit mode
 - **The Coding tab is now Code mode of the Transcript tab.** *Code | Edit* at the left of the toolbar, or ⌘E / Ctrl+E,
@@ -26,8 +46,6 @@
 - **Codings stay where they are after editing in the Transcript tab:** the timeline places them by the transcript as
   it is now, not by what the Coding tab showed last.
 - Mark a range and code it by time (I / O, then ↩ or 1–9) from the Transcript tab too.
-
-## 0.24.0 — unreleased
 
 ### Smaller videos: AV1
 - **A goal instead of encoder settings** (Settings ▸ Video): *Small: AV1, up to 1080p* is the new default. Camera files

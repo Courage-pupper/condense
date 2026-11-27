@@ -54,6 +54,17 @@ class GapsMixin:
                 m.add_command(label=f"Detect speakers in this passage…  ({segs[1] - segs[0] + 1} segments)",
                               command=lambda: self._rediarize_dialog(segs))
             m.add_command(label="Play this passage", command=lambda: self._player_start(a, duration=max(0.5, b - a)))
+            segs_now = self._selected_segments()
+            if len(segs_now) <= 1:  # the segment under the mouse
+                try:
+                    under = self._span_at(event)
+                except Exception:
+                    under = None
+                if under is not None:
+                    segs_now = [self.word_spans[under]["seg"]]
+            if segs_now:
+                tgt = self._comment_span_of_segments(self.active_doc, min(segs_now), max(segs_now))
+                m.add_command(label="✎ Comment on this…", command=lambda: self._comment_dialog(target=tgt))
             m.add_separator()
         m.add_command(label="Find untranscribed stretches…", command=self._gaps_dialog)
         m.tk_popup(event.x_root, event.y_root)

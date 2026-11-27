@@ -22,7 +22,8 @@ classifiers = [
   "Topic :: Multimedia :: Sound/Audio :: Speech",
   "Topic :: Scientific/Engineering",
 ]
-dependencies = ["numpy"]
+# openpyxl + Pillow: the commentary spreadsheet with video frames (Pillow is what openpyxl needs for pictures)
+dependencies = ["numpy", "openpyxl>=3.1", "Pillow>=10"]
 
 [project.urls]
 Homepage = "https://github.com/s-hurtado26/condense"

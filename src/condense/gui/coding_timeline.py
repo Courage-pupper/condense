@@ -202,15 +202,16 @@ class CodingTimelineMixin:
         cb = self._cd_codebook()
         if cb is None:
             return []
-        shown = self._cdt_shown_codes()
+        comments = [cod.COMMENT] if any(r["code"] == cod.COMMENT for r in resolved) else []  # always, while there are any
+        shown = [c for c in self._cdt_shown_codes() if c != cod.COMMENT]
         if shown:
             self.cdt["lane_mode"] = "chosen"
-            return shown[:MAX_LANES]
+            return (comments + shown)[:MAX_LANES]
         self.cdt["lane_mode"] = "used"
         a, b = self._cdt_view()
         used = {r["code"] for r in resolved if r["end"] >= a and r["start"] <= b and not r.get("orphan")}
         used |= set(self.cdt.get("live") or {})
-        return [c["id"] for _d, c in cb.ordered() if c["id"] in used][:MAX_LANES]
+        return (comments + [c["id"] for _d, c in cb.ordered() if c["id"] in used])[:MAX_LANES]
 
     def _cdt_rows(self, n_lanes: int) -> Dict[str, Tuple[int, int]]:
         y = 0
@@ -826,8 +827,12 @@ class CodingTimelineMixin:
             self._cd_select_coding(kid)
             m.add_command(label="▶ Play", command=lambda: self._cd_play_coding(kid))
             m.add_command(label="⟳ Loop", command=lambda: (self._cdt_clear_mark(), self._cdt_toggle_loop()))
-            m.add_command(label="Memo…", command=lambda: self._cd_memo(kid))
-            m.add_command(label="Change code…", command=lambda: self._cd_change_code(kid))
+            if kid and (cod.get_coding(self.active_doc, kid) or {}).get("code") == cod.COMMENT:
+                m.add_command(label="Edit comment…", command=lambda: self._comment_dialog(kid))
+                m.add_command(label="Code it (turn the comment into a coding)…", command=lambda: self._cd_change_code(kid))
+            else:
+                m.add_command(label="Memo…", command=lambda: self._cd_memo(kid))
+                m.add_command(label="Change code…", command=lambda: self._cd_change_code(kid))
             if kind == "time":
                 m.add_command(label="Attach to the words said in it", command=lambda: self._cdt_attach(kid))
             else:
@@ -845,11 +850,16 @@ class CodingTimelineMixin:
                     if cb and cb.get(cid):
                         m.add_command(label=f"{k + 1}  {cb.get(cid)['name']}", command=lambda cid=cid: self._cdt_code_mark(cid))
                 m.add_command(label="Code with a description…", command=lambda: self._cd_time_dialog(*mark))
+                m.add_command(label="✎ Comment on the marked range…  (M)", command=lambda: self._comment_dialog())
                 m.add_separator()
                 m.add_command(label="▶ Play the marked range", command=self._cdt_play_mark)
                 m.add_command(label="Clear the mark", command=self._cdt_clear_mark)
                 m.add_separator()
             t = self._cdt_t(event.x)
+            bm = self._comment_minutes() * 60
+            ba = int(t // bm) * bm
+            m.add_command(label=f"✎ Comment on this {bm // 60}-minute block ({short_ts(ba)[:-2]} – "
+                                f"{short_ts(min(ba + bm, self._duration()))[:-2]})…", command=lambda: self._comment_on_block(t))
             m.add_command(label=f"Mark from here ({short_ts(t)[:-2]})", command=lambda: self._cdt_set_mark(t, self.cdt.get("out")))
             m.add_command(label="Zoom in here", command=lambda: self._cdt_zoom_at(t, 0.5))
             m.add_command(label="Zoom out", command=lambda: self._cdt_zoom_at(t, 2.0))
@@ -890,6 +900,8 @@ class CodingTimelineMixin:
             self._cdt_toggle_loop()
         elif k in ("x", "X"):
             self._cdt_clear_mark()
+        elif k in ("m", "M"):
+            self._comment_dialog()
         elif k in ("comma", "period", "less", "greater"):
             step = {"comma": -FRAME_STEP, "period": FRAME_STEP, "less": -1.0, "greater": 1.0}[k]
             if self.__dict__.get("playing"):
