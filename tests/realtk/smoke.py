@@ -577,6 +577,20 @@ def main():
     res_x = xst["go"](target=out_x, wait=True, open_after=False)
     assert out_x.exists() and res_x["rows"] >= 2 and res_x["frames"] >= 1, res_x
     w_x.destroy()
+    # naming recordings by a pattern: the preview, and (if the demo study has recordings to rename) rename + undo
+    w_r, rst = app._rename_dialog()
+    n_r = rst["preview"](wait=True)
+    pump(app, 0.4)
+    shot(app, "rename", w_r)
+    if n_r:
+        open_before = Path(app.active_doc.path)
+        res_r = rst["rename"](wait=True)
+        pump(app, 0.4)
+        assert res_r["files"] >= 1 and Path(app.active_doc.path).exists()
+        assert rst["undo"]() == res_r["files"]
+        pump(app, 0.4)
+        assert Path(app.active_doc.path) == open_before, (app.active_doc.path, open_before)
+    w_r.destroy()
     # the video in a window of its own is not tied to the main window (on macOS a tied window can't go to another screen)
     pop = app._video_pop_out()
     pump(app, 0.5)

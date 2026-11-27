@@ -87,7 +87,13 @@ class Structure:
         for lv, name in zip(self.levels, parts[:-1]):
             vals[lv] = name
             vals[lv.lower()] = folder_number(name)
-        return vals if len([k for k in vals if k in self.levels]) == len(self.levels) else {}
+        if len([k for k in vals if k in self.levels]) != len(self.levels):
+            return {}
+        from condense.core.attributes import date_in
+        date = date_in(parts[:-1])
+        if date:
+            vals["date"] = date.replace("-", ".")  # {date} in a clip name: 2026.08.10 (from a folder name)
+        return vals
 
     def level_folder(self, project: Path, path: Path) -> Optional[Path]:
         vals = self.values_for(project, path)
@@ -119,7 +125,10 @@ class Structure:
             for m in _PH.finditer(last):
                 pat += re.escape(last[pos:m.start()])
                 key = m.group(1)
-                pat += f"(?P<{_group_name(key)}>\\d+)" if key == "n" or key.islower() else f"(?P<{_group_name(key)}>.+?)"
+                if key == "date":
+                    pat += f"(?P<{_group_name(key)}>\\d{{4}}\\.\\d{{2}}\\.\\d{{2}})"
+                else:
+                    pat += f"(?P<{_group_name(key)}>\\d+)" if key == "n" or key.islower() else f"(?P<{_group_name(key)}>.+?)"
                 pos = m.end()
             pat += re.escape(last[pos:])
             out.append(re.compile(f"^{pat}$", re.IGNORECASE))

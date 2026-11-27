@@ -427,6 +427,29 @@ are recorded in `condense-moves.json` and *Undo last move* puts the files back.
 
 ![Tidy plan](images/tidy.png)
 
+**Name recordings by a pattern** (*Project ▸ Name Recordings by Pattern…*) gives recordings names that say what they
+are, so a file makes sense without its folders: `final video.mp4` in *Day 3 2026-08-12 / Group 4* becomes
+`G4_Day3_2026.08.12_Session.mp4`. Only when you ask for it — never when recordings are loaded.
+
+- **The pattern**, one for sessions and one for interviews: `G{group}_Day{day}_{date}_{type}{part}` by default for
+  sessions; interviews keep the project's clip pattern unless you change it. `{group}`, `{day}` are the numbers of the
+  folders, `{Group}`, `{Day}` their names; `{date}` is yyyy.mm.dd, from a date in the folder names, else the date the
+  video says it was recorded; `{type}` is Session or Interview; `{n}` the interview number; `{name}` the current name.
+- **Split recordings:** when one session has several recordings, `{part}` numbers them (`_part1`, `_part2` …). A video
+  merged in Condense keeps the plain name, and the parts it was made from are numbered in the order they were merged.
+- **The preview** lists every recording with its new name before anything changes. Click ✓ to leave one out,
+  double-click a name to write your own; recordings whose date (or number) can't be found, or whose new name is taken,
+  are left out until you give them a name.
+- **What goes along:** the recording's results folder, its transcript and backups, compressed, trimmed and MAXQDA
+  copies and exports named after it. Every transcript in the project that points to a renamed file is updated (videos,
+  where an episode clip came from), so nothing loses its video.
+- **Undo the last renaming** in the same window puts every name (and link) back.
+- *Name new interview clips this way too* makes Condense name the clips you export with the interview pattern from now
+  on; clips named the old way are still recognised when it counts the interviews.
+- A program that links the files by name (e.g. a MAXQDA project made before) will need the new names.
+
+![Name recordings by a pattern](images/rename.png)
+
 ![No project open: start or open one](images/project-start.png)
 
 - **Start one:** *Project ▸ New Project…*, or the **No project open** button at the top right. Choose the study's
