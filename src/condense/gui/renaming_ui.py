@@ -54,7 +54,7 @@ class RenamingMixin:
         box = tk.Frame(win, bg=T["bg_panel"])
         box.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
         cols = ("use", "type", "where", "old", "new", "note")
-        tree = ttk.Treeview(box, columns=cols, show="headings", height=14, selectmode="browse")
+        tree = ttk.Treeview(box, columns=cols, show="headings", height=14, selectmode="browse", style="Queue.Treeview")
         for c, w, label in (("use", 34, "✓"), ("type", 80, "Type"), ("where", 150, "Day · Group"),
                             ("old", 210, "Now"), ("new", 260, "New name (double-click to change)"), ("note", 230, "")):
             tree.heading(c, text=label)
@@ -87,11 +87,12 @@ class RenamingMixin:
 
         def preview(wait: bool = False):
             pats = {"session": st["session"].get().strip(), "interview": st["interview"].get().strip()}
+            which = roles()  # (read here: Tk's variables only from the main thread)
             st["info"].config(text="Looking at the recordings…")
 
             def work():
                 try:
-                    out["rows"] = rn.plan(project, pats, roles=roles())
+                    out["rows"] = rn.plan(project, pats, roles=which)
                 except Exception as exc:
                     out["error"] = str(exc)
 
