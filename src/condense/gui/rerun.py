@@ -19,6 +19,13 @@ class RerunMixin:
         w = ((self.active_doc.data.get("provenance") or {}).get("whisper") or {}) if self.active_doc else {}
         return str(w.get(key) or default)
 
+    def _rerun_backend(self) -> str:
+        """The Whisper backend for re-running a passage: the transcript's own if this computer has it, else this
+        computer's (a transcript made on Linux/Windows with "PyTorch GPU" would otherwise run on a Mac's CPU)."""
+        mine = self.var_whisper_backend.get() if self.var_whisper_backend.get() in WHISPER_BACKENDS else DEFAULT_BACKEND
+        theirs = self._doc_setting("backend_setting", "")
+        return theirs if theirs in WHISPER_BACKENDS else mine
+
     def _start_rerun(self, kind: str, params: Dict, clip: Optional[Tuple[float, float]], segments_json: Optional[List[Dict]] = None):
         """Run WHISPER_RUNNER in the background on (a clip of) the transcript's playback audio."""
         doc = self.active_doc
@@ -214,7 +221,7 @@ class RerunMixin:
             "start": start, "end": end, "clip_start": max(0.0, start - pad), "model": model, "language": lang,
             "task": "translate" if translate else "transcribe", "prompt": prompt.strip(),
             "speaker": "" if speaker_label.startswith("(") else speaker_label,
-            "backend": self._doc_setting("backend_setting", self.var_whisper_backend.get()), "diarize_mode": "Disabled",
+            "backend": self._rerun_backend(), "diarize_mode": "Disabled",
             "quiet": quiet,
         }
         self._start_rerun("retranscribe", params, clip=(params["clip_start"], end + pad))
