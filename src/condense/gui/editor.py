@@ -398,17 +398,14 @@ class EditorMixin:
         index = f"{sp['line']}.{sp['c0']}"
         try:
             pt.yview(index)  # its paragraph at the top (the word may be some display lines further down) …
-            pt.update_idletasks()
             got = self._word_y(i)
             if got is None:  # a paragraph taller than the window: bring the word itself into view
                 pt.see(index)
-                pt.update_idletasks()
                 got = self._word_y(i)
             for _ in range(2):  # … then by pixels to where it was (twice: the first move can re-wrap lines)
                 if got is None or got[0] == y:
                     break
                 pt.yview_scroll(int(got[0] - y), "pixels")
-                pt.update_idletasks()
                 got = self._word_y(i)
         except Exception:
             return None

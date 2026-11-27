@@ -344,13 +344,11 @@ class CodingMixin:
             n = min(len(words) - 1, max(0, bisect.bisect_left(starts, when - 1e-6)))
             index = f"{words[n][0]}.{words[n][1]}"
             t.yview(index)
-            t.update_idletasks()
             for _ in range(2):
                 bb = t.bbox(index)
                 if not (isinstance(bb, tuple) and len(bb) == 4) or int(bb[1]) == y:
                     break
                 t.yview_scroll(int(bb[1]) - y, "pixels")
-                t.update_idletasks()
             bb = t.bbox(index)
             return int(bb[1]) if isinstance(bb, tuple) and len(bb) == 4 else None
         except Exception:
