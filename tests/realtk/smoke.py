@@ -225,6 +225,7 @@ def main():
         y_before = y_after = y_merged = "-"
     else:
         y_before, y_after, y_merged = check_no_jump(app, pt, k, d0, screen_y)
+        check_top_stays(app, pt, k, d0)
     app.var_autoplay.set(True)
     ok(f"14 × ↓: layout unchanged; scrolled only when needed; speaker change and merge keep the segment in place "
        f"(y {y_before} → {y_after} → {y_merged})")
@@ -512,8 +513,12 @@ def main():
     w10 = [n for n, w in enumerate(app._cd["words"]) if w[3] == 10]
     ws = app._cd["words"]
     ct.tag_add("sel", f"{ws[w10[0]][0]}.{ws[w10[0]][1]}", f"{ws[w10[-1]][0]}.{ws[w10[-1]][2]}")
+    top_before = app._cd_top_word()
     key(app, ct, f"<{EDIT_MOD}-Key-{other}>")
     pump(app, 0.4)
+    top_after = app._cd_top_word()
+    assert top_before and top_after and abs(top_after[0] - top_before[0]) < 0.05 and abs(top_after[1] - top_before[1]) <= 2, (
+        "Code mode's view moved", top_before, top_after)
     assert app.active_doc.segments[10]["speaker"] == roster[other - 1], (
         "no speaker from Code mode", app.lbl_status.cget("text"), app.tx_mode, app._cd_visible(), ct.tag_ranges("sel"),
         app._cd_speaker_segments(), str(app.focus_get()), ct.bindtags(), errors[-1:] if errors else None)
@@ -707,6 +712,40 @@ def main():
     assert not unexpected, unexpected
     ok("closed cleanly; no error dialogs")
     print("REAL TK PASSED")
+
+
+def check_top_stays(app, pt, k, d0):
+    """Giving segments, one after the other, the speaker of the paragraph above (as when sorting out who speaks):
+    the first word on screen stays where it is, and the open segment stays in view — no drift that adds up."""
+    line_h = app.f["transcript"].metrics("linespace")
+    h = pt.winfo_height()
+    speaker = d0.segments[k - 1]["speaker"]
+    n_done = 0
+    for j in range(k, min(k + 3, len(d0.segments))):
+        if TD.load(app.active_doc.path).segments[j]["speaker"] == speaker:
+            continue
+        app._goto_segment(j)
+        pump(app, 0.3)
+        if n_done == 0:  # the open segment low on the screen, paragraphs above it in view
+            app._place_word(app.word_spans[app.current_span]["start"], int(h - 4 * line_h))
+            pump(app, 0.2)
+        before = app._view_anchor()
+        assert before and before.get("top") and before.get("cur"), before
+        key(app, pt, f"<Key-{app._roster().index(speaker) + 1}>")
+        pump(app, 0.4)
+        assert TD.load(app.active_doc.path).segments[j]["speaker"] == speaker
+        i_top = app._span_near(before["top"][0])
+        y_top = app._word_y(i_top)
+        assert y_top is not None and abs(y_top[0] - before["top"][1]) <= 2, f"the view moved: {before['top']} → {y_top}"
+        cur = app._word_y(app.current_span)
+        assert cur is not None and 0 <= cur[0] and cur[0] + cur[1] <= h, f"the open segment left the screen: {cur}, {h}"
+        n_done += 1
+    for _ in range(n_done):
+        app._undo()
+    pump(app, 0.3)
+    assert n_done >= 1, "no segment to give the speaker above"
+    print(f"    {n_done} segment(s) given the speaker above: the first word on screen stayed, the open one in view")
+    return n_done
 
 
 def check_no_jump(app, pt, k, d0, screen_y):

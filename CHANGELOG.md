@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.26.1 — unreleased
+
+- **The transcript no longer shifts when you give a segment a speaker** (or merge, split, cut): the first line on
+  screen stays exactly where it is, as in a document editor, and what changed moves below it (a sentence given to the
+  speaker above joins that paragraph). Before, the view kept the clicked word in place, so everything above it slid
+  down by a speaker header each time, and a small error added up until the selection left the screen. The view only
+  follows the open segment when it would otherwise be out of sight. The same in Code mode.
+
 ## 0.26.0 — 2026-11-27
 
 ### Comments and commentary over time
