@@ -271,12 +271,19 @@ def files_of(r: Dict) -> List[Tuple[Path, Path]]:
 
 
 # ================================================================== doing it
+def real(p) -> str:
+    """One spelling for a path: links and short names resolved (/var → /private/var on macOS, RUNNER~1 on Windows)."""
+    return os.path.realpath(os.path.normpath(str(p)))
+
+
 def _map(path: str, moves: List[Tuple[str, str]]) -> str:
-    """Where path is after the moves, in the order they were made (a file inside a folder moved later follows it)."""
+    """Where path (a real path) is after the moves, in the order they were made (a file inside a folder moved later
+    follows it). Compared as the system compares names (case-insensitive on Windows)."""
     for a, b in moves:
-        if path == a:
+        na, nc = os.path.normcase(a), os.path.normcase(path)
+        if nc == na:
             path = b
-        elif path.startswith(a + os.sep):
+        elif nc.startswith(na + os.sep):
             path = b + path[len(a):]
     return path
 
@@ -288,7 +295,7 @@ def _relink_doc(path: Path, old_dir: Path, moves: List[Tuple[str, str]], moved_i
         data = json.loads(Path(path).read_text(encoding="utf-8"))
     except Exception:
         return False
-    new_dir = Path(path).parent
+    new_dir = Path(real(Path(path).parent))
     changed = False
 
     def fix(s: str) -> Optional[str]:
@@ -297,13 +304,16 @@ def _relink_doc(path: Path, old_dir: Path, moves: List[Tuple[str, str]], moved_i
         p = Path(s)
         rel = not p.is_absolute()
         try:
-            abs_path = os.path.normpath(str(old_dir / p) if rel else s)
+            abs_path = real(old_dir / p if rel else s)
         except Exception:
             return None
         target = _map(abs_path, moves)
         if target == abs_path and not (rel and moved_itself):
             return None
-        return os.path.relpath(target, new_dir) if rel else target
+        if rel:
+            return os.path.relpath(target, new_dir)
+        # in the spelling it was written in (e.g. /var… rather than /private/var…): only what changed changes
+        return os.path.normpath(os.path.join(os.path.dirname(s), os.path.relpath(target, os.path.dirname(abs_path))))
 
     def walk(node):
         nonlocal changed
@@ -357,8 +367,9 @@ def apply(project: Path, rows: List[Dict], progress=None) -> Dict:
         for a, b in files_of(r):
             if not a.exists() or (b.exists() and not _same_file(a, b)):
                 continue
+            ra, rb = real(a), real(b)
             _move(a, b)
-            done.append((os.path.normpath(str(a)), os.path.normpath(str(b))))
+            done.append((ra, rb))
     if progress:
         progress("Updating the transcripts' links…")
     relinked = relink(project, done)
@@ -384,9 +395,9 @@ def relink(project: Path, moves: List[Tuple[str, str]]) -> int:
     names = {Path(a).name for a, _b in moves}
     n = 0
     for p in proj.transcripts_under(project, skip=proj.project_settings(project)["skip"]):
-        here = os.path.normpath(str(p))
+        here = real(p)
         before = _map(here, back)
-        moved_itself = before != here
+        moved_itself = os.path.normcase(before) != os.path.normcase(here)
         if not moved_itself:
             try:
                 text = p.read_text(encoding="utf-8")
@@ -415,7 +426,7 @@ def undo(project: Path) -> List[Tuple[str, str]]:
     if not last_was_rename(project):
         return []
     undone = undo_last_moves(project)  # in the order they were taken back
-    moves = [(os.path.normpath(mv["to"]), os.path.normpath(mv["from"])) for mv in undone]
+    moves = [(real(mv["to"]), real(mv["from"])) for mv in undone]
     relink(project, moves)
     return moves
 

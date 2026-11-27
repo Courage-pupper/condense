@@ -62,7 +62,7 @@ st["new_clips"].set(True)
 res = st["rename"](wait=True)
 assert res["renamed"] == 2
 new4 = root / "Day 3 2026-08-12" / "Group 4" / "Session Recordings" / "G4_Day3_2026.08.12_Session_cameraA"
-assert Path(app.active_doc.path) == new4 / "G4_Day3_2026.08.12_Session_cameraA.transcript.json"
+assert Path(app.active_doc.path).resolve() == (new4 / "G4_Day3_2026.08.12_Session_cameraA.transcript.json").resolve()
 assert app.active_doc.base_name == "G4_Day3_2026.08.12_Session_cameraA" and app.active_doc.find_video().exists()
 assert TD.load(docs[5].path).base_name == "final video"                 # left out: unchanged
 assert (i / "G4_Day3_2026.08.12_I1.mp4").exists()
@@ -72,7 +72,7 @@ ok("renamed (2 recordings); the open transcript followed; interview clips are na
 
 print("[3] Undo")
 n = st["undo"]()
-assert n >= 4 and Path(app.active_doc.path) == docs[4].path and app.active_doc.base_name == "final video"
+assert n >= 4 and Path(app.active_doc.path).resolve() == Path(docs[4].path).resolve() and app.active_doc.base_name == "final video"
 assert (i / "G4D3_I1.mp4").exists() and not rn.last_was_rename(root)
 ok("undo: the old names again, and the open transcript with them")
 print("\nALL TESTS PASSED")

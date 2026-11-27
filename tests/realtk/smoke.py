@@ -589,7 +589,7 @@ def main():
         assert res_r["files"] >= 1 and Path(app.active_doc.path).exists()
         assert rst["undo"]() == res_r["files"]
         pump(app, 0.4)
-        assert Path(app.active_doc.path) == open_before, (app.active_doc.path, open_before)
+        assert Path(app.active_doc.path).resolve() == open_before.resolve(), (app.active_doc.path, open_before)
     w_r.destroy()
     # the video in a window of its own is not tied to the main window (on macOS a tied window can't go to another screen)
     pop = app._video_pop_out()

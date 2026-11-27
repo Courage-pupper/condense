@@ -206,7 +206,7 @@ class RenamingMixin:
                 self.active_doc.save()
             except Exception:
                 pass
-            self._rename_open = os.path.normpath(str(self.active_doc.path))
+            self._rename_open = rn.real(self.active_doc.path)
         else:
             self._rename_open = None
 
@@ -215,7 +215,7 @@ class RenamingMixin:
         old = self.__dict__.get("_rename_open")
         if old and moves:
             new = Path(rn._map(old, moves))
-            if os.path.normpath(str(new)) != old and new.exists():
+            if os.path.normcase(str(new)) != os.path.normcase(old) and new.exists():
                 try:
                     doc = TranscriptDocument.load(new)
                     self.active_doc = None  # (not another document to save first: it was saved, then renamed)

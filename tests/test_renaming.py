@@ -42,7 +42,10 @@ def transcript(results: Path, base: str, media: dict, provenance: dict = None) -
 
 @pytest.fixture
 def study(tmp_path):
-    root = tmp_path / "Study"
+    return make_study(tmp_path / "Study")
+
+
+def make_study(root: Path) -> Path:
     proj.create_project(root)
     proj.update_project(root, levels=["Day", "Group"], structure={
         "sessions": "{Day}/{Group}/Session Recordings",
@@ -154,3 +157,26 @@ def test_new_clips_follow_the_new_pattern(study):
     assert st.parse_clip_name("G4_Day1_2026.08.10_I2")["n"] == 2 and st.parse_clip_name("G4D1_I7")["n"] == 7
     clip = study / "Day 1 2026-08-10" / "Group 4" / "Semi-structured Interviews" / "x.mp4"
     assert st.next_clip_name(study, clip) == "G4_Day1_2026.08.10_I3"                # numbered after the renamed I2
+
+
+def test_through_a_link(tmp_path):
+    """The study reached through a link (as /var is /private/var on macOS; short names on Windows): the paths written
+    in the transcripts are spelled differently from the real ones — they are found and kept in their spelling."""
+    (tmp_path / "real").mkdir()
+    link = tmp_path / "link"
+    try:
+        os.symlink(tmp_path / "real", link, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("no symlinks here")
+    root = make_study(link / "Study")
+    before = {p.name: json.loads(p.read_text(encoding="utf-8")) for p in proj.transcripts_under(root.resolve())}
+    res = rn.apply(root, rn.plan(root))
+    assert res["relinked"] >= 2
+    s41 = link / "Study" / "Day 1 2026-08-10" / "Group 4" / "Session Recordings"
+    d = TD.load(s41 / "G4_Day1_2026.08.10_Session" / "G4_Day1_2026.08.10_Session.transcript.json")
+    assert d.media_path("playback").exists() and d.find_video().exists()
+    rn.undo(root)
+    after = {p.name: json.loads(p.read_text(encoding="utf-8")) for p in proj.transcripts_under(root.resolve())}
+    assert set(after) == set(before)
+    for k in before:
+        assert before[k]["media"] == after[k]["media"] and before[k]["provenance"] == after[k]["provenance"], k
