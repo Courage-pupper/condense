@@ -517,7 +517,7 @@ def main():
     key(app, ct, f"<{EDIT_MOD}-Key-{other}>")
     pump(app, 0.4)
     top_after = app._cd_top_word()
-    assert top_before and top_after and abs(top_after[0] - top_before[0]) < 0.05 and abs(top_after[1] - top_before[1]) <= 2, (
+    assert top_before and top_after and abs(top_after[0] - top_before[0]) < 0.05 and abs(top_after[1] - top_before[1]) <= app.f["transcript"].metrics("linespace"), (
         "Code mode's view moved", top_before, top_after)
     assert app.active_doc.segments[10]["speaker"] == roster[other - 1], (
         "no speaker from Code mode", app.lbl_status.cget("text"), app.tx_mode, app._cd_visible(), ct.tag_ranges("sel"),

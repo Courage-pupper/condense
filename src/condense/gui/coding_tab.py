@@ -335,7 +335,8 @@ class CodingMixin:
         return None
 
     def _cd_place_word(self, when: float, y: int) -> Optional[int]:
-        """Scroll Code mode's text so that the word at time `when` is y pixels from the top."""
+        """Scroll Code mode's text so that the word at time `when` is (to within a line) y pixels from the top. By
+        whole display lines, not pixels: on Linux, pixel scrolling made Tk lay out a long transcript again and again."""
         doc, words, t = self._cd.get("doc"), self._cd.get("words") or [], self.cd_text
         if doc is None or not words:
             return None
@@ -344,12 +345,12 @@ class CodingMixin:
             n = min(len(words) - 1, max(0, bisect.bisect_left(starts, when - 1e-6)))
             index = f"{words[n][0]}.{words[n][1]}"
             t.yview(index)
-            for _ in range(2):
-                bb = t.bbox(index)
-                if not (isinstance(bb, tuple) and len(bb) == 4) or int(bb[1]) == y:
-                    break
-                t.yview_scroll(int(bb[1]) - y, "pixels")
             bb = t.bbox(index)
+            if isinstance(bb, tuple) and len(bb) == 4 and bb[3] > 0:
+                lines = int(round((int(bb[1]) - y) / bb[3]))
+                if lines:
+                    t.yview_scroll(lines, "units")
+                bb = t.bbox(index)
             return int(bb[1]) if isinstance(bb, tuple) and len(bb) == 4 else None
         except Exception:
             return None
