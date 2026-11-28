@@ -182,9 +182,10 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
 
         style.configure("Queue.Treeview", background=T["bg_input"], foreground=T["fg_primary"], fieldbackground=T["bg_input"], borderwidth=0, font=f["body"],
                         bordercolor=T["bg_input"], lightcolor=T["bg_input"], darkcolor=T["bg_input"])  # no frame around a list
-        style.configure("Queue.Treeview.Heading", background=T["bg_card"], foreground=T["fg_secondary"], font=f["small_bold"], relief="flat", padding=(4, 3),
-                        bordercolor=T["bg_card"], lightcolor=T["bg_card"], darkcolor=T["bg_card"])
-        style.map("Queue.Treeview.Heading", background=[("active", T["bg_soft"])])
+        # list headings: light, small grey words on the list's own colour — not a bar
+        style.configure("Queue.Treeview.Heading", background=T["bg_input"], foreground=T["fg_dim"], font=f["small"], relief="flat", padding=(4, 3),
+                        bordercolor=T["bg_input"], lightcolor=T["bg_input"], darkcolor=T["bg_input"])
+        style.map("Queue.Treeview.Heading", background=[("active", T["bg_card"])], foreground=[("active", T["fg_secondary"])])
         style.map("Queue.Treeview", background=[("selected", "#2b3348")], foreground=[("selected", "#ffffff")])
 
         # a 2 px line under the status bar: invisible while nothing runs (its trough is the footer's colour)
@@ -271,6 +272,33 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
     def _dropdown(self, parent, text: str, items: List[Tuple]):
         """A button that opens a menu. items: (label, command) · ("-",) · ("check", label, BooleanVar) ·
         ("cascade", label, [items])."""
+        menu = self._make_menu(items)
+        btn = self._tool(parent, text, lambda: None)
+        btn.configure(command=lambda: menu.tk_popup(btn.winfo_rootx(), btn.winfo_rooty() + btn.winfo_height()))
+        btn.menu = menu
+        return btn
+
+    def _placeholder(self, entry, var, text: str):
+        """A dim hint inside an empty entry ("Search codes"), gone while you type or the entry has the focus."""
+        bg = entry.cget("bg")
+        hint = tk.Label(entry, text=text, font=self.f["small"], fg=THEME["fg_dim"], bg=bg, cursor="xterm")
+        def update(*_):
+            try:
+                empty = not var.get() and self.focus_get() is not entry
+            except Exception:  # noqa: BLE001
+                empty = not var.get()
+            if empty:
+                hint.place(x=4, rely=0.5, anchor="w")
+            else:
+                hint.place_forget()
+        hint.bind("<Button-1>", lambda e: entry.focus_set())
+        entry.bind("<FocusIn>", update, add="+")
+        entry.bind("<FocusOut>", update, add="+")
+        var.trace_add("write", update)
+        update()
+        return hint
+
+    def _make_menu(self, items: List[Tuple]) -> PopupMenu:
         def build(menu, entries):
             for it in entries:
                 if it[0] == "-":
@@ -285,10 +313,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                     menu.add_command(label=it[0], command=it[1])
         menu = PopupMenu(self)
         build(menu, items)
-        btn = self._tool(parent, text, lambda: None)
-        btn.configure(command=lambda: menu.tk_popup(btn.winfo_rootx(), btn.winfo_rooty() + btn.winfo_height()))
-        btn.menu = menu
-        return btn
+        return menu
 
     TRANSCRIPT_SIZES = [0.8, 0.9, 1.0, 1.15, 1.3, 1.5, 1.75, 2.0, 2.5]
 

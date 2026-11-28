@@ -104,10 +104,11 @@ def install_scale(style, master, theme: Dict[str, str]) -> Optional[Dict]:
     """A slider as a thin line with a small round knob (ttk's Horizontal.TScale)."""
     T = theme
     try:
-        line = photo(master, T["bg_soft_hover"], side=KNOB, height=KNOB, box=(0, KNOB / 2 - 1.5, KNOB, KNOB / 2 + 1.5), radius=1.5)
+        # the line: rounded ends and a middle that ttk stretches (the image must be wider than its two ends)
+        line = photo(master, "#4a5165", side=KNOB + 8, height=KNOB, box=(0, KNOB / 2 - 1.5, KNOB + 8, KNOB / 2 + 1.5), radius=1.5)
         knob = photo(master, "#c8ccd6", side=KNOB, height=KNOB, radius=KNOB / 2)
         knob_on = photo(master, "#ffffff", side=KNOB, height=KNOB, radius=KNOB / 2)
-        style.element_create("Thin.Horizontal.Scale.trough", "image", line, border=(KNOB // 2, 0), sticky="ew")
+        style.element_create("Thin.Horizontal.Scale.trough", "image", line, border=(4, 0), sticky="ew")
         style.element_create("Thin.Horizontal.Scale.slider", "image", knob, ("pressed", knob_on), ("active", knob_on))
         style.layout("Horizontal.TScale", [("Thin.Horizontal.Scale.trough", {"sticky": "nswe", "children": [
             ("Thin.Horizontal.Scale.slider", {"side": "left", "sticky": ""})]})])

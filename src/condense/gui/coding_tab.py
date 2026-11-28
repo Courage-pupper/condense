@@ -42,13 +42,15 @@ class CodingMixin:
         self.var_cd_search = tk.StringVar(value="")
         ent = self._entry(left, self.var_cd_search, font="small", width=20)
         ent.pack(fill=tk.X, pady=(6, 4))
+        self._placeholder(ent, self.var_cd_search, "Search codes")
         self.var_cd_search.trace_add("write", lambda *a: self._cd_fill_codebook())
-        bar = self._flow(left, padx=3, pady=3, bg=T["bg_panel"])
+        # one row: + Code, + Subcode, Edit…; the rest (and what doesn't fit) in ⋯
+        bar = self._flow(left, padx=3, pady=3, bg=T["bg_panel"], one_line=True, extra_menu=lambda: self.cd_book_menu)
         bar.pack(fill=tk.X)
-        bar.add(self._tool(bar, "+ Code", lambda: self._cd_new_code(parent=None)))
-        bar.add(self._tool(bar, "+ Subcode", lambda: self._cd_new_code(parent=self._cd_selected_code())))
-        bar.add(self._tool(bar, "Edit…", lambda: self._cd_edit_code(self._cd_selected_code())))
-        bar.add(self._dropdown(bar, "More ▾", [
+        bar.add(self._tool(bar, "+ Code", lambda: self._cd_new_code(parent=None), tip="A new top-level code"))
+        bar.add(self._tool(bar, "+ Subcode", lambda: self._cd_new_code(parent=self._cd_selected_code()), tip="A new code under the chosen one"))
+        bar.add(self._tool(bar, "Edit…", lambda: self._cd_edit_code(self._cd_selected_code()), tip="Name, colour and description of the chosen code"))
+        self.cd_book_menu = self._make_menu([
             ("Merge into another code…", lambda: self._cd_merge_dialog(self._cd_selected_code())),
             ("Delete code…", lambda: self._cd_delete_code(self._cd_selected_code())),
             ("-",),
@@ -57,7 +59,7 @@ class CodingMixin:
             ("Timeline: back to the codes used", lambda: [self._cdt_set_shown(c, False) for c in self._cdt_shown_codes()]),
             ("-",),
             ("Refresh counts", lambda: self._cd_fill_codebook(recount=True)),
-        ]))
+        ])
         tf = tk.Frame(left, bg=T["bg_panel"])
         tf.pack(fill=tk.BOTH, expand=True, pady=(4, 0))
         tree = ttk.Treeview(tf, columns=("n",), show="tree", style="Queue.Treeview", selectmode="browse")
@@ -88,7 +90,7 @@ class CodingMixin:
         top.add(self._separator(top))
         top.add(self._tool(top, "▶ Selection", self._cd_play_selection, tip="Play what is selected"))
         top.add(self._tool(top, "⇔ Video", self._cd_video_size, tip="Make the video larger or smaller"))
-        self.cd_recent = self._flow(self.mode_holder, padx=5, pady=2, bg=T["bg_panel"])
+        self._cd_recent_items: List = []  # the recent codes: chips at the end of the same row (what doesn't fit: in ⋯)
         # ---- the transcript with stripes, the codings under it (in the tab's text column) ----
         body = tk.PanedWindow(self.tx_paned, orient=tk.VERTICAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
         self.cd_body = body
@@ -137,13 +139,17 @@ class CodingMixin:
         self.var_cd_only = tk.BooleanVar(value=False)
         self._check(lbar, "only the selected code", self.var_cd_only, bg=T["bg_panel"], font="small").pack(side=tk.LEFT, padx=(10, 0))
         self.var_cd_only.trace_add("write", lambda *a: self._cd_fill_list())
-        self._tool(lbar, "Delete coding", lambda: self._cd_remove(self._cd_list_selected())).pack(side=tk.RIGHT)
-        self._tool(lbar, "Change code…", lambda: self._cd_change_code(self._cd_list_selected())).pack(side=tk.RIGHT, padx=(0, 4))
-        self._tool(lbar, "Memo…", lambda: self._cd_memo(self._cd_list_selected())).pack(side=tk.RIGHT, padx=(0, 4))
+        acts = self._flow(lbar, padx=4, pady=2, bg=T["bg_panel"], one_line=True, align="right")  # what doesn't fit: in ⋯
+        acts.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 0))
+        acts.add(self._tool(acts, "Memo…", lambda: self._cd_memo(self._cd_list_selected()), tip="A memo on the chosen coding"))
+        acts.add(self._tool(acts, "Change code…", lambda: self._cd_change_code(self._cd_list_selected()), tip="Give the chosen coding another code"))
+        acts.add(self._tool(acts, "Delete", lambda: self._cd_remove(self._cd_list_selected()), tip="Delete the chosen coding  Del"))
+        # columns that fit the pane: all but the time share the room, none narrower than its heading
         cl = ttk.Treeview(lst, columns=("time", "code", "who", "text"), show="headings", style="Queue.Treeview", height=6, selectmode="browse")
-        for c, w, title in (("time", 80, "Time"), ("code", 160, "Code"), ("who", 110, "Speaker"), ("text", 420, "Coded text / memo")):
-            cl.heading(c, text=title)
-            cl.column(c, width=w, anchor="w", stretch=c == "text")
+        for c, w, mw, title in (("time", 64, 64, "Time"), ("code", 120, 70, "Code"), ("who", 90, 70, "Speaker"),
+                                ("text", 260, 90, "Coded text / memo")):
+            cl.heading(c, text=title, anchor="w")
+            cl.column(c, width=w, minwidth=mw, anchor="w", stretch=c != "time")
         cl.pack(fill=tk.BOTH, expand=True)
         cl.bind("<<TreeviewSelect>>", lambda e: self._cd_select_coding(self._cd_list_selected(), from_list=True))
         cl.bind("<Double-Button-1>", lambda e: self._cd_play_coding(self._cd_list_selected()))
@@ -249,8 +255,7 @@ class CodingMixin:
             if self.__dict__.get("_find_visible"):
                 self._hide_find()
             self.tx_bar.pack_forget()
-            self.cd_bar.pack(fill=tk.X)
-            self.cd_recent.pack(fill=tk.X)
+            self.cd_bar.pack(fill=tk.X, pady=5)
             self.tx_edit_panel.pack_forget()
             self.tx_paned.forget(self.tx_text_frame)
             kw = {"before": video} if video is not None else {}
@@ -264,8 +269,7 @@ class CodingMixin:
             except Exception:
                 pass
             self.cd_bar.pack_forget()
-            self.cd_recent.pack_forget()
-            self.tx_bar.pack(fill=tk.X)
+            self.tx_bar.pack(fill=tk.X, pady=5)
             self.tx_paned.forget(self.cd_left)
             self.tx_paned.forget(self.cd_body)
             kw = {"before": video} if video is not None else {}
@@ -1122,21 +1126,28 @@ class CodingMixin:
         self._cd_fill_recent()
 
     def _cd_fill_recent(self):
-        fr = self.cd_recent
-        fr.clear()
+        fr = self.cd_bar
+        for w in self._cd_recent_items:
+            fr.remove(w)
+        self._cd_recent_items = []
         cb = self._cd_codebook()
         rec = [c for c in self._cd["recent"] if cb and cb.get(c)]
         self._cd["recent"] = rec
         if not rec:
-            fr.add(self._label(fr, "Recent codes appear here: 1–9 code the selection with them.", font="small", fg=THEME["fg_dim"], bg=THEME["bg_panel"]))
             return
-        fr.add(self._label(fr, "Recent:", font="small", fg=THEME["fg_secondary"], bg=THEME["bg_panel"]))
+        sep = self._separator(fr)
+        fr.add(sep)
+        self._cd_recent_items.append(sep)
         for k, cid in enumerate(rec):
             c = cb.get(cid)
-            chip = tk.Label(fr, text=f"{k + 1}  {c['name']}", font=self.f["small_bold"], padx=8, pady=1, cursor="hand2", bg=THEME["bg_input"],
-                            fg=c["color"], highlightthickness=1, highlightbackground=c["color"])
+            # no outline: the code's name in its colour, the key before it
+            chip = tk.Label(fr, text=f"{k + 1}  {c['name']}", font=self.f["small_bold"], padx=8, pady=3, cursor="hand2", bg=THEME["bg_panel"],
+                            fg=c["color"], highlightthickness=0)
             chip.bind("<Button-1>", lambda e, cid=cid: self._cd_apply(cid))
+            chip.condense_invoke = lambda cid=cid: self._cd_apply(cid)
+            self._tip(chip, f"Code the selection with “{c['name']}”  {k + 1}")
             fr.add(chip)
+            self._cd_recent_items.append(chip)
 
     # ================================================================== codings: select, list, change
     def _cd_click(self, event):

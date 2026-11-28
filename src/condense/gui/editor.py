@@ -189,7 +189,8 @@ class EditorMixin:
             markers.add_command(label=label, command=lambda t=text: self._insert_marker(t))
         more.add_cascade(label="Insert marker", menu=markers)
         self.seg_more_menu = more
-        row = self._flow(head, padx=5, pady=4, bg=T["bg_card"], one_line=True, align="right", extra_menu=lambda: self.seg_more_menu)
+        row = self._flow(head, padx=5, pady=4, bg=T["bg_card"], one_line=True, align="right", extra_menu=lambda: self.seg_more_menu,
+                         more_before_last=True)
         row.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(12, 0))
         self.edit_row = row
         self.btn_checked = ttk.Button(row, text="✓", style=rounded.style_for(row, "Check"), command=self._toggle_checked)
