@@ -738,58 +738,13 @@ def check_top_stays(app, pt, k, d0):
     for j in range(k, min(k + 3, len(d0.segments))):
         if TD.load(app.active_doc.path).segments[j]["speaker"] == speaker:
             continue
-        trace = []
-        def probe(label):
-            sp_ = app.word_spans[app.current_span] if app.current_span is not None else None
-            ix = f"{sp_['line']}.{sp_['c0']}" if sp_ else "1.0"
-            try:
-                trace.append((label, app.current_span, ix, tuple(round(v, 3) for v in pt.yview()), pt.bbox(ix), pt.index("@0,0"),
-                              pt.count("1.0", ix, "displaylines"), pt.count("1.0", "end", "displaylines"), pt.tag_names(ix)))
-            except Exception as ex:  # noqa: BLE001
-                trace.append((label, repr(ex)))
-        probe("before goto")
         app._goto_segment(j)
-        probe("after goto")
         pump(app, 0.3)
-        probe("after pump")
-        if app.current_span is not None:
-            sp_ = app.word_spans[app.current_span]
-            ix = f"{sp_['line']}.{sp_['c0']}"
-            pt.yview(ix)
-            probe("after yview")
-            pt.see(ix)
-            probe("after see")
-            app.update_idletasks()
-            probe("after idle")
-        placed = None
-        calls = []
         if n_done == 0:  # the open segment low on the screen, paragraphs above it in view
-            import traceback as _tb
-            originals = {}
-            for name in ("yview", "see", "yview_moveto", "yview_scroll", "yview_pickplace"):
-                orig = getattr(pt, name)
-                originals[name] = orig
-                def wrapped(*a, _o=orig, _n=name):
-                    r = _o(*a)
-                    if a:
-                        st = [f"{f.name}:{f.lineno}" for f in _tb.extract_stack()[-6:-1]]
-                        calls.append((_n, a, tuple(round(v, 3) for v in pt.yview()), st))
-                    return r
-                setattr(pt, name, wrapped)
-            placed = app._place_word(app.word_spans[app.current_span]["start"], int(h - 4 * line_h))
-            probe("after place")
+            app._place_word(app.word_spans[app.current_span]["start"], int(h - 4 * line_h))
             pump(app, 0.2)
-            probe("after place+pump")
-            for name, orig in originals.items():
-                delattr(pt, name)
-            trace.append(("calls", calls))
         before = app._view_anchor()
-        assert before and before.get("top") and before.get("cur"), (before, "h", h, pt.winfo_height(), "line", line_h,
-            "placed", placed, "span", app.current_span, app._word_y(app.current_span) if app.current_span is not None else None,
-            "yview", pt.yview(), "mapped", pt.winfo_ismapped(), pt.winfo_viewable(), "mode", app.tx_mode, "tab", app.notebook.select(),
-            "near", app._span_near(app.word_spans[app.current_span]["start"]), "sp", app.word_spans[app.current_span],
-            "bbox", pt.bbox(f"{app.word_spans[app.current_span]['line']}.{app.word_spans[app.current_span]['c0']}"),
-            "trace", trace, "end", pt.index("end"), "focus", str(app.focus_get()), "toplevels", [str(w) for w in app.winfo_children() if isinstance(w, tk.Toplevel)])
+        assert before and before.get("top") and before.get("cur"), before
         key(app, pt, f"<Key-{app._roster().index(speaker) + 1}>")
         pump(app, 0.4)
         assert TD.load(app.active_doc.path).segments[j]["speaker"] == speaker

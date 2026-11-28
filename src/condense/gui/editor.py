@@ -414,14 +414,29 @@ class EditorMixin:
             if got is None:  # a paragraph taller than the window: bring the word itself into view
                 pt.see(index)
                 got = self._word_y(i)
-            for _ in range(3):  # … then by display lines to where it was (again: lines differ in height, can re-wrap)
-                if got is None or got[1] <= 0:
+            # A word cut off at the window's edge has a box only a pixel or two high: step by a whole text line, never
+            # by that (it once sent the view to the end of the transcript). Lines with paragraph spacing are taller,
+            # so a step falls short rather than past, and the next round makes up the rest.
+            # A step that takes the word off the screen altogether is taken back and halved.
+            line_h = max(1, int(self.f["transcript"].metrics("linespace")))
+            cap = None
+            for _ in range(8):  # … then by display lines to where it was (again: lines differ in height, can re-wrap)
+                if got is None:
                     break
-                lines = int(round((got[0] - y) / got[1]))
+                lines = int(round((got[0] - y) / max(line_h, got[1])))
+                if cap is not None:
+                    lines = max(-cap, min(cap, lines))
                 if not lines:
                     break
                 pt.yview_scroll(lines, "units")
-                got = self._word_y(i)
+                new = self._word_y(i)
+                if new is None:
+                    pt.yview_scroll(-lines, "units")
+                    cap = abs(lines) // 2
+                    if not cap:
+                        break
+                    continue
+                got = new
         except Exception:
             return None
         return got[0] if got else None
@@ -437,7 +452,7 @@ class EditorMixin:
             i = self._span_near(cur[0])
             got = self._word_y(i) if i is not None else None
             h = max(1, int(self.preview_text.winfo_height()))
-            line_h = got[1] if got else int(self.f["transcript"].metrics("linespace"))
+            line_h = max(got[1] if got else 0, int(self.f["transcript"].metrics("linespace")))  # a cut-off box is too low
             if got is None or got[0] < 0 or got[0] + 2 * line_h > h:  # the open segment would be out of view: follow it
                 placed = self._place_word(cur[0], max(0, min(cur[1], h - 3 * line_h))) is not None or placed
         return placed
