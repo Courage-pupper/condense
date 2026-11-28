@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.30.0 — 2026-11-28
+## 0.30.1 — 2026-11-28
 
 ### Calmer still
 - **Rounded buttons** everywhere (quiet, red, the play button, the Code | Edit and zoom switches), drawn smooth on any
