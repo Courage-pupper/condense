@@ -351,7 +351,7 @@ class PlayerMixin:
         self._play_speed = speed
         self._play_t0 = time.monotonic() + self.PLAYER_LATENCY_S
         self._play_until = pos + duration if duration else None
-        self.btn_play.configure(text="❚❚ Pause")
+        self.btn_play.configure(text="❚❚")
         self._video_start(pos)
         self._schedule_tick()
 
@@ -377,7 +377,7 @@ class PlayerMixin:
             except Exception:
                 pass
             self._tick_job = None
-        self.btn_play.configure(text="▶ Play")
+        self.btn_play.configure(text="▶")
         self._update_time_label()
 
     def _toggle_play(self, event=None):
@@ -390,6 +390,33 @@ class PlayerMixin:
         else:
             self._player_start(self.play_pos)
         return "break"
+
+    SKIP_STEPS = (5, 10, 15, 30)
+
+    def _skip_step(self) -> int:
+        try:
+            s = int(self.settings.get("skip_step", 10))
+        except (TypeError, ValueError):
+            s = 10
+        return s if s in self.SKIP_STEPS else 10
+
+    def _set_skip_step(self, seconds: int):
+        """The step of ⟲ / ⟳ and ⌘[ ⌘] (⇧: three steps), kept for next time."""
+        if seconds not in self.SKIP_STEPS:
+            return None
+        self.settings["skip_step"] = seconds
+        for name, text in (("btn_back", f"⟲ {seconds} s"), ("btn_fwd", f"{seconds} s ⟳"), ("btn_step", f"Step {seconds} s ▾")):
+            btn = self.__dict__.get(name)
+            if btn is not None:
+                btn.configure(text=text)
+        var = self.__dict__.get("var_skip_step")
+        if var is not None:
+            var.set(seconds)
+        self.lbl_status.config(text=f"Jumps of {seconds} s ({'⌘' if IS_MAC else 'Ctrl+'}[ / ], with ⇧ {3 * seconds} s).")
+        return seconds
+
+    def _skip(self, direction: int, big: bool = False):
+        return self._seek_rel(direction * self._skip_step() * (3 if big else 1))
 
     def _seek_rel(self, delta: float):
         pos = max(0.0, min(self._duration(), self._current_pos() + delta))

@@ -106,13 +106,21 @@ def kbd(text: str) -> str:
 
 
 class FlowFrame(tk.Frame):
-    """Lays its children out left-to-right and wraps them onto new rows when space runs out."""
+    """Lays its children out left-to-right and wraps them onto new rows when space runs out — or, with one_line, keeps
+    one row: the buttons that don't fit go into a "⋯" menu at its end (in their order), instead of onto a second row
+    that makes the toolbars look chopped. Separators (thin lines between groups) are dropped where a row ends."""
 
-    def __init__(self, master, padx: int = 6, pady: int = 4, **kw):
+    def __init__(self, master, padx: int = 6, pady: int = 4, one_line: bool = False, extra_menu=None, **kw):
+        """extra_menu (one_line): a function giving a PopupMenu whose entries the ⋯ menu always ends with; then ⋯ is
+        always there — the row's own menu and, when space runs out, the buttons that did not fit."""
         super().__init__(master, **kw)
+        self.extra_menu = extra_menu
         self._items: List = []
         self._padx, self._pady = padx, pady
         self._last_width = None
+        self.one_line = one_line
+        self._more = None
+        self.hidden: List = []  # (one_line) the buttons in the ⋯ menu now
         self.bind("<Configure>", self._on_configure)
 
     def add(self, widget):
@@ -133,7 +141,18 @@ class FlowFrame(tk.Frame):
             self._last_width = event.width
             self.relayout()
 
+    @staticmethod
+    def _is_separator(w) -> bool:
+        return bool(getattr(w, "condense_separator", False))
+
+    @staticmethod
+    def _can_hide(w) -> bool:
+        """Buttons (and dropdowns) can go into the ⋯ menu; fields, switches and labels stay on the row."""
+        return isinstance(w, ttk.Button) and not getattr(w, "condense_keep", False)
+
     def relayout(self):
+        if self.one_line:
+            return self._relayout_one_line()
         width = self.winfo_width()
         if width <= 1:
             width = 10_000
@@ -146,6 +165,84 @@ class FlowFrame(tk.Frame):
             x += ww + self._padx
             row_h = max(row_h, wh)
         total_h = max(1, y + row_h)
+        if int(self.cget("height")) != total_h:
+            self.configure(height=total_h)
+
+    def _more_button(self):
+        if self._more is None:
+            self._more = ttk.Button(self, text="⋯", style="Tool.TButton", command=self._open_more)
+            self._more.condense_keep = True
+        return self._more
+
+    def _open_more(self):
+        from condense.gui.popup import PopupMenu
+        menu = PopupMenu(self.winfo_toplevel())
+        btn = self._more
+        extra = self.extra_menu() if self.extra_menu else None
+        for w in self.hidden:
+            label = str(w.cget("text")).replace(" ▾", "")
+            sub = getattr(w, "menu", None)
+            if sub is not None:  # a dropdown: its own menu, opened where ⋯ is
+                menu.add_command(label=label + " …", command=lambda m=sub: m.tk_popup(btn.winfo_rootx(), btn.winfo_rooty() + btn.winfo_height()))
+            else:
+                menu.add_command(label=label, command=w.invoke, state="disabled" if "disabled" in str(w.cget("state")) else "normal")
+        if extra is not None:
+            if self.hidden and extra.items:
+                menu.add_separator()
+            menu.items.extend(extra.items)
+        menu.tk_popup(btn.winfo_rootx(), btn.winfo_rooty() + btn.winfo_height())
+        return menu
+
+    def _relayout_one_line(self):
+        width = self.winfo_width()
+        if width <= 1:
+            width = 10_000
+        items = list(self._items)
+        sizes = [(w.winfo_reqwidth(), w.winfo_reqheight()) for w in items]
+        needed = sum(ww for ww, _ in sizes) + self._padx * max(0, len(items) - 1)
+        hide = set()
+        if self.extra_menu is not None:
+            needed += self._more_button().winfo_reqwidth() + self._padx
+        if needed > width:
+            more_w = self._more_button().winfo_reqwidth() + self._padx
+            budget = width - more_w
+            used = 0
+            stop = False
+            for i, (w, (ww, _wh)) in enumerate(zip(items, sizes)):  # keep from the left while it fits; hideable later ones go
+                if not stop and used + ww <= budget:
+                    used += ww + self._padx
+                    continue
+                stop = True
+                if self._can_hide(w) or self._is_separator(w):
+                    hide.add(i)
+                else:  # a field or switch can't go into a menu: it stays, a button before it goes instead
+                    used += ww + self._padx
+                    for j in range(i - 1, -1, -1):
+                        if j not in hide and (self._can_hide(items[j]) or self._is_separator(items[j])):
+                            hide.add(j)
+                            used -= sizes[j][0] + self._padx
+                            if used <= budget:
+                                break
+        x = row_h = 0
+        shown = [i for i in range(len(items)) if i not in hide]
+        while shown and self._is_separator(items[shown[-1]]):  # no separator at the end of the row
+            hide.add(shown.pop())
+        self.hidden = [items[i] for i in sorted(hide) if not self._is_separator(items[i])]
+        for i, w in enumerate(items):
+            if i in hide:
+                w.place_forget()
+                continue
+            ww, wh = sizes[i]
+            w.place(in_=self, x=x, y=0)
+            x += ww + self._padx
+            row_h = max(row_h, wh)
+        if self.hidden or self.extra_menu is not None:
+            more = self._more_button()
+            more.place(in_=self, x=x, y=0)
+            row_h = max(row_h, more.winfo_reqheight())
+        elif self._more is not None:
+            self._more.place_forget()
+        total_h = max(1, row_h)
         if int(self.cget("height")) != total_h:
             self.configure(height=total_h)
 
@@ -171,3 +268,56 @@ class ScrollFrame(tk.Frame):
     def scroll(self, units: int) -> None:
         if self.inner.winfo_reqheight() > self.canvas.winfo_height():
             self.canvas.yview_scroll(units, "units")
+
+
+class Tooltip:
+    """A short text shown when the mouse rests on a widget (text may be a callable, asked each time)."""
+    DELAY_MS = 550
+
+    def __init__(self, widget, text, bg: str = "#2a3040", fg: str = "#e8eaef", font=None):
+        self.widget, self.text, self.bg, self.fg, self.font = widget, text, bg, fg, font
+        self.win = None
+        self._job = None
+        widget.bind("<Enter>", self._schedule, add="+")
+        widget.bind("<Leave>", self._hide, add="+")
+        widget.bind("<ButtonPress>", self._hide, add="+")
+
+    def _schedule(self, _event=None):
+        self._cancel()
+        self._job = self.widget.after(self.DELAY_MS, self._show)
+
+    def _cancel(self):
+        if self._job is not None:
+            try:
+                self.widget.after_cancel(self._job)
+            except Exception:
+                pass
+            self._job = None
+
+    def _show(self):
+        self._job = None
+        text = self.text() if callable(self.text) else self.text
+        if not text or self.win is not None:
+            return
+        try:
+            x = self.widget.winfo_rootx() + 12
+            y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
+            win = tk.Toplevel(self.widget)
+            win.condense_free = True  # (not tied to a window: Condense makes other new windows transient)
+            win.wm_overrideredirect(True)
+            win.configure(bg=self.bg)
+            tk.Label(win, text=text, bg=self.bg, fg=self.fg, font=self.font, justify=tk.LEFT, padx=8, pady=4,
+                     wraplength=420).pack()
+            win.wm_geometry(f"+{x}+{y}")
+            self.win = win
+        except tk.TclError:
+            self.win = None
+
+    def _hide(self, _event=None):
+        self._cancel()
+        if self.win is not None:
+            try:
+                self.win.destroy()
+            except tk.TclError:
+                pass
+            self.win = None

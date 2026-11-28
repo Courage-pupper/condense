@@ -51,19 +51,28 @@ class CodingTimelineMixin:
         T = THEME
         self.cdt = {"view": None, "in": None, "out": None, "drag": None, "live": {}, "hits": [], "lanes": [], "loop": None,
                     "thumbs": {}, "thumb_gen": 0, "thumb_q": queue.Queue(), "hover": None, "rows": {}, "lane_mode": "used"}
-        bar = self._flow(parent, padx=3, pady=2, bg=T["bg_panel"])
-        bar.pack(fill=tk.X)
+        bar = self._flow(parent, padx=4, pady=2, bg=T["bg_panel"], one_line=True)
+        bar.pack(fill=tk.X, pady=(2, 0))
         self.cdt_bar = bar
         bar.add(self._label(bar, "Timeline", font="small_bold", bg=T["bg_panel"]))
+        # the zoom: one switch, the current zoom lighter
+        zoom = tk.Frame(bar, bg=T["bg_panel"])
+        self.cdt_zoom_btns = {}
         for label, kind in (("Whole", "whole"), ("Episode", "episode"), ("10 min", "600"), ("2 min", "120")):
-            bar.add(self._tool(bar, label, lambda k=kind: self._cdt_zoom(k)))
+            b = ttk.Button(zoom, text=label, style="Seg.TButton", command=lambda k=kind: self._cdt_zoom(k))
+            b.pack(side=tk.LEFT)
+            self.cdt_zoom_btns[kind] = b
+        bar.add(zoom)
+        bar.add(self._separator(bar))
+        self.btn_cdt_play = self._tool(bar, "▶", self._cdt_play_mark)
+        self.btn_cdt_loop = self._tool(bar, "⟳", self._cdt_toggle_loop)
+        self.btn_cdt_clear = self._tool(bar, "✕", self._cdt_clear_mark)
+        for b, tip in ((self.btn_cdt_play, "Play the marked range"), (self.btn_cdt_loop, "Loop the marked range (L)"),
+                       (self.btn_cdt_clear, "Clear the mark (X)")):
+            Tooltip(b, tip, font=self.f["small"])
+            bar.add(b)
         self.lbl_cdt_mark = self._label(bar, "", font="small", fg=T["fg_secondary"], bg=T["bg_panel"])
         bar.add(self.lbl_cdt_mark)
-        self.btn_cdt_play = self._tool(bar, "▶ Play", self._cdt_play_mark)
-        self.btn_cdt_loop = self._tool(bar, "⟳ Loop (L)", self._cdt_toggle_loop)
-        self.btn_cdt_clear = self._tool(bar, "✕", self._cdt_clear_mark)
-        for b in (self.btn_cdt_play, self.btn_cdt_loop, self.btn_cdt_clear):
-            bar.add(b)
         self.lbl_cdt_hint = self._label(bar, "", font="small", fg=T["fg_dim"], bg=T["bg_panel"])
         bar.add(self.lbl_cdt_hint)
         cv = tk.Canvas(parent, height=RULER_H + SPEAKERS_H + LANE_H * 2 + 8, bg=T["bg_input"], highlightthickness=0, bd=0,
@@ -78,6 +87,8 @@ class CodingTimelineMixin:
         cv.bind("<Motion>", self._cdt_hover)
         cv.bind("<Leave>", lambda e: self._cdt_hover(None))
         cv.bind("<Key>", self._cd_key)
+        Tooltip(cv, lambda: "Drag (or press I and O) to mark a range: ↩ or 1–9 codes it, M comments on it. Drag the playhead "
+                            "to scroll. Right-click a code ▸ Show on timeline to choose the lanes.", font=self.f["small"])
         for seq in ("<Button-3>",) + (("<Button-2>", "<Control-Button-1>") if IS_MAC else ()):
             cv.bind(seq, self._cdt_menu)
         cv.bind("<MouseWheel>", lambda e: self._cdt_wheel(e, -1 if e.delta > 0 else +1))
@@ -106,13 +117,20 @@ class CodingTimelineMixin:
             return 0.0, dur
         return a, b
 
-    def _cdt_set_view(self, a: float, b: float):
+    def _cdt_set_view(self, a: float, b: float, zoom: Optional[str] = None):
         dur = self._cdt_duration()
         span = min(dur, max(MIN_SPAN, b - a))
         a = max(0.0, min(a, dur - span))
         self.cdt["view"] = None if span >= dur - 1e-6 else (a, a + span)
+        self.cdt["zoom"] = "whole" if self.cdt["view"] is None else zoom  # (zoomed by hand: none of the switch's)
+        self._cdt_zoom_shown()
         self._cdt_draw(request_frames=True)
         return self._cdt_view()
+
+    def _cdt_zoom_shown(self):
+        current = self.cdt.get("zoom") or ("whole" if self.cdt.get("view") is None else None)
+        for kind, b in (self.__dict__.get("cdt_zoom_btns") or {}).items():
+            b.configure(style="SegOn.TButton" if kind == current else "Seg.TButton")
 
     def _cdt_zoom(self, kind: str):
         pos = self._current_pos() if self.active_doc is not None else 0.0
@@ -127,9 +145,9 @@ class CodingTimelineMixin:
                 self.lbl_status.config(text="The playhead is not in an episode — mark interviews and phases as episodes (E) to zoom to them.")
                 return None
             pad = max(2.0, (ep["end"] - ep["start"]) * 0.02)
-            return self._cdt_set_view(ep["start"] - pad, ep["end"] + pad)
+            return self._cdt_set_view(ep["start"] - pad, ep["end"] + pad, zoom="episode")
         span = float(kind)
-        return self._cdt_set_view(pos - span * 0.25, pos + span * 0.75)
+        return self._cdt_set_view(pos - span * 0.25, pos + span * 0.75, zoom=kind)
 
     def _cdt_zoom_at(self, t: float, factor: float):
         """Zoom in (factor < 1) or out around time t, which stays under the mouse."""
@@ -414,8 +432,7 @@ class CodingTimelineMixin:
             self.cdt["fit_h"] = height
             self.after_idle(lambda h=height: self._cdt_fit_height(h))
         mode = self.cdt.get("lane_mode")
-        self.lbl_cdt_hint.config(text="" if mode == "chosen" else
-                                 "Lanes: codes used here — right-click a code ▸ Show on timeline to choose")
+        self.lbl_cdt_hint.config(text="" if mode == "chosen" or not self.cdt.get("lanes") else "Lanes: codes used here")
         if request_frames:
             self._cdt_request_frames()
         return items
@@ -560,9 +577,9 @@ class CodingTimelineMixin:
         elif self.cdt.get("in") is not None:
             lbl.config(text=f"From {short_ts(self.cdt['in'])[:-2]} — press O at the end")
         else:
-            lbl.config(text="Drag on the timeline or press I / O to mark a range")
+            lbl.config(text="")  # (how to mark: the timeline's tooltip)
         loop = self.cdt.get("loop")
-        self.btn_cdt_loop.config(text="⟳ Looping (L)" if loop else "⟳ Loop (L)")
+        self.btn_cdt_loop.config(text="⟳ Looping" if loop else "⟳", style="SegOn.TButton" if loop else "Tool.TButton")
 
     def _cdt_mark_in(self):
         pos = self._current_pos()

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.29.0 — 2026-11-28
+
+### A calmer, sleeker window
+- **Player:** ⟲ back · ▶ · forward ⟳ by a step you choose once (*Step ▾*: 5, 10, 15 or 30 s, remembered); ⌘[ ⌘]
+  (Ctrl+[ Ctrl+]) jump one step, with ⇧ three. The play button is small and the only red one there.
+- **Toolbars on one line:** what doesn't fit in a narrow window goes into a **⋯** menu at the row's end, instead of a
+  second row (Transcript, Code mode, timeline, tasks; the tasks' ⋯ also holds the task actions).
+- **Quiet buttons:** soft, borderless; red only for the main action of a place (Run Pending Tasks, + Videos,
+  Save & next). *Code | Edit* and the timeline's *Whole · Episode · 10 min · 2 min* are switches.
+- **Tabs underlined**, panels and lists without outlines, thin scrollbars without arrows, a slim progress bar and
+  status line.
+- **Timeline bar as one strip:** zoom switch, then ▶ ⟳ ✕ (with tooltips); hints only where they help.
+- **Info line:** shorter and calmer; the text size is a small *Aa 100 %* — click it for larger, smaller or default
+  (also *View ▸*, ⌘⌥+ / ⌘⌥−).
+
+### Fixed
+- **Giving a segment the speaker above could send the transcript to its end.** When a word ended up cut off at the
+  bottom edge, the view was moved by that cut-off height (a pixel or two) instead of a text line. It now steps by
+  whole lines and takes back a step that goes past the screen.
+
 ## 0.28.1 — 2026-11-27
 
 - **Re-transcribing or translating a passage on a Mac uses the GPU (MLX) again** for transcripts made on a Windows or

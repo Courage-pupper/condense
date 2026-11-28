@@ -157,6 +157,18 @@ app._seek_rel(-5)
 assert played()[played().index("-ss") + 1] == "1.00"
 app._player_pause()
 ok("slower playback (atempo), position math honours speed, ⟲5 s seeks")
+assert app._skip_step() == 10 and app.btn_back.cget("text") == "⟲ 10 s" and app.btn_play.cget("text") == "▶"
+app._set_skip_step(15)
+assert (app.btn_back.cget("text"), app.btn_fwd.cget("text"), app.btn_step.cget("text")) == ("⟲ 15 s", "15 s ⟳", "Step 15 s ▾")
+assert app.settings["skip_step"] == 15 and app._set_skip_step(7) is None   # only 5, 10, 15, 30
+moved = []
+real_seek = app._seek_rel
+app._seek_rel = lambda d: moved.append(d)
+app._skip(+1); app._skip(-1, big=True)
+app._seek_rel = real_seek
+assert moved == [15, -45]
+app._set_skip_step(10)
+ok("the step: 5/10/15/30 s, kept; ⟲ / ⟳ and ⌘[ ⌘] jump one step, with ⇧ three")
 app._jump_low_conf(+1)
 c = played()
 assert "-t" in c and app.playing

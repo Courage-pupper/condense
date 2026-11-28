@@ -76,14 +76,15 @@ class CodingMixin:
         self.lbl_cd_info.pack(fill=tk.X, pady=(6, 0))
 
         # ---- the Code toolbar (in place of the Edit toolbar) ----
-        top = self._flow(self.mode_holder, padx=5, pady=5, bg=T["bg_panel"])
+        top = self._flow(self.mode_holder, padx=4, pady=5, bg=T["bg_panel"], one_line=True)  # one row; the rest in ⋯
         self.cd_bar = top
-        top.add(self._tool(top, "Code selection (↩)", lambda: self._cd_apply(self._cd_selected_code())))
-        top.add(self._tool(top, "New code from selection (N)", lambda: self._cd_new_code(parent=self._cd_selected_code(), apply=True)))
-        top.add(self._tool(top, "Code by time…", lambda: self._cd_time_dialog(*(self._cdt_mark() or (None, None)))))
+        top.add(self._tool(top, "Code (↩)", lambda: self._cd_apply(self._cd_selected_code())))
+        top.add(self._tool(top, "New code (N)", lambda: self._cd_new_code(parent=self._cd_selected_code(), apply=True)))
+        top.add(self._tool(top, "By time…", lambda: self._cd_time_dialog(*(self._cdt_mark() or (None, None)))))
         top.add(self._tool(top, "✎ Comment (M)", lambda: self._comment_dialog()))
-        top.add(self._tool(top, "▶ Play selection", self._cd_play_selection))
-        top.add(self._tool(top, "⇔ Video size", self._cd_video_size))
+        top.add(self._separator(top))
+        top.add(self._tool(top, "▶ Selection", self._cd_play_selection))
+        top.add(self._tool(top, "⇔ Video", self._cd_video_size))
         self.cd_recent = self._flow(self.mode_holder, padx=5, pady=2, bg=T["bg_panel"])
         # ---- the transcript with stripes, the codings under it (in the tab's text column) ----
         body = tk.PanedWindow(self.tx_paned, orient=tk.VERTICAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
@@ -198,8 +199,8 @@ class CodingMixin:
     # ================================================================== Code / Edit
     def _mode_buttons(self):
         code = self.__dict__.get("tx_mode") == "code"
-        self.btn_mode_code.configure(style="Primary.TButton" if code else "Tool.TButton")
-        self.btn_mode_edit.configure(style="Tool.TButton" if code else "Primary.TButton")
+        self.btn_mode_code.configure(style="SegOn.TButton" if code else "Seg.TButton")
+        self.btn_mode_edit.configure(style="Seg.TButton" if code else "SegOn.TButton")
 
     def _tx_word_now(self) -> Optional[Tuple[int, int]]:
         """(segment, word) of where you are in the mode shown: the word clicked or selected, else the playhead's."""

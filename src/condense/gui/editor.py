@@ -26,13 +26,13 @@ class EditorMixin:
         for b in (self.btn_mode_code, self.btn_mode_edit):
             b.configure(width=6)  # the same width: a switch, whichever is on
         self.btn_mode_code.pack(side=tk.LEFT)
-        self.btn_mode_edit.pack(side=tk.LEFT, padx=(1, 0))
+        self.btn_mode_edit.pack(side=tk.LEFT)  # side by side: one switch
         self.mode_holder = tk.Frame(toprow, bg=T["bg_panel"])
         self.mode_holder.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.tx_mode = "edit"
         # ---- the Edit toolbar: what you use while reviewing stays visible; the rest is one click away in a menu ----
-        bar = self._flow(self.mode_holder, padx=5, pady=5, bg=T["bg_panel"])
-        bar.pack(fill=tk.X)
+        bar = self._flow(self.mode_holder, padx=4, pady=5, bg=T["bg_panel"], one_line=True)  # one row; the rest in ⋯
+        bar.pack(fill=tk.X, pady=5)
         self.tx_bar = bar
         bar.add(self._dropdown(bar, "Transcript ▾", [
             ("Open…", self._open_transcript),
@@ -70,12 +70,12 @@ class EditorMixin:
         cmb_show.bind("<<ComboboxSelected>>", lambda e: (self._autosave_edit(rerender=False), self._rerender()))
         bar.add(cmb_show)
         bar.add(self._separator(bar))
-        bar.add(self._tool(bar, "Find…", self._toggle_find))
+        bar.add(self._tool(bar, "Find", self._toggle_find))
         bar.add(self._tool(bar, "◀", lambda: self._jump_low_conf(-1)))
         bar.add(self._label(bar, "Uncertain", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]))
         bar.add(self._tool(bar, "▶", lambda: self._jump_low_conf(+1)))
         bar.add(self._separator(bar))
-        bar.add(self._tool(bar, "✂ Cut (X)", self._toggle_cut))
+        bar.add(self._tool(bar, "✂ Cut", self._toggle_cut))
         bar.add(self._tool(bar, "Episodes…", self._episodes_dialog))
         self.var_autoplay = tk.BooleanVar(value=True)
         self._persist["autoplay"] = self.var_autoplay
@@ -84,10 +84,18 @@ class EditorMixin:
         # ---- player: the controls; its options in one menu ----
         player = self._flow(tab, padx=5, pady=5, bg=T["bg_card"])
         player.pack(fill=tk.X, pady=(4, 0), ipady=3)
-        player.add(self._tool(player, "⟲ 5 s", lambda: self._seek_rel(-5)))
-        self.btn_play = self._tool(player, "▶ Play", self._toggle_play, primary=True)
-        player.add(self.btn_play)
-        player.add(self._tool(player, "5 s ⟳", lambda: self._seek_rel(+5)))
+        # back · play · forward, by a step chosen once (5–30 s); ⌘[ ⌘] jump one step, with ⇧ three
+        step = self._skip_step()
+        transport = tk.Frame(player, bg=T["bg_card"])
+        self.btn_back = self._tool(transport, f"⟲ {step} s", lambda: self._skip(-1))
+        self.btn_play = ttk.Button(transport, text="▶", style="Play.TButton", command=self._toggle_play)
+        self.btn_fwd = self._tool(transport, f"{step} s ⟳", lambda: self._skip(+1))
+        for b in (self.btn_back, self.btn_play, self.btn_fwd):
+            b.pack(side=tk.LEFT, padx=(0, 2))
+        player.add(transport)
+        self.btn_step = self._dropdown(player, f"Step {step} s ▾", [(f"{s} seconds", lambda s=s: self._set_skip_step(s))
+                                                                   for s in self.SKIP_STEPS])
+        player.add(self.btn_step)
         # speed: a slider, and the value can be typed (1.3, 1.3×, 130%)
         self.var_speed = tk.StringVar(value="1×")
         self._persist["speed"] = self.var_speed
@@ -135,21 +143,24 @@ class EditorMixin:
         # Fixed heights for the lines that change on every ↑/↓: if they grew or shrank, the transcript would jump.
         top = tk.Frame(info, bg=T["bg_panel"])
         top.pack(fill=tk.X)
-        # text size of the transcript (and the segment box): a slider by the transcript it changes
-        size = tk.Frame(top, bg=T["bg_panel"])
+        # the transcript's text size: a small "Aa 100%" — click for larger / smaller (also View ▸, ⌘⌥+ / ⌘⌥−)
+        size = tk.Frame(top, bg=T["bg_panel"], cursor="hand2")
         size.pack(side=tk.RIGHT)
-        self._label(size, "Aa", font="small_bold", fg=T["fg_secondary"], bg=T["bg_panel"]).pack(side=tk.LEFT, padx=(8, 4))
+        aa = self._label(size, "Aa", font="small_bold", fg=T["fg_dim"], bg=T["bg_panel"])
+        aa.pack(side=tk.LEFT, padx=(8, 3))
         self.var_text_size = tk.DoubleVar(value=self.transcript_scale * 100)
-        self.scl_text_size = ttk.Scale(size, from_=self.TRANSCRIPT_SIZES[0] * 100, to=self.TRANSCRIPT_SIZES[-1] * 100, orient=tk.HORIZONTAL,
-                                       length=110, variable=self.var_text_size,
-                                       command=lambda v: self._set_transcript_size(round(float(v) / 5) * 5 / 100, save=False))
-        self.scl_text_size.pack(side=tk.LEFT)
-        self.scl_text_size.bind("<ButtonRelease-1>", lambda e: self._set_transcript_size(self.transcript_scale))
-        self.scl_text_size.bind("<Double-Button-1>", lambda e: self._set_transcript_size(1.0))
-        self.lbl_text_size = self._label(size, f"{self.transcript_scale * 100:.0f}%", font="small", fg=T["fg_secondary"], bg=T["bg_panel"], width=5)
+        self.lbl_text_size = self._label(size, f"{self.transcript_scale * 100:.0f}%", font="small", fg=T["fg_dim"], bg=T["bg_panel"], width=5)
         self.lbl_text_size.pack(side=tk.LEFT)
-        self.lbl_ci_summary = self._label(top, kbd("No transcript open. Select a finished job or use Open… (⇧⌘O)."), font="small_bold",
-                                          bg=T["bg_panel"], height=1, anchor="w", justify=tk.LEFT)
+        size_menu = PopupMenu(self)
+        size_menu.add_command(label="Larger transcript text", command=lambda: self._transcript_size_step(+1),
+                              accelerator="⌘⌥+" if IS_MAC else "Ctrl+Alt++")
+        size_menu.add_command(label="Smaller transcript text", command=lambda: self._transcript_size_step(-1),
+                              accelerator="⌘⌥−" if IS_MAC else "Ctrl+Alt+−")
+        size_menu.add_command(label="Default size", command=lambda: self._set_transcript_size(1.0))
+        for w in (size, aa, self.lbl_text_size):
+            w.bind("<Button-1>", lambda e: size_menu.tk_popup(e.x_root, e.y_root))
+        self.lbl_ci_summary = self._label(top, kbd("No transcript open. Select a finished job or use Open… (⇧⌘O)."), font="small",
+                                          fg=T["fg_secondary"], bg=T["bg_panel"], height=1, anchor="w", justify=tk.LEFT)
         self.lbl_ci_summary.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.lbl_word = self._label(info, "", font="mono_small", fg=T["fg_secondary"], bg=T["bg_panel"], anchor="w", justify=tk.LEFT, height=1)
         self.lbl_word.pack(fill=tk.X)
@@ -403,14 +414,29 @@ class EditorMixin:
             if got is None:  # a paragraph taller than the window: bring the word itself into view
                 pt.see(index)
                 got = self._word_y(i)
-            for _ in range(3):  # … then by display lines to where it was (again: lines differ in height, can re-wrap)
-                if got is None or got[1] <= 0:
+            # A word cut off at the window's edge has a box only a pixel or two high: step by a whole text line, never
+            # by that (it once sent the view to the end of the transcript). Lines with paragraph spacing are taller,
+            # so a step falls short rather than past, and the next round makes up the rest.
+            # A step that takes the word off the screen altogether is taken back and halved.
+            line_h = max(1, int(self.f["transcript"].metrics("linespace")))
+            cap = None
+            for _ in range(8):  # … then by display lines to where it was (again: lines differ in height, can re-wrap)
+                if got is None:
                     break
-                lines = int(round((got[0] - y) / got[1]))
+                lines = int(round((got[0] - y) / max(line_h, got[1])))
+                if cap is not None:
+                    lines = max(-cap, min(cap, lines))
                 if not lines:
                     break
                 pt.yview_scroll(lines, "units")
-                got = self._word_y(i)
+                new = self._word_y(i)
+                if new is None:
+                    pt.yview_scroll(-lines, "units")
+                    cap = abs(lines) // 2
+                    if not cap:
+                        break
+                    continue
+                got = new
         except Exception:
             return None
         return got[0] if got else None
@@ -426,7 +452,7 @@ class EditorMixin:
             i = self._span_near(cur[0])
             got = self._word_y(i) if i is not None else None
             h = max(1, int(self.preview_text.winfo_height()))
-            line_h = got[1] if got else int(self.f["transcript"].metrics("linespace"))
+            line_h = max(got[1] if got else 0, int(self.f["transcript"].metrics("linespace")))  # a cut-off box is too low
             if got is None or got[0] < 0 or got[0] + 2 * line_h > h:  # the open segment would be out of view: follow it
                 placed = self._place_word(cur[0], max(0, min(cur[1], h - 3 * line_h))) is not None or placed
         return placed
@@ -581,11 +607,12 @@ class EditorMixin:
         total = max(1, len(spans))
         edited = sum(1 for s in doc.segments if s.get("edited"))
         self.lbl_ci_summary.config(
-            text=f"{doc.base_name}   ·   {doc.checked_fraction() * 100:.0f}% checked   ·   {len(spans)} words   ·   "
-                 f"{len(low)} uncertain ({len(low) * 100 / total:.0f}%)   ·   mean word probability {report['overall_ci'][0] * 100:.0f}%   ·   "
-                 f"{len(roster)} speaker(s)" + (f"   ·   {edited} edited" if edited else "")
-                 + (f"   ·   ✂ {cutlib.describe(doc.cuts)}" if doc.cuts else "")
-                 + (f"   ·   showing {len(groups)} {show.lower()}" if show != "All segments" else "")
+            # short and calm: one line beside "Aa", the cuts and the filter still fit (p: mean word probability)
+            text=f"{doc.base_name}  ·  {doc.checked_fraction() * 100:.0f}% checked  ·  {len(spans)} words  ·  "
+                 f"{len(low)} uncertain ({len(low) * 100 / total:.0f}%)  ·  mean p {report['overall_ci'][0] * 100:.0f}%  ·  "
+                 f"{len(roster)} speaker{'' if len(roster) == 1 else 's'}" + (f"  ·  {edited} edited" if edited else "")
+                 + (f"  ·  ✂ {cutlib.describe(doc.cuts)}" if doc.cuts else "")
+                 + (f"  ·  showing {len(groups)} {show.lower()}" if show != "All segments" else "")
         )
         self.cmb_seg_speaker.configure(values=roster)
         if self.__dict__.get("cmb_show") is not None:

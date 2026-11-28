@@ -119,19 +119,46 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         style = ttk.Style(self)
         style.theme_use("clam")
         self.style = style
-        style.configure(".", background=T["bg_root"], foreground=T["fg_primary"], font=f["body"])
+        # clam draws light outlines and bevels by default: the same dark colours everywhere instead
+        style.configure(".", background=T["bg_root"], foreground=T["fg_primary"], font=f["body"], bordercolor=T["border"],
+                        lightcolor=T["bg_panel"], darkcolor=T["bg_panel"], focuscolor=T["bg_soft"], troughcolor=T["bg_panel"],
+                        selectbackground=T["bg_selected"], selectforeground="#ffffff", insertcolor=T["fg_primary"])
         style.configure("TFrame", background=T["bg_panel"])
         style.configure("TLabel", background=T["bg_panel"], foreground=T["fg_primary"], font=f["body"])
 
-        style.configure("Primary.TButton", background=T["accent"], foreground="#ffffff", borderwidth=0, font=f["body_bold"], padding=(12, 5))
+        # red is for the one main action of a place (Run Pending Tasks, + Videos, Save & next, a dialog's own button)
+        style.configure("Primary.TButton", background=T["accent"], foreground="#ffffff", borderwidth=0, font=f["body_bold"], padding=(12, 5),
+                        bordercolor=T["accent"], lightcolor=T["accent"], darkcolor=T["accent"], focuscolor=T["accent"])
         style.map("Primary.TButton", background=[("active", T["accent_hover"]), ("disabled", T["bg_card"])], foreground=[("disabled", T["fg_dim"])])
-        style.configure("Tool.TButton", background=T["bg_card"], foreground=T["fg_primary"], borderwidth=1, bordercolor=T["border"],
-                        lightcolor=T["bg_card"], darkcolor=T["bg_card"], font=f["small_bold"], padding=(8, 3), width=-3)
-        style.map("Tool.TButton", background=[("active", "#2b3348")], foreground=[("disabled", T["fg_dim"])])
+        # everything else: quiet buttons, a soft fill without an outline
+        soft = dict(background=T["bg_soft"], borderwidth=0, relief="flat", bordercolor=T["bg_soft"], lightcolor=T["bg_soft"],
+                    darkcolor=T["bg_soft"], focuscolor=T["bg_soft"])
+        style.configure("Tool.TButton", foreground=T["fg_primary"], font=f["small_bold"], padding=(8, 3), width=-3, **soft)
+        style.map("Tool.TButton", background=[("active", T["bg_soft_hover"])], foreground=[("disabled", T["fg_dim"])])
+        style.configure("Play.TButton", foreground=T["accent"], font=f["body_bold"], padding=(10, 3), width=-2, **soft)  # ▶ / ❚❚
+        style.map("Play.TButton", background=[("active", T["bg_soft_hover"])])
+        # a switch (Code | Edit …): its parts side by side, the chosen one lighter
+        style.configure("Seg.TButton", foreground=T["fg_secondary"], font=f["small_bold"], padding=(12, 3), width=-3, **soft)
+        style.map("Seg.TButton", background=[("active", T["bg_soft_hover"])], foreground=[("active", T["fg_primary"])])
+        sel = dict(soft, background=T["bg_selected"], bordercolor=T["bg_selected"], lightcolor=T["bg_selected"],
+                   darkcolor=T["bg_selected"], focuscolor=T["bg_selected"])
+        style.configure("SegOn.TButton", foreground="#ffffff", font=f["small_bold"], padding=(12, 3), width=-3, **sel)
+        style.map("SegOn.TButton", background=[("active", T["bg_selected"])])
 
-        style.configure("TNotebook", background=T["bg_root"], borderwidth=0, tabmargins=(0, 0, 0, 0))
-        style.configure("TNotebook.Tab", background=T["bg_card"], foreground=T["fg_secondary"], padding=(12, 4), font=f["small_bold"], borderwidth=0)
-        style.map("TNotebook.Tab", background=[("selected", T["accent"])], foreground=[("selected", "#ffffff")])
+        # tabs: text, and a thin red line under the open one (an image element: clam can't draw only one edge)
+        style.configure("TNotebook", background=T["bg_root"], borderwidth=0, tabmargins=(0, 0, 0, 2), bordercolor=T["bg_root"],
+                        lightcolor=T["bg_root"], darkcolor=T["bg_root"])
+        self._tab_images = self._make_tab_images()
+        if self._tab_images:
+            try:
+                off, hover, on = self._tab_images
+                style.element_create("Clean.tab", "image", off, ("selected", on), ("active", hover), border=(2, 2, 2, 3), sticky="nsew")
+                style.layout("TNotebook.Tab", [("Clean.tab", {"sticky": "nswe", "children": [
+                    ("Notebook.padding", {"side": "top", "sticky": "nswe", "children": [("Notebook.label", {"side": "top", "sticky": ""})]})]})])
+            except tk.TclError:
+                pass
+        style.configure("TNotebook.Tab", background=T["bg_root"], foreground=T["fg_secondary"], padding=(14, 5, 14, 6), font=f["small_bold"], borderwidth=0)
+        style.map("TNotebook.Tab", background=[("selected", T["bg_root"])], foreground=[("selected", T["fg_primary"]), ("active", T["fg_primary"])])
 
         style.configure("TCombobox", fieldbackground=T["bg_input"], background=T["bg_card"], foreground=T["fg_primary"], arrowcolor=T["fg_secondary"],
                         bordercolor=T["border"], lightcolor=T["bg_input"], darkcolor=T["bg_input"], padding=(4, 1))
@@ -143,14 +170,41 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.option_add("*TCombobox*Listbox.selectForeground", "#ffffff")
         self.option_add("*TCombobox*Listbox.font", f["body"])
 
-        style.configure("Queue.Treeview", background=T["bg_input"], foreground=T["fg_primary"], fieldbackground=T["bg_input"], borderwidth=0, font=f["body"])
-        style.configure("Queue.Treeview.Heading", background=T["bg_card"], foreground=T["fg_secondary"], font=f["small_bold"], relief="flat", padding=(4, 3))
+        style.configure("Queue.Treeview", background=T["bg_input"], foreground=T["fg_primary"], fieldbackground=T["bg_input"], borderwidth=0, font=f["body"],
+                        bordercolor=T["bg_input"], lightcolor=T["bg_input"], darkcolor=T["bg_input"])  # no frame around a list
+        style.configure("Queue.Treeview.Heading", background=T["bg_card"], foreground=T["fg_secondary"], font=f["small_bold"], relief="flat", padding=(4, 3),
+                        bordercolor=T["bg_card"], lightcolor=T["bg_card"], darkcolor=T["bg_card"])
+        style.map("Queue.Treeview.Heading", background=[("active", T["bg_soft"])])
         style.map("Queue.Treeview", background=[("selected", "#2b3348")], foreground=[("selected", "#ffffff")])
 
-        style.configure("Horizontal.TProgressbar", troughcolor=T["bg_input"], background=T["accent"], thickness=6, borderwidth=0)
-        for orient in ("Vertical", "Horizontal"):
-            style.configure(f"{orient}.TScrollbar", background=T["bg_card"], troughcolor=T["bg_panel"], arrowcolor=T["fg_dim"],
-                            bordercolor=T["bg_panel"], lightcolor=T["bg_card"], darkcolor=T["bg_card"])
+        # a 2 px line under the status bar: invisible while nothing runs (its trough is the footer's colour)
+        style.configure("Horizontal.TProgressbar", troughcolor=T["bg_panel"], background=T["accent"], thickness=2, borderwidth=0,
+                        bordercolor=T["bg_panel"], lightcolor=T["accent"], darkcolor=T["accent"])
+        # thin scrollbars without arrows: a soft thumb in a trough the colour of the panel
+        for orient, sticky in (("Vertical", "ns"), ("Horizontal", "ew")):
+            style.configure(f"{orient}.TScrollbar", background=T["bg_soft"], troughcolor=T["bg_panel"], arrowcolor=T["fg_dim"],
+                            bordercolor=T["bg_panel"], lightcolor=T["bg_soft"], darkcolor=T["bg_soft"], gripcount=0, arrowsize=9,
+                            borderwidth=0, relief="flat")
+            style.map(f"{orient}.TScrollbar", background=[("active", T["bg_soft_hover"]), ("pressed", T["bg_selected"])])
+            try:
+                style.layout(f"{orient}.TScrollbar", [(f"{orient}.Scrollbar.trough", {"sticky": sticky, "children": [
+                    (f"{orient}.Scrollbar.thumb", {"expand": "1", "sticky": "nswe"})]})])
+            except tk.TclError:
+                pass
+
+    def _make_tab_images(self):
+        """(normal, hover, open) images for a tab: the tab's colour, with a 2 px line at the bottom when open."""
+        T = THEME
+        try:
+            def img(line):
+                im = tk.PhotoImage(master=self, width=12, height=12)
+                im.put(T["bg_root"], to=(0, 0, 12, 12))
+                if line:
+                    im.put(line, to=(0, 10, 12, 12))
+                return im
+            return img(None), img(T["border"]), img(T["accent"])
+        except Exception:
+            return None
 
     def _set_zoom(self, scale: float, save: bool = True):
         self.ui_scale = min(1.8, max(0.7, round(scale, 2)))
@@ -256,7 +310,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             nxt = next((s for s in reversed(sizes) if s < cur - 1e-6), sizes[0])
         self._set_transcript_size(nxt)
 
-    def _flow(self, parent, **kw) -> FlowFrame:
+    def _flow(self, parent, **kw) -> FlowFrame:  # (one_line=True: one row, what doesn't fit in a ⋯ menu)
         flow = FlowFrame(parent, **kw)
         self._flows.append(flow)
         return flow
@@ -290,7 +344,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                         highlightthickness=1, highlightbackground=THEME["border"], highlightcolor=THEME["accent"], font=self.f[font], show=show, width=width)
 
     def _separator(self, parent):
-        return tk.Frame(parent, bg=THEME["border"], width=1, height=self.f["small"].metrics("linespace") + 8)
+        sep = tk.Frame(parent, bg=THEME["border"], width=1, height=self.f["small"].metrics("linespace") + 8)
+        sep.condense_separator = True  # (a one-line toolbar drops it where the row ends)
+        return sep
 
     # ================================================================== menu bar
     def _build_menubar(self):
@@ -404,8 +460,15 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
 
         pm = tk.Menu(mb, tearoff=0)
         pm.add_command(label="Play / Pause", accelerator="Esc", command=self._toggle_play)
-        pm.add_command(label="Back 5 Seconds", accelerator=f"{acc}[", command=lambda: self._seek_rel(-5))
-        pm.add_command(label="Forward 5 Seconds", accelerator=f"{acc}]", command=lambda: self._seek_rel(+5))
+        pm.add_command(label="Back (one step)", accelerator=f"{acc}[", command=lambda: self._skip(-1))
+        pm.add_command(label="Forward (one step)", accelerator=f"{acc}]", command=lambda: self._skip(+1))
+        pm.add_command(label="Back (three steps)", accelerator=f"⇧{acc}[" if IS_MAC else "Ctrl+Shift+[", command=lambda: self._skip(-1, big=True))
+        pm.add_command(label="Forward (three steps)", accelerator=f"⇧{acc}]" if IS_MAC else "Ctrl+Shift+]", command=lambda: self._skip(+1, big=True))
+        steps = tk.Menu(pm, tearoff=0)
+        self.var_skip_step = tk.IntVar(value=self._skip_step())
+        for sec in self.SKIP_STEPS:
+            steps.add_radiobutton(label=f"{sec} seconds", variable=self.var_skip_step, value=sec, command=lambda s=sec: self._set_skip_step(s))
+        pm.add_cascade(label="Step", menu=steps)
         pm.add_command(label="Go to Time…", accelerator=f"{acc}J", command=self._goto_time_dialog)
         pm.add_separator()
         pm.add_command(label="Faster", accelerator=f"{acc}Shift-." if IS_MAC else "Ctrl+Shift+.", command=lambda: self._speed_step(+1))
@@ -443,7 +506,8 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             "minus": lambda: self._set_zoom(self.ui_scale - 0.1), "0": lambda: self._set_zoom(1.0),
             "1": lambda: self.notebook.select(self.tab_settings), "2": lambda: self.notebook.select(self.tab_console),
             "3": lambda: self._set_tx_mode("edit"), "4": lambda: self._set_tx_mode("code"),
-            "bracketleft": lambda: self._seek_rel(-5), "bracketright": lambda: self._seek_rel(+5),
+            "bracketleft": lambda: self._skip(-1), "bracketright": lambda: self._skip(+1),
+            "braceleft": lambda: self._skip(-1, big=True), "braceright": lambda: self._skip(+1, big=True),
             "j": self._goto_time_dialog,
             "s": self._save_segment_edit,
             "i": self._insert_segment_dialog,
@@ -511,7 +575,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.sub_lbl.configure(text="  ·  ".join(parts), fg=THEME["fg_secondary"] if ok else THEME["warn"])
 
     def _build_footer(self):
-        footer = tk.Frame(self, bg=THEME["bg_panel"], padx=14, pady=8)
+        footer = tk.Frame(self, bg=THEME["bg_panel"], padx=14, pady=4)
         footer.pack(fill=tk.X, side=tk.BOTTOM)
         row = tk.Frame(footer, bg=THEME["bg_panel"])
         row.pack(fill=tk.X)
@@ -525,7 +589,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                                                font="small", fg=THEME["fg_secondary"], bg=THEME["bg_panel"])
         self.lbl_status.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 12))
         self.progress_var = tk.DoubleVar(value=0.0)
-        ttk.Progressbar(footer, variable=self.progress_var, maximum=100.0, style="Horizontal.TProgressbar").pack(fill=tk.X, pady=(6, 0))
+        ttk.Progressbar(footer, variable=self.progress_var, maximum=100.0, style="Horizontal.TProgressbar").pack(fill=tk.X, pady=(5, 0))
 
     # ================================================================== main split
     def _build_main_layout(self):
