@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.30.0 — 2026-11-28
+
+### Calmer still
+- **Rounded buttons** everywhere (quiet, red, the play button, the Code | Edit and zoom switches), drawn smooth on any
+  background; the switches show the chosen part in a pill. **The speed slider** is a thin line with a small round knob.
+- **Shortcuts on hover:** buttons say only what they do ("Merge", "Save & next", "Code selection"); their key shows in a
+  tooltip.
+- **The segment editor in one row:** the segment, the clicked word, then ✓ (green when checked), Split, Merge, Insert,
+  Delete, **⋯** (Save, Revert, Re-transcribe, markers) and Save & next. The speaker box is gone: the chips under it set
+  the speaker and show it (filled), without outlines. The timing hint is a tooltip on the text box; only what matters
+  about a segment (re-transcribed, Whisper wrote something else) still shows under it.
+- **The transcript:** speaker and times above a paragraph are small and quiet; checked segments have a thin green bar
+  in the margin instead of a ✓ in the text. One info line above it; messages such as "Resumed where you left off" are
+  in the status line.
+- **Code mode:** the recent codes are at the end of the code bar (one row); the codebook's buttons on one row with ⋯
+  and a "Search codes" hint; the codings list fits its pane, with light headings.
+- **Tasks:** the list shows the name with a status dot and how far it is — video, steps and stage on hover. A task that
+  ran shows its details as plain text (no greyed-out boxes and buttons); the settings fold to one line (click for
+  all), the output folder shows its last parts (all of it on hover).
+- **Header:** a dot and "GPU ready" (or what is wrong) instead of the hardware list, which is on hover and in Setup &
+  Status (a click opens it).
+- **One heading style** (Tasks, Codebook, Codings, Timeline, Settings cards); the speed is no longer repeated after the
+  time.
+
 ## 0.29.0 — 2026-11-28
 
 ### A calmer, sleeker window

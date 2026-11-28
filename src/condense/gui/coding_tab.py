@@ -80,7 +80,7 @@ class CodingMixin:
         # ---- the Code toolbar (in place of the Edit toolbar) ----
         top = self._flow(self.mode_holder, padx=4, pady=5, bg=T["bg_panel"], one_line=True)  # one row; the rest in ⋯
         self.cd_bar = top
-        top.add(self._tool(top, "Code", lambda: self._cd_apply(self._cd_selected_code()),
+        top.add(self._tool(top, "Code selection", lambda: self._cd_apply(self._cd_selected_code()),
                            tip="Code the selection with the chosen code  ↩   (or 1–9 for a recent code)"))
         top.add(self._tool(top, "New code", lambda: self._cd_new_code(parent=self._cd_selected_code(), apply=True),
                            tip="A new code for the selection  N"))
@@ -110,8 +110,8 @@ class CodingMixin:
         csb.pack(side=tk.RIGHT, fill=tk.Y)
         self.cd_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         t = self.cd_text
-        t.tag_config("SPK", font=self.f["mono_small_bold"], spacing1=10)
-        t.tag_config("TS", foreground=T["fg_dim"], font=self.f["mono_small"])
+        t.tag_config("SPK", font=self.f["small_bold"], spacing1=10)  # small and quiet, as in Edit mode
+        t.tag_config("TS", foreground=T["fg_dim"], font=self.f["small"])
         t.tag_config("EP", font=self.f["small_bold"], spacing1=8)
         t.tag_config("CODED", underline=True)
         t.tag_config("PLAYING", background="#1d3a2e")
@@ -151,6 +151,7 @@ class CodingMixin:
             cl.heading(c, text=title, anchor="w")
             cl.column(c, width=w, minwidth=mw, anchor="w", stretch=c != "time")
         cl.pack(fill=tk.BOTH, expand=True)
+        cl.bind("<Configure>", lambda e: self._cd_fit_columns(e.width), add="+")
         cl.bind("<<TreeviewSelect>>", lambda e: self._cd_select_coding(self._cd_list_selected(), from_list=True))
         cl.bind("<Double-Button-1>", lambda e: self._cd_play_coding(self._cd_list_selected()))
         cl.bind("<Delete>", lambda e: self._cd_remove(self._cd_list_selected()))
@@ -164,6 +165,18 @@ class CodingMixin:
         mode = self.settings.get("tx_mode")
         if mode == "code":
             self.after_idle(lambda: self._set_tx_mode("code", select_tab=False))
+
+    def _cd_fit_columns(self, width: int):
+        """The codings list's columns share the pane's width (Tk only clips them): the time as it is, the rest in parts."""
+        cl = self.__dict__.get("cd_list")
+        if cl is None or width <= 1:
+            return
+        rest = max(0, width - 66)
+        for c, part, least in (("code", 0.28, 70), ("who", 0.22, 64), ("text", 0.50, 90)):
+            try:
+                cl.column(c, width=max(least, int(rest * part)))
+            except Exception:  # noqa: BLE001
+                return
 
     # ================================================================== state
     def _cd_project(self) -> Optional[Path]:

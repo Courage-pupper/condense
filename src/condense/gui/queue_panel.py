@@ -40,7 +40,7 @@ class QueueMixin:
         self._task_dots = {}
         for status, color in (("Pending", T["fg_dim"]), ("Running", "#38bdf8"), ("Completed", T["ok"]), ("Failed", T["err"])):
             try:
-                self._task_dots[status] = rounded.photo(self, color, side=10, radius=4)
+                self._task_dots[status] = rounded.photo(self, color, side=17, height=9, box=(1, 0, 10, 9), radius=4.5)  # a gap before the name
             except Exception:  # noqa: BLE001 — no dots (the status words still say it)
                 pass
         self.queue_tree.tag_configure("Pending", foreground=T["fg_primary"])
@@ -595,7 +595,8 @@ class QueueMixin:
                     self.lbl_task_note.config(text="+ adds another video and turns this into a merge task.", fg=THEME["fg_dim"])
             name_editable = editable and len(task["inputs"]) > 1
             self.ent_task_name.configure(state=tk.NORMAL if name_editable else tk.DISABLED, highlightthickness=1 if name_editable else 0)
-            self.lst_inputs.configure(state=tk.NORMAL)
+            self.lst_inputs.configure(state=tk.NORMAL, highlightthickness=1 if editable else 0,
+                                      bg=THEME["bg_input"] if editable else THEME["bg_card"])  # a list to edit, or plain text
             for w in (*self._task_buttons, *self._task_checks, self.btn_task_settings, self.btn_task_output, self.btn_task_trim):
                 w.configure(state=state)
             # what can't be used isn't shown: a task that ran (or none selected) reads as plain text
