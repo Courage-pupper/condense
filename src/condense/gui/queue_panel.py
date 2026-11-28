@@ -9,7 +9,7 @@ class QueueMixin:
         T = THEME
         top = tk.Frame(panel, bg=T["bg_panel"])
         top.pack(fill=tk.X)
-        self._label(top, "TASKS", font="section", fg=T["fg_dim"], bg=T["bg_panel"]).pack(side=tk.LEFT)
+        self._heading(top, "Tasks", bg=T["bg_panel"]).pack(side=tk.LEFT)
         self.lbl_queue_counts = self._label(top, "empty", font="small", fg=T["fg_secondary"], bg=T["bg_panel"])
         self.lbl_queue_counts.pack(side=tk.RIGHT)
 
@@ -31,20 +31,23 @@ class QueueMixin:
         tree_frame.pack(fill=tk.BOTH, expand=True)
         tree_frame.rowconfigure(0, weight=1)
         tree_frame.columnconfigure(0, weight=1)
-        cols = ("name", "steps", "status", "stage")
-        self.queue_tree = ttk.Treeview(tree_frame, columns=cols, show="headings", style="Queue.Treeview", selectmode="extended")
-        for c, w, mw, stretch, heading in [
-            ("name", 160, 90, True, "Task"),
-            ("steps", 170, 90, True, "Steps"),
-            ("status", 74, 60, False, "Status"),
-            ("stage", 140, 70, True, "Stage"),
-        ]:
-            self.queue_tree.heading(c, text=heading, anchor="w")
-            self.queue_tree.column(c, width=w, minwidth=mw, stretch=stretch, anchor="w")
+        # the name with a status dot, and how far it is; resolution, steps and stage on hover
+        self.queue_tree = ttk.Treeview(tree_frame, columns=("state",), show="tree headings", style="Queue.Treeview", selectmode="extended")
+        self.queue_tree.heading("#0", text="Task", anchor="w")
+        self.queue_tree.column("#0", width=190, minwidth=110, stretch=True, anchor="w")
+        self.queue_tree.heading("state", text="Status", anchor="w")
+        self.queue_tree.column("state", width=150, minwidth=80, stretch=True, anchor="w")
+        self._task_dots = {}
+        for status, color in (("Pending", T["fg_dim"]), ("Running", "#38bdf8"), ("Completed", T["ok"]), ("Failed", T["err"])):
+            try:
+                self._task_dots[status] = rounded.photo(self, color, side=17, height=9, box=(1, 0, 10, 9), radius=4.5)  # a gap before the name
+            except Exception:  # noqa: BLE001 — no dots (the status words still say it)
+                pass
         self.queue_tree.tag_configure("Pending", foreground=T["fg_primary"])
-        self.queue_tree.tag_configure("Running", foreground="#38bdf8")
-        self.queue_tree.tag_configure("Completed", foreground=T["ok"])
+        self.queue_tree.tag_configure("Running", foreground=T["fg_primary"])
+        self.queue_tree.tag_configure("Completed", foreground=T["fg_primary"])
         self.queue_tree.tag_configure("Failed", foreground=T["err"])
+        self._tip(self.queue_tree, self._task_tip)
         self.queue_tree.bind("<<TreeviewSelect>>", self._on_job_selected)
         self.queue_tree.bind("<Double-Button-1>", self._on_task_double_click)
         for seq in ("<Button-2>", "<Button-3>", "<Control-Button-1>"):
@@ -73,7 +76,7 @@ class QueueMixin:
         T = THEME
         card = tk.Frame(panel, bg=T["bg_card"], padx=10, pady=8)
         card.pack(side=tk.BOTTOM, fill=tk.X, pady=(8, 0))
-        self.lbl_task_title = self._label(card, "TASK DETAILS — select a task", font="section", fg=T["accent"])
+        self.lbl_task_title = self._heading(card, "Task details — select a task")
         self.lbl_task_title.pack(anchor="w", pady=(0, 4))
         form = tk.Frame(card, bg=T["bg_card"])
         form.pack(fill=tk.X)
@@ -84,6 +87,8 @@ class QueueMixin:
         lab(0, "Name")
         self.var_task_name = tk.StringVar(value="")
         self.ent_task_name = self._entry(form, self.var_task_name, font="small")
+        # read-only (a single video, or a task that ran): plain text, not a greyed-out box
+        self.ent_task_name.configure(disabledbackground=T["bg_card"], disabledforeground=T["fg_primary"])
         self.ent_task_name.grid(row=0, column=1, sticky="ew", pady=2)
         self.var_task_name.trace_add("write", lambda *a: self._on_task_name())
 
@@ -110,6 +115,11 @@ class QueueMixin:
         self.var_task_whisper = tk.BooleanVar(value=False)
         steps = self._flow(form, padx=10, pady=2, bg=T["bg_card"])
         steps.grid(row=2, column=1, sticky="ew", pady=2)
+        self.task_steps_flow = steps
+        # a task that can't be changed shows its steps as words: Compress → Extract audio → Transcribe
+        self.lbl_task_steps = self._label(form, "", font="small", fg=T["fg_primary"], anchor="w")
+        self.lbl_task_steps.grid(row=2, column=1, sticky="ew", pady=2)
+        self.lbl_task_steps.grid_remove()
         self.lbl_task_merge = self._label(steps, "", font="small_bold", fg=T["fg_primary"])
         steps.add(self.lbl_task_merge)
         self._task_checks = []
@@ -125,6 +135,11 @@ class QueueMixin:
         srow.columnconfigure(0, weight=1)
         self.lbl_task_settings = self._wrapping_label(srow, "", font="small", fg=T["fg_secondary"])
         self.lbl_task_settings.grid(row=0, column=0, sticky="ew")
+        # folded to one short line ("▸ Whisper large-v3-turbo (GPU) …"); a click shows all of it
+        self._task_settings_open = False
+        self._task_settings_full = ""
+        self.lbl_task_settings.configure(cursor="hand2")
+        self.lbl_task_settings.bind("<Button-1>", lambda e: self._toggle_task_settings())
         self.btn_task_settings = self._tool(srow, "Use current Settings", self._task_use_current_settings)
         self.btn_task_settings.grid(row=0, column=1, sticky="ne", padx=(6, 0))
 
@@ -134,6 +149,8 @@ class QueueMixin:
         orow.columnconfigure(0, weight=1)
         self.lbl_task_output = self._wrapping_label(orow, "", font="small", fg=T["fg_secondary"])
         self.lbl_task_output.grid(row=0, column=0, sticky="ew")
+        self._task_output_full = ""
+        self._tip(self.lbl_task_output, lambda: self._task_output_full)  # the whole folder, on hover
         self.btn_task_output = self._tool(orow, "Change…", self._task_change_output)
         self.btn_task_output.grid(row=0, column=1, sticky="ne", padx=(6, 0))
 
@@ -351,17 +368,47 @@ class QueueMixin:
                          + f"; exports {', '.join(fmts) or 'none'}")
         return "  ·  ".join(parts) or "—"
 
-    def _job_values(self, task: Dict) -> Tuple:
-        st = task["status"]
-        status = {"Pending": "Pending", "Completed": "✓ Done", "Failed": "✖ Failed"}.get(st, f"{task['progress']:.0f}%" if st == "Running" else st)
-        name = task["name"] + (f"  ({task['info']})" if task.get("info") else "")
-        return (name, self._steps_text(task), status, task["stage"])
+    def _job_values(self, task: Dict) -> Tuple[str, str]:
+        """(name, status) as the task list shows them: the name alone, how far it is in a few words."""
+        st, stage = task["status"], str(task.get("stage") or "")
+        if st == "Running":
+            status = f"{task['progress']:.0f}%" + (f" · {stage}" if stage else "")
+        elif st == "Completed":
+            status = stage.replace("Done ✓ · ", "").replace("Done ✓", "Done") or "Done"
+        elif st == "Failed":
+            status = "Failed"
+        else:
+            status = stage or st
+        return (task["name"], status)
+
+    def _task_tip(self) -> str:
+        """The row under the mouse: video (resolution), steps and what it is doing."""
+        try:
+            y = self.queue_tree.winfo_pointery() - self.queue_tree.winfo_rooty()
+            iid = self.queue_tree.identify_row(y)
+        except Exception:  # noqa: BLE001
+            return ""
+        task = next((t for t in self.jobs if t["id"] == iid), None)
+        if task is None:
+            return ""
+        lines = [task["name"] + (f"  ({task['info']})" if task.get("info") else ""), self._steps_text(task)]
+        if task.get("stage"):
+            lines.append(f"{task['status']}: {task['stage']}")
+        return "\n".join(lines)
+
+    def _job_row(self, task: Dict) -> Dict:
+        name, status = self._job_values(task)
+        kw = {"text": name, "values": (status,), "tags": (task["status"],)}
+        dot = self.__dict__.get("_task_dots", {}).get(task["status"])
+        if dot is not None:
+            kw["image"] = dot
+        return kw
 
     def _refresh_queue_tree(self):
         sel = set(self.queue_tree.selection())
         self.queue_tree.delete(*self.queue_tree.get_children())
         for task in self.jobs:
-            self.queue_tree.insert("", tk.END, iid=task["id"], values=self._job_values(task), tags=(task["status"],))
+            self.queue_tree.insert("", tk.END, iid=task["id"], **self._job_row(task))
             if task["id"] in sel:
                 self.queue_tree.selection_add(task["id"])
         self._update_queue_counts()
@@ -370,7 +417,7 @@ class QueueMixin:
         if not self.queue_tree.exists(task["id"]):
             self._refresh_queue_tree()
             return
-        self.queue_tree.item(task["id"], values=self._job_values(task), tags=(task["status"],))
+        self.queue_tree.item(task["id"], **self._job_row(task))
         self._update_queue_counts()
 
     def _update_queue_counts(self):
@@ -472,6 +519,34 @@ class QueueMixin:
         self._show_task_details(None)
 
     # ----- task details panel -----
+    @staticmethod
+    def _short_path(path: str, keep: int = 3) -> str:
+        """The last few folders of a long path: …/Day 1 2026-03-12/Group 1/Session Recordings/demo_G1D1."""
+        parts = Path(path).parts
+        return str(path) if len(parts) <= keep + 1 or len(str(path)) <= 48 else "…/" + "/".join(parts[-keep:])
+
+    def _set_task_settings_text(self, full: str):
+        self._task_settings_full = full
+        if not full:
+            self.lbl_task_settings.config(text="")
+        elif self._task_settings_open:
+            self.lbl_task_settings.config(text="▾ " + full)
+        else:
+            first = full.split("  ·  ")
+            short = next((p for p in first if p.startswith("Whisper")), first[0])
+            short = short.split(";")[0]
+            if len(short) > 46:
+                short = short[:45].rstrip(" ,") + "…"
+            self.lbl_task_settings.config(text="▸ " + short + ("" if short == full else "  …"))
+
+    def _toggle_task_settings(self):
+        self._task_settings_open = not self._task_settings_open
+        self._set_task_settings_text(self._task_settings_full)
+
+    def _set_output_text(self, path: str):
+        self._task_output_full = str(path or "")
+        self.lbl_task_output.config(text=self._short_path(self._task_output_full) if path else "")
+
     def _show_task_details(self, task: Optional[Dict]):
         self._loading_details = True
         try:
@@ -480,18 +555,19 @@ class QueueMixin:
             self.lst_inputs.delete(0, tk.END)
             if task is None:
                 n = len(self._get_selected_indices()) if self.__dict__.get("queue_tree") is not None else 0  # tree is built after this panel
-                self.lbl_task_title.config(text=f"{n} TASKS SELECTED — right-click to combine" if n > 1 else "TASK DETAILS — select a task")
+                self.lbl_task_title.config(text=f"{n} tasks selected — right-click to combine" if n > 1 else "Task details — select a task")
                 self.var_task_name.set("")
                 for v in (self.var_task_compress, self.var_task_audio, self.var_task_whisper):
                     v.set(False)
                 self.lbl_task_merge.config(text="")
-                self.lbl_task_settings.config(text="")
-                self.lbl_task_output.config(text="")
+                self._set_task_settings_text("")
+                self._set_output_text("")
                 self.lbl_task_trim.config(text="")
                 self.lbl_task_note.config(text="")
             else:
                 merge = len(task["inputs"]) > 1
-                self.lbl_task_title.config(text=("MERGE TASK" if merge else "TASK") + f"  ·  {task['status'].upper()}")
+                status = {"Completed": "done"}.get(task["status"], task["status"].lower())
+                self.lbl_task_title.config(text=("Merge task" if merge else "Task") + f"  ·  {status}")
                 self.var_task_name.set(task["name"])
                 for p in task["inputs"]:
                     self.lst_inputs.insert(tk.END, Path(p).name)
@@ -500,8 +576,8 @@ class QueueMixin:
                 self.var_task_audio.set(bool(st.get("audio")))
                 self.var_task_whisper.set(bool(st.get("whisper")))
                 self.lbl_task_merge.config(text=f"Merge {len(task['inputs'])} videos  →" if merge else "")
-                self.lbl_task_settings.config(text=self._settings_summary(task))
-                self.lbl_task_output.config(text=task["output_dir"])
+                self._set_task_settings_text(self._settings_summary(task))
+                self._set_output_text(task["output_dir"])
                 if merge:
                     trims = [describe_trim(Path(p)) for p in task["inputs"]]
                     n = sum(1 for t in trims if t != "none")
@@ -517,10 +593,32 @@ class QueueMixin:
                     self.lbl_task_note.config(text="Videos are merged top to bottom. Name = merged file and transcript name.", fg=THEME["fg_dim"])
                 else:
                     self.lbl_task_note.config(text="+ adds another video and turns this into a merge task.", fg=THEME["fg_dim"])
-            self.ent_task_name.configure(state=state if (task and len(task["inputs"]) > 1) else tk.DISABLED)
-            self.lst_inputs.configure(state=tk.NORMAL)
+            name_editable = editable and len(task["inputs"]) > 1
+            self.ent_task_name.configure(state=tk.NORMAL if name_editable else tk.DISABLED, highlightthickness=1 if name_editable else 0)
+            self.lst_inputs.configure(state=tk.NORMAL, highlightthickness=1 if editable else 0,
+                                      bg=THEME["bg_input"] if editable else THEME["bg_card"])  # a list to edit, or plain text
             for w in (*self._task_buttons, *self._task_checks, self.btn_task_settings, self.btn_task_output, self.btn_task_trim):
                 w.configure(state=state)
+            # what can't be used isn't shown: a task that ran (or none selected) reads as plain text
+            for b in self._task_buttons:
+                if editable:
+                    b.pack(side=tk.LEFT, padx=(0, 2))
+                else:
+                    b.pack_forget()
+            for b in (self.btn_task_settings, self.btn_task_output, self.btn_task_trim):
+                if editable:
+                    b.grid()
+                else:
+                    b.grid_remove()
+            if editable or task is None:
+                self.lbl_task_steps.grid_remove()
+                self.task_steps_flow.grid()
+            else:
+                self.task_steps_flow.grid_remove()
+                merge_txt = [f"Merge {len(task['inputs'])} videos"] if len(task["inputs"]) > 1 else []
+                self.lbl_task_steps.config(text=" → ".join(merge_txt + [n for k, n in (("compress", "Compress"), ("audio", "Extract audio"),
+                                                                                       ("whisper", "Transcribe")) if (task.get("steps") or {}).get(k)]) or "—")
+                self.lbl_task_steps.grid()
         finally:
             self._loading_details = False
 
@@ -534,7 +632,7 @@ class QueueMixin:
         if refresh_details:
             self._show_task_details(task)
         else:
-            self.lbl_task_settings.config(text=self._settings_summary(task))
+            self._set_task_settings_text(self._settings_summary(task))
 
     def _on_task_name(self):
         if self._loading_details:
@@ -546,7 +644,7 @@ class QueueMixin:
         task["name"] = re.sub(r'[\\/:*?"<>|]', "_", name)
         if task.get("output_auto", True):
             task["output_dir"] = self._default_output_dir(task["inputs"], task["name"])
-            self.lbl_task_output.config(text=task["output_dir"])
+            self._set_output_text(task["output_dir"])
         self._task_changed(task)
 
     def _on_task_steps(self):

@@ -206,7 +206,7 @@ class NavigationMixin:
 
     def _jump_low_conf(self, direction: int):
         if not self.low_conf:
-            self.lbl_word.config(text="No uncertain words in this transcript.")
+            self.lbl_status.config(text="No uncertain words in this transcript.")
             return
         cur = self.current_span if self.current_span is not None else (-1 if direction > 0 else len(self.word_spans))
         if direction > 0:

@@ -110,11 +110,14 @@ class FlowFrame(tk.Frame):
     one row: the buttons that don't fit go into a "⋯" menu at its end (in their order), instead of onto a second row
     that makes the toolbars look chopped. Separators (thin lines between groups) are dropped where a row ends."""
 
-    def __init__(self, master, padx: int = 6, pady: int = 4, one_line: bool = False, extra_menu=None, **kw):
+    def __init__(self, master, padx: int = 6, pady: int = 4, one_line: bool = False, extra_menu=None, align: str = "left",
+                 more_before_last: bool = False, **kw):
         """extra_menu (one_line): a function giving a PopupMenu whose entries the ⋯ menu always ends with; then ⋯ is
         always there — the row's own menu and, when space runs out, the buttons that did not fit."""
         super().__init__(master, **kw)
         self.extra_menu = extra_menu
+        self.align = align  # (one_line) "right": the row ends at the right edge
+        self.more_before_last = more_before_last  # (one_line) ⋯ before the last button (the main action stays last)
         self._items: List = []
         self._padx, self._pady = padx, pady
         self._last_width = None
@@ -127,6 +130,15 @@ class FlowFrame(tk.Frame):
         self._items.append(widget)
         self.after_idle(self.relayout)
         return widget
+
+    def remove(self, widget):
+        """Take one child out (and destroy it); the rest close up."""
+        if widget in self._items:
+            self._items.remove(widget)
+        if widget in self.hidden:
+            self.hidden.remove(widget)
+        widget.destroy()
+        self.after_idle(self.relayout)
 
     def clear(self):
         """Remove the children but keep the current height until the new ones are laid out: shrinking to nothing and
@@ -148,7 +160,8 @@ class FlowFrame(tk.Frame):
     @staticmethod
     def _can_hide(w) -> bool:
         """Buttons (and dropdowns) can go into the ⋯ menu; fields, switches and labels stay on the row."""
-        return isinstance(w, ttk.Button) and not getattr(w, "condense_keep", False)
+        return ((isinstance(w, ttk.Button) or getattr(w, "condense_invoke", None) is not None)
+                and not getattr(w, "condense_keep", False))
 
     def relayout(self):
         if self.one_line:
@@ -170,7 +183,8 @@ class FlowFrame(tk.Frame):
 
     def _more_button(self):
         if self._more is None:
-            self._more = ttk.Button(self, text="⋯", style="Tool.TButton", command=self._open_more)
+            from condense.gui import rounded
+            self._more = ttk.Button(self, text="⋯", style=rounded.style_for(self, "Tool"), command=self._open_more)
             self._more.condense_keep = True
         return self._more
 
@@ -184,6 +198,8 @@ class FlowFrame(tk.Frame):
             sub = getattr(w, "menu", None)
             if sub is not None:  # a dropdown: its own menu, opened where ⋯ is
                 menu.add_command(label=label + " …", command=lambda m=sub: m.tk_popup(btn.winfo_rootx(), btn.winfo_rooty() + btn.winfo_height()))
+            elif getattr(w, "condense_invoke", None) is not None:  # a chip (a label that acts as a button)
+                menu.add_command(label=label, command=w.condense_invoke)
             else:
                 menu.add_command(label=label, command=w.invoke, state="disabled" if "disabled" in str(w.cget("state")) else "normal")
         if extra is not None:
@@ -228,20 +244,28 @@ class FlowFrame(tk.Frame):
         while shown and self._is_separator(items[shown[-1]]):  # no separator at the end of the row
             hide.add(shown.pop())
         self.hidden = [items[i] for i in sorted(hide) if not self._is_separator(items[i])]
+        order = []
         for i, w in enumerate(items):
             if i in hide:
                 w.place_forget()
                 continue
-            ww, wh = sizes[i]
-            w.place(in_=self, x=x, y=0)
-            x += ww + self._padx
-            row_h = max(row_h, wh)
+            order.append(w)
         if self.hidden or self.extra_menu is not None:
             more = self._more_button()
-            more.place(in_=self, x=x, y=0)
-            row_h = max(row_h, more.winfo_reqheight())
+            if self.more_before_last and order:
+                order.insert(len(order) - 1, more)
+            else:
+                order.append(more)
         elif self._more is not None:
             self._more.place_forget()
+        places = []
+        for w in order:
+            places.append((w, x))
+            x += w.winfo_reqwidth() + self._padx
+            row_h = max(row_h, w.winfo_reqheight())
+        shift = max(0, width - (x - self._padx)) if self.align == "right" and width < 10_000 else 0
+        for w, wx in places:
+            w.place(in_=self, x=wx + shift, y=0)
         total_h = max(1, row_h)
         if int(self.cget("height")) != total_h:
             self.configure(height=total_h)
@@ -278,13 +302,28 @@ class Tooltip:
         self.widget, self.text, self.bg, self.fg, self.font = widget, text, bg, fg, font
         self.win = None
         self._job = None
+        self._shown = None
         widget.bind("<Enter>", self._schedule, add="+")
+        if callable(text):  # what it says depends on where the mouse is (a row of a list): follow it
+            widget.bind("<Motion>", self._moved, add="+")
         widget.bind("<Leave>", self._hide, add="+")
         widget.bind("<ButtonPress>", self._hide, add="+")
 
     def _schedule(self, _event=None):
         self._cancel()
         self._job = self.widget.after(self.DELAY_MS, self._show)
+
+    def _moved(self, _event=None):
+        if self.win is not None:
+            try:
+                now = self.text()
+            except Exception:  # noqa: BLE001
+                now = None
+            if now != self._shown:
+                self._hide()
+                self._schedule()
+        elif self._job is None:
+            self._schedule()
 
     def _cancel(self):
         if self._job is not None:
@@ -300,8 +339,11 @@ class Tooltip:
         if not text or self.win is not None:
             return
         try:
-            x = self.widget.winfo_rootx() + 12
-            y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
+            if callable(self.text):  # beside the mouse (the widget may be a whole list)
+                x, y = self.widget.winfo_pointerx() + 14, self.widget.winfo_pointery() + 18
+            else:
+                x = self.widget.winfo_rootx() + 12
+                y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
             win = tk.Toplevel(self.widget)
             win.condense_free = True  # (not tied to a window: Condense makes other new windows transient)
             win.wm_overrideredirect(True)
@@ -310,6 +352,7 @@ class Tooltip:
                      wraplength=420).pack()
             win.wm_geometry(f"+{x}+{y}")
             self.win = win
+            self._shown = text
         except tk.TclError:
             self.win = None
 

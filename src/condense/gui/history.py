@@ -212,5 +212,4 @@ class HistoryMixin:
         self.play_pos = pos
         self._update_time_label()
         if self._media() is not None:
-            self.lbl_word.config(text=f"Resumed where you left off: {short_ts(pos)[:-2]} (segment {seg + 1 if seg is not None else '–'}).",
-                                 fg=THEME["fg_secondary"])
+            self.lbl_status.config(text=f"Resumed where you left off: {short_ts(pos)[:-2]} (segment {seg + 1 if seg is not None else '–'}).")

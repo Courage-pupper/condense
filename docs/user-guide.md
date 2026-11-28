@@ -118,8 +118,9 @@ reviewing (below) and *Code* for coding ([Coding](#9-coding)). Switching keeps y
 (*Paragraphs*/*Segments*), the *Show* filter, *Find*, ◀ *Uncertain* ▶, *✂ Cut* and *Episodes…* — on one row: what doesn't
 fit in a narrow window is in the **⋯** menu at its end; then the player: ⟲ back, ▶ play, forward ⟳ by a **step** you choose
 once under *Step ▾* (5, 10, 15 or 30 s; remembered), with *Playback ▾* for its options (follow the text, play a snippet when jumping, skip cuts, show the video, open in a video
-player); in the segment editor *Mark checked*, *Split*, *Merge*, *+ Insert*, *Delete*, *More ▾* (re-transcribe, revert,
-markers), *Save* and *Save & next*.
+player); in the segment editor's row ✓ (checked: green), *Split*, *Merge*, *Insert*, *Delete*, **⋯** (save, revert,
+re-transcribe, markers) and *Save & next*, with the speakers under it: the segment's speaker is filled, a click (or its
+number) gives the segment another one. Buttons say what they do; hover over one for its key.
 
 **The video** fills its column: drag the column's edge to make it larger, or press **⤢** to give it a window of its
 own (resize it, move it to a second screen, **F** or double-click for full screen; *Back into the window* returns it).
@@ -160,10 +161,11 @@ uses a linked video if it is on the transcript's own timeline; otherwise it cuts
 
 **Text size:** click **Aa 100 %** to the right, above the transcript, for larger, smaller or the default size of the transcript and the segment box (80–250 %), as do Ctrl/⌘ + scroll wheel over the transcript and *View ▸ Larger / Smaller Transcript Text*. It is remembered. *View ▸ Larger / Smaller Text* (⌘+ / Ctrl++) sizes the whole window.
 
-The line above the transcript shows how much is **checked**. Checked segments get a ✓, and the queue shows the
+The line above the transcript shows how much is **checked**. Checked segments get a thin green bar in the margin beside
+their lines, and the queue shows the
 percentage for each task. Condense remembers where you stopped in each transcript. If you reviewed a transcript elsewhere, right-click it in the Project tab or the task list and choose *Mark All Checked (100 %)* (or use the Edit menu); ⌘Z / Ctrl+Z undoes it.
 
-**Markers** for things Whisper can't write: *More ▾ ▸ Insert marker* in the editor, or while typing ⌃L ⌃I ⌃U ⌃C ⌃P ⌃G ⌃N on the Mac
+**Markers** for things Whisper can't write: *⋯ ▸ Insert marker* in the editor, or while typing ⌃L ⌃I ⌃U ⌃C ⌃P ⌃G ⌃N on the Mac
 and Ctrl+Shift+L, I, U, C, P, G, N on Linux and Windows. They insert `[laughs]`, `[inaudible 0:12:31]`, `[unclear: ]`,
 `[crosstalk]`, `[pause]`, `[German]` and `[gestures]`.
 
@@ -174,8 +176,8 @@ Passage…* (⌘⇧R / Ctrl+Shift+R), with a bigger model or a forced language.
 **When Whisper skipped something:** *Transcript ▾ ▸ Find untranscribed stretches…* lists the stretches where the
 recording has voices as loud as the transcribed talk but the transcript has nothing. Listen to them, then
 *Re-transcribe selected (or all)*: they are transcribed one after another with the transcript's model, language and
-vocabulary, each one undo step. *Split (S)*, *Merge (M)*, *+ Insert (I)* and *Delete* in the editor fix
-the segmentation; *More ▾* reverts your changes.
+vocabulary, each one undo step. *Split* (S), *Merge* (M), *Insert* (I) and *Delete* in the editor fix
+the segmentation; *⋯ ▸ Revert my changes* undoes yours.
 
 ![All keyboard shortcuts](images/shortcuts.png)
 
@@ -319,7 +321,7 @@ selected words' segments (or the clicked word's) that speaker.
   name it, and the selection is coded with it. **+ Code** and **+ Subcode** add codes without coding.
 - **Edit…** (or right-click a code) gives a code its name, place in the tree, colour, **definition**, *use when*, *not
   when*, an **example** and a **memo**. The panel below the codebook shows them for the selected code.
-- **Merge into another code** (*More ▾* or right-click): all its codings get the other code, its subcodes move along,
+- **Merge into another code** (the codebook's **⋯** or right-click): all its codings get the other code, its subcodes move along,
   and its memo is added to the other's. A code that turned out too big is **split** by making a new (sub)code and giving
   the codings that belong to it the new code: select one in the list below and *Change code…*.
 - **Delete** removes a code, its subcodes and their codings (asks first). Every change to the codebook is recorded in
@@ -327,7 +329,7 @@ selected words' segments (or the clicked word's) that speaker.
 
 **Coding.** Select words (drag), then:
 - double-click a code in the codebook, or press **Return** for the selected code;
-- press **1–9** for a recent code (shown above the transcript);
+- press **1–9** for a recent code (shown at the end of the code bar);
 - or right-click the selection.
 
 The video plays next to the text while you code (the player is the tab's own; **⤢** for a window of its own), so you
@@ -335,7 +337,7 @@ see what happens while you code what is said.
 
 Each coding shows as a coloured **stripe** next to the text and as a bar on the timeline. Click a stripe or coded words
 to select a coding; the list below shows all codings of the transcript (or *only the selected code*) with their speaker
-and text. **Memo…**, **Change code…** and **Delete coding** (or Del) work on the selected one; double-click plays it.
+and text. **Memo…**, **Change code…** and **Delete** (or Del) work on the selected one; double-click plays it.
 
 ### Coding video on the timeline
 
@@ -361,7 +363,7 @@ the line above the timeline to give it more height.
   **Ctrl+B** (or **◂** next to the Tasks tab) hides the Tasks / Project panel to a strip at the left.
 - **Which lanes:** at first the codes used in view. To work with a few codes, right-click them in the codebook ▸
   *Show on the timeline* (marked ◉): only those get lanes, like activated codes in MAXQDA; a code you use on the
-  timeline gets its lane. *More ▾ ▸ Timeline: back to the codes used* undoes it.
+  timeline gets its lane. *⋯ ▸ Timeline: back to the codes used* undoes it.
 
 ![Code by time, with a description](images/coding-moment.png)
 

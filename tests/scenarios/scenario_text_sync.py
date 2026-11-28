@@ -47,6 +47,6 @@ app.edit_text.delete("1.0", "end"); app.edit_text.insert("1.0", "you have to pai
 app._save_segment_edit()
 w = TD.load(d.path).segments[1]["words"]
 assert [x["word"].strip() for x in w] == ["you", "have", "to", "paint", "it", "now.", "Mmhm."] and w[-1]["start"] == 98.1
-assert app.lbl_edit_hint.cget("text") == app.EDIT_HINT
+assert app.lbl_edit_hint.cget("text") == ""  # the usual hint is a tooltip on the text box
 ok("correcting the segment keeps the timing of unchanged words ('Mmhm.' still at 1:38.1); hint clears once edited")
 print("\nALL TESTS PASSED")

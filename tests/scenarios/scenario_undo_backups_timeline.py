@@ -28,7 +28,16 @@ assert dd.segments[0]["checked"] and dd.segments[0]["text"].strip() == "Hello ev
 pct = round(dd.checked_fraction() * 100)
 print("    summary:", app.lbl_ci_summary.cget("text")[:60], "| task stage:", app.jobs[0]["stage"])
 assert pct == 18 and app.jobs[0]["stage"] == "Done ✓ · 18% checked"
-assert "✓" in app.preview_text.content.split("\n")[1]
+# the checked mark is a green bar in the margin beside the segment's lines, not a ✓ in the text
+assert "✓" not in app.preview_text.content
+pt = app.preview_text
+pt.winfo_height = lambda: 400
+pt.index = lambda i, _o=pt.index: ("1.0" if i == "@0,0" else "999.0") if i.startswith("@") else _o(i)
+pt.dlineinfo = lambda i: (0, (int(i.split(".")[0]) - 1) * 20, 300, 20, 15)
+bars = app._checked_bar_spans()
+a, b = app.seg_ranges[0]
+assert bars and bars[0][0] == (int(a.split(".")[0]) - 1) * 20 + 2, (bars, app.seg_ranges[0])
+assert len(bars) == sum(1 for s_ in dd.segments if s_.get("checked")), bars
 ok("⌘↩ saves the edit, marks the segment checked and moves to the next; 18% (by speaking time) shown in view, summary and task list")
 app._toggle_checked(); app._toggle_checked()
 assert not TD.load(d.path).segments[1].get("checked") or True
@@ -84,7 +93,7 @@ app._save_settings()
 holder.clear(); pipe.launch_gui(); app2 = holder["app"]
 app2._render_doc(TD.load(d.path))
 assert app2.edit_seg_idx == 2 and abs(app2.play_pos - 6.7) < 1e-6
-print("    ", app2.lbl_word.cget("text"))
+print("    ", app2.lbl_status.cget("text"))
 ok("reopening the transcript returns to the same segment and playback position")
 
 print("[6] timeline")

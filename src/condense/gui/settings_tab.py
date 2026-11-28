@@ -6,7 +6,7 @@ class SettingsTabMixin:
     # ------------------------------------------------------------------ settings
     def _card(self, parent, title: str):
         card = tk.Frame(parent, bg=THEME["bg_card"], padx=12, pady=10)
-        self._label(card, title, font="section", fg=THEME["accent"]).pack(anchor="w", pady=(0, 6))
+        self._heading(card, title).pack(anchor="w", pady=(0, 6))
         form = tk.Frame(card, bg=THEME["bg_card"])
         form.pack(fill=tk.X)
         form.columnconfigure(1, weight=1)
@@ -50,7 +50,7 @@ class SettingsTabMixin:
         T = THEME
 
         # --- Output
-        out = self._card(self.cards_frame, "NEW TASKS  ·  DEFAULTS")
+        out = self._card(self.cards_frame, "New tasks  ·  defaults")
         self.var_stage_compress = tk.BooleanVar(value=True)
         self.var_stage_audio = tk.BooleanVar(value=True)
         self.var_stage_whisper = tk.BooleanVar(value=True)
@@ -77,7 +77,7 @@ class SettingsTabMixin:
         self._row_full(out, self._wrapping_label(out.form, "Used when subfolders are off (merge tasks get their own subfolder inside it).", font="small", fg=T["fg_dim"]), pady=(0, 0))
 
         # --- Video
-        hb = self._card(self.cards_frame, "VIDEO  ·  STAGES 1–2")
+        hb = self._card(self.cards_frame, "Video  ·  stages 1–2")
         self.var_hb_goal = tk.StringVar(value=COMPRESS_GOALS[0])
         self._row_combo(hb, "Goal", self.var_hb_goal, list(COMPRESS_GOALS), "hb_goal")
         self.var_hb_target = tk.StringVar(value=COMPRESS_TARGETS[0])
@@ -111,7 +111,7 @@ class SettingsTabMixin:
         self._row_combo(hb, "Audio kbps", self.var_hb_abitrate, ["128", "160", "192", "256", "320"], "hb_abitrate")
 
         # --- Audio & Whisper
-        aw = self._card(self.cards_frame, "AUDIO & WHISPER  ·  STAGES 3–4")
+        aw = self._card(self.cards_frame, "Audio & Whisper  ·  stages 3–4")
         self.var_audio_format = tk.StringVar(value="WAV (16kHz Mono - Optimal for Whisper)")
         self._row_combo(aw, "Audio format", self.var_audio_format, ["WAV (16kHz Mono - Optimal for Whisper)", "WAV (48kHz Stereo)", "MP3 (192kbps)", "FLAC", "M4A"], "audio_format")
         self.var_speech_filter = tk.BooleanVar(value=False)
@@ -141,7 +141,7 @@ class SettingsTabMixin:
                                                 font="small", fg=T["fg_dim"]), pady=(2, 0))
 
         # --- Speakers & exports
-        se = self._card(self.cards_frame, "SPEAKERS & EXPORTS")
+        se = self._card(self.cards_frame, "Speakers & exports")
         self.var_diarize_mode = tk.StringVar(value=GPU_DIARIZATION)
         self._row_combo(se, "Diarization", self.var_diarize_mode, [
             GPU_DIARIZATION,

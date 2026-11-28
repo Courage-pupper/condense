@@ -1,6 +1,7 @@
 """The main window, assembled from the GUI mixins."""
 from condense import __version__, updates
 from condense.gui._common import *  # noqa: F401,F403
+from condense.gui import rounded
 from condense.gui.editor import EditorMixin
 from condense.gui.history import HistoryMixin
 from condense.gui.navigation import NavigationMixin
@@ -144,6 +145,15 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                    darkcolor=T["bg_selected"], focuscolor=T["bg_selected"])
         style.configure("SegOn.TButton", foreground="#ffffff", font=f["small_bold"], padding=(12, 3), width=-3, **sel)
         style.map("SegOn.TButton", background=[("active", T["bg_selected"])])
+        # the segment's ✓: grey, green once it is checked
+        style.configure("Check.TButton", foreground=T["fg_dim"], font=f["body_bold"], padding=(8, 2), width=-2, **soft)
+        style.map("Check.TButton", background=[("active", T["bg_soft_hover"])], foreground=[("active", T["ok"])])
+        style.configure("CheckOn.TButton", foreground=T["ok"], font=f["body_bold"], padding=(8, 2), width=-2, **soft)
+        style.map("CheckOn.TButton", background=[("active", T["bg_soft_hover"])])
+        # rounded corners for all of these (image elements); where Tk can't make the images they stay square
+        self._round_images = rounded.install(style, self, T)
+        self._scale_images = rounded.install_scale(style, self, T)  # sliders: a thin line, a small round knob
+        style.configure("Horizontal.TScale", background=T["bg_card"])  # (the player row's colour, behind the knob)
 
         # tabs: text, and a thin red line under the open one (an image element: clam can't draw only one edge)
         style.configure("TNotebook", background=T["bg_root"], borderwidth=0, tabmargins=(0, 0, 0, 2), bordercolor=T["bg_root"],
@@ -172,9 +182,10 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
 
         style.configure("Queue.Treeview", background=T["bg_input"], foreground=T["fg_primary"], fieldbackground=T["bg_input"], borderwidth=0, font=f["body"],
                         bordercolor=T["bg_input"], lightcolor=T["bg_input"], darkcolor=T["bg_input"])  # no frame around a list
-        style.configure("Queue.Treeview.Heading", background=T["bg_card"], foreground=T["fg_secondary"], font=f["small_bold"], relief="flat", padding=(4, 3),
-                        bordercolor=T["bg_card"], lightcolor=T["bg_card"], darkcolor=T["bg_card"])
-        style.map("Queue.Treeview.Heading", background=[("active", T["bg_soft"])])
+        # list headings: light, small grey words on the list's own colour — not a bar
+        style.configure("Queue.Treeview.Heading", background=T["bg_input"], foreground=T["fg_dim"], font=f["small"], relief="flat", padding=(4, 3),
+                        bordercolor=T["bg_input"], lightcolor=T["bg_input"], darkcolor=T["bg_input"])
+        style.map("Queue.Treeview.Heading", background=[("active", T["bg_card"])], foreground=[("active", T["fg_secondary"])])
         style.map("Queue.Treeview", background=[("selected", "#2b3348")], foreground=[("selected", "#ffffff")])
 
         # a 2 px line under the status bar: invisible while nothing runs (its trough is the footer's colour)
@@ -261,6 +272,33 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
     def _dropdown(self, parent, text: str, items: List[Tuple]):
         """A button that opens a menu. items: (label, command) · ("-",) · ("check", label, BooleanVar) ·
         ("cascade", label, [items])."""
+        menu = self._make_menu(items)
+        btn = self._tool(parent, text, lambda: None)
+        btn.configure(command=lambda: menu.tk_popup(btn.winfo_rootx(), btn.winfo_rooty() + btn.winfo_height()))
+        btn.menu = menu
+        return btn
+
+    def _placeholder(self, entry, var, text: str):
+        """A dim hint inside an empty entry ("Search codes"), gone while you type or the entry has the focus."""
+        bg = entry.cget("bg")
+        hint = tk.Label(entry, text=text, font=self.f["small"], fg=THEME["fg_dim"], bg=bg, cursor="xterm")
+        def update(*_):
+            try:
+                empty = not var.get() and self.focus_get() is not entry
+            except Exception:  # noqa: BLE001
+                empty = not var.get()
+            if empty:
+                hint.place(x=4, rely=0.5, anchor="w")
+            else:
+                hint.place_forget()
+        hint.bind("<Button-1>", lambda e: entry.focus_set())
+        entry.bind("<FocusIn>", update, add="+")
+        entry.bind("<FocusOut>", update, add="+")
+        var.trace_add("write", update)
+        update()
+        return hint
+
+    def _make_menu(self, items: List[Tuple]) -> PopupMenu:
         def build(menu, entries):
             for it in entries:
                 if it[0] == "-":
@@ -275,10 +313,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                     menu.add_command(label=it[0], command=it[1])
         menu = PopupMenu(self)
         build(menu, items)
-        btn = self._tool(parent, text, lambda: None)
-        btn.configure(command=lambda: menu.tk_popup(btn.winfo_rootx(), btn.winfo_rooty() + btn.winfo_height()))
-        btn.menu = menu
-        return btn
+        return menu
 
     TRANSCRIPT_SIZES = [0.8, 0.9, 1.0, 1.15, 1.3, 1.5, 1.75, 2.0, 2.5]
 
@@ -336,8 +371,21 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                        indicatorbackground=[("selected", THEME["accent"]), ("active", THEME["bg_input"])])
         return ttk.Checkbutton(parent, text=text, variable=var, style=style_name)
 
-    def _tool(self, parent, text: str, cmd, primary: bool = False):
-        return ttk.Button(parent, text=text, style="Primary.TButton" if primary else "Tool.TButton", command=cmd)
+    def _tool(self, parent, text: str, cmd, primary: bool = False, tip: Optional[str] = None):
+        """A button. tip: what it does and its key, shown on hover — labels stay plain words (no "(M)", "⌘S")."""
+        b = ttk.Button(parent, text=text, style=rounded.style_for(parent, "Primary" if primary else "Tool"), command=cmd)
+        if tip:
+            self._tip(b, tip)
+        return b
+
+    def _heading(self, parent, text: str, bg: Optional[str] = None, **kw):
+        """The one heading style of the window (Tasks, Codebook, Codings, Timeline, Settings cards): small, bold,
+        grey, in normal case — the content is what stands out, not its label."""
+        return self._label(parent, text, font="section", fg=THEME["fg_secondary"], bg=bg, **kw)
+
+    def _tip(self, widget, text):
+        """A tooltip in the app's style; shortcuts written with Mac symbols read Ctrl+… on Linux and Windows."""
+        return Tooltip(widget, (lambda: kbd(text())) if callable(text) else kbd(text), font=self.f["small"])
 
     def _entry(self, parent, var, show: str = "", width: int = 20, font: str = "mono_small"):
         return tk.Entry(parent, textvariable=var, bg=THEME["bg_input"], fg=THEME["fg_primary"], insertbackground=THEME["fg_primary"], relief=tk.FLAT,
@@ -549,14 +597,26 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self._tool(header, "Setup & Status", self._show_setup_modal).pack(side=tk.RIGHT)
         self._build_project_button(header)
         self._label(header, "Condense", font="title", bg=THEME["bg_panel"]).pack(side=tk.LEFT)
-        self.sub_lbl = self._wrapping_label(header, "", font="mono_small", fg=THEME["fg_secondary"], bg=THEME["bg_panel"])
-        self.sub_lbl.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(14, 10))
+        # the computer in a few words — a dot and "GPU ready"; the details on hover and in Setup & Status
+        hw = tk.Frame(header, bg=THEME["bg_panel"], cursor="hand2")
+        hw.pack(side=tk.LEFT, padx=(16, 10))
+        self.hw_dot = tk.Label(hw, text="●", font=self.f["small"], fg=THEME["ok"], bg=THEME["bg_panel"])
+        self.hw_dot.pack(side=tk.LEFT, padx=(0, 5))
+        self.sub_lbl = self._label(hw, "", font="small", fg=THEME["fg_secondary"], bg=THEME["bg_panel"])
+        self.sub_lbl.pack(side=tk.LEFT)
+        self.hw_details = ""
+        for w in (hw, self.hw_dot, self.sub_lbl):
+            w.bind("<Button-1>", lambda e: self._show_setup_modal())
+        self._tip(self.sub_lbl, lambda: self.hw_details + "\n(click for Setup & Status)")
         self._update_header()
 
     def _update_header(self):
         g = self.gpu_info
         if g.get("warning"):
-            self.sub_lbl.configure(text=f"{g.get('gpu_name')}  ·  ⚠ {g['warning']}", fg=THEME["warn"])
+            self.hw_details = f"{g.get('gpu_name')}  ·  ⚠ {g['warning']}"
+            self.hw_dot.configure(fg=THEME["warn"])
+            w = str(g["warning"])
+            self.sub_lbl.configure(text="⚠ " + (w if len(w) <= 70 else w[:69].rstrip() + "…"), fg=THEME["warn"])  # all of it on hover
             return
         vram = (g.get("gpu_test") or {}).get("vram_gb")
         parts = [str(g.get("gpu_name")) + (f" ({vram:g} GB)" if vram and g.get("torch_gpu") else "")]
@@ -572,7 +632,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             else:
                 parts.append(f"VA-API {'✓' if g.get('vaapi_ok') else '✗'}")
         ok = g.get("mlx_ok", g.get("torch_gpu", True))
-        self.sub_lbl.configure(text="  ·  ".join(parts), fg=THEME["fg_secondary"] if ok else THEME["warn"])
+        self.hw_details = "  ·  ".join(parts)
+        self.hw_dot.configure(fg=THEME["ok"] if ok else THEME["warn"])
+        self.sub_lbl.configure(text="GPU ready" if ok else "No GPU — transcribing on the CPU", fg=THEME["fg_secondary"] if ok else THEME["warn"])
 
     def _build_footer(self):
         footer = tk.Frame(self, bg=THEME["bg_panel"], padx=14, pady=4)

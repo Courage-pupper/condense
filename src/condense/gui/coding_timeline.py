@@ -54,12 +54,12 @@ class CodingTimelineMixin:
         bar = self._flow(parent, padx=4, pady=2, bg=T["bg_panel"], one_line=True)
         bar.pack(fill=tk.X, pady=(2, 0))
         self.cdt_bar = bar
-        bar.add(self._label(bar, "Timeline", font="small_bold", bg=T["bg_panel"]))
+        bar.add(self._heading(bar, "Timeline", bg=T["bg_panel"]))
         # the zoom: one switch, the current zoom lighter
         zoom = tk.Frame(bar, bg=T["bg_panel"])
         self.cdt_zoom_btns = {}
         for label, kind in (("Whole", "whole"), ("Episode", "episode"), ("10 min", "600"), ("2 min", "120")):
-            b = ttk.Button(zoom, text=label, style="Seg.TButton", command=lambda k=kind: self._cdt_zoom(k))
+            b = ttk.Button(zoom, text=label, style=rounded.style_for(zoom, "Seg"), command=lambda k=kind: self._cdt_zoom(k))
             b.pack(side=tk.LEFT)
             self.cdt_zoom_btns[kind] = b
         bar.add(zoom)
@@ -130,7 +130,7 @@ class CodingTimelineMixin:
     def _cdt_zoom_shown(self):
         current = self.cdt.get("zoom") or ("whole" if self.cdt.get("view") is None else None)
         for kind, b in (self.__dict__.get("cdt_zoom_btns") or {}).items():
-            b.configure(style="SegOn.TButton" if kind == current else "Seg.TButton")
+            b.configure(style=rounded.style_for(b.master, "SegOn" if kind == current else "Seg"))
 
     def _cdt_zoom(self, kind: str):
         pos = self._current_pos() if self.active_doc is not None else 0.0
@@ -579,7 +579,7 @@ class CodingTimelineMixin:
         else:
             lbl.config(text="")  # (how to mark: the timeline's tooltip)
         loop = self.cdt.get("loop")
-        self.btn_cdt_loop.config(text="⟳ Looping" if loop else "⟳", style="SegOn.TButton" if loop else "Tool.TButton")
+        self.btn_cdt_loop.config(text="⟳ Looping" if loop else "⟳", style=rounded.style_for(self.btn_cdt_loop.master, "SegOn" if loop else "Tool"))
 
     def _cdt_mark_in(self):
         pos = self._current_pos()

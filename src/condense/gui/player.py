@@ -321,7 +321,7 @@ class PlayerMixin:
     def _player_start(self, pos: float, duration: Optional[float] = None):
         media = self._media()
         if media is None:
-            self.lbl_word.config(text="⚠ Playback media not found (moved or deleted?) — see 'media' in the .transcript.json", fg=THEME["warn"])
+            self.lbl_status.config(text="⚠ Playback media not found (moved or deleted?) — see 'media' in the .transcript.json")
             return
         self._kill_player()
         pos = max(0.0, pos)
@@ -495,9 +495,8 @@ class PlayerMixin:
     def _update_time_label(self):
         if self.__dict__.get("_scrub_target") is not None:
             return
-        speed = self._speed()
-        extra = f"  ·  {self.var_speed.get()}" if abs(speed - 1.0) > 1e-3 else ""
-        self.lbl_time.configure(text=f"{short_ts(self._current_pos())[:-2]} / {short_ts(self._duration())[:-2]}{extra}")
+        # (the speed is in its own box beside the slider: not repeated here)
+        self.lbl_time.configure(text=f"{short_ts(self._current_pos())[:-2]} / {short_ts(self._duration())[:-2]}")
         self._timeline_playhead()
         self._cdt_tick(self._current_pos())
 
@@ -530,7 +529,7 @@ class PlayerMixin:
         """Rename, add and remove speakers. Renames apply to every segment and export; swaps work."""
         doc = self.active_doc
         if doc is None:
-            self.lbl_word.config(text="Open a transcript first.")
+            self.lbl_status.config(text="Open a transcript first.")
             return
         self._autosave_edit()
         T = THEME
