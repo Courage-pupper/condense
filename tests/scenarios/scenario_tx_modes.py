@@ -41,7 +41,7 @@ app.notebook.select(app.tab_preview)
 print("[1] one tab, two modes")
 assert "tab_coding" not in app.__dict__                     # the Coding tab is gone
 assert app.tx_mode == "edit" and not app._cd_visible()
-assert app.btn_mode_edit.cget("style") == "Primary.TButton" and app.btn_mode_code.cget("style") == "Tool.TButton"
+assert app.btn_mode_edit.cget("style") == "SegOn.TButton" and app.btn_mode_code.cget("style") == "Seg.TButton"
 assert set(app._video_screens) <= {"tx", "pop"}               # one video screen in the tab (and the pop-out)
 ok("Edit mode first; no Coding tab, one video screen")
 
@@ -49,7 +49,7 @@ print("[2] Edit → Code: the same place")
 app._goto_segment(7)
 assert app.edit_seg_idx == 7
 assert app._set_tx_mode("code") == "code" and app._cd_visible() and app.settings["tx_mode"] == "code"
-assert app.btn_mode_code.cget("style") == "Primary.TButton"
+assert app.btn_mode_code.cget("style") == "SegOn.TButton"
 cb = app._cd_codebook()
 making = cb.add("Making"); cb.save(); app._cd_fill_codebook()
 app._cd_refresh()

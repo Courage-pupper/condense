@@ -16,6 +16,9 @@ THEME = {
     "warn": "#f59e0b",
     "err": "#ef4444",
     "border": "#2a3040",
+    "bg_soft": "#262b38",        # quiet buttons: a soft fill, no outline
+    "bg_soft_hover": "#30364a",
+    "bg_selected": "#3a4157",    # the chosen part of a switch (Code | Edit, timeline zoom)
 }
 
 # Fonts follow the real OS (missing families fall back to Tk's default, which is not monospaced on Linux)

@@ -26,7 +26,7 @@ class EditorMixin:
         for b in (self.btn_mode_code, self.btn_mode_edit):
             b.configure(width=6)  # the same width: a switch, whichever is on
         self.btn_mode_code.pack(side=tk.LEFT)
-        self.btn_mode_edit.pack(side=tk.LEFT, padx=(1, 0))
+        self.btn_mode_edit.pack(side=tk.LEFT)  # side by side: one switch
         self.mode_holder = tk.Frame(toprow, bg=T["bg_panel"])
         self.mode_holder.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.tx_mode = "edit"
@@ -84,10 +84,18 @@ class EditorMixin:
         # ---- player: the controls; its options in one menu ----
         player = self._flow(tab, padx=5, pady=5, bg=T["bg_card"])
         player.pack(fill=tk.X, pady=(4, 0), ipady=3)
-        player.add(self._tool(player, "⟲ 5 s", lambda: self._seek_rel(-5)))
-        self.btn_play = self._tool(player, "▶ Play", self._toggle_play, primary=True)
-        player.add(self.btn_play)
-        player.add(self._tool(player, "5 s ⟳", lambda: self._seek_rel(+5)))
+        # back · play · forward, by a step chosen once (5–30 s); ⌘[ ⌘] jump one step, with ⇧ three
+        step = self._skip_step()
+        transport = tk.Frame(player, bg=T["bg_card"])
+        self.btn_back = self._tool(transport, f"⟲ {step} s", lambda: self._skip(-1))
+        self.btn_play = ttk.Button(transport, text="▶", style="Play.TButton", command=self._toggle_play)
+        self.btn_fwd = self._tool(transport, f"{step} s ⟳", lambda: self._skip(+1))
+        for b in (self.btn_back, self.btn_play, self.btn_fwd):
+            b.pack(side=tk.LEFT, padx=(0, 2))
+        player.add(transport)
+        self.btn_step = self._dropdown(player, f"Step {step} s ▾", [(f"{s} seconds", lambda s=s: self._set_skip_step(s))
+                                                                   for s in self.SKIP_STEPS])
+        player.add(self.btn_step)
         # speed: a slider, and the value can be typed (1.3, 1.3×, 130%)
         self.var_speed = tk.StringVar(value="1×")
         self._persist["speed"] = self.var_speed
