@@ -747,7 +747,10 @@ def check_top_stays(app, pt, k, d0):
         before = app._view_anchor()
         assert before and before.get("top") and before.get("cur"), (before, "h", h, pt.winfo_height(), "line", line_h,
             "placed", placed, "span", app.current_span, app._word_y(app.current_span) if app.current_span is not None else None,
-            "yview", pt.yview())
+            "yview", pt.yview(), "mapped", pt.winfo_ismapped(), pt.winfo_viewable(), "mode", app.tx_mode, "tab", app.notebook.select(),
+            "near", app._span_near(app.word_spans[app.current_span]["start"]), "sp", app.word_spans[app.current_span],
+            "bbox", pt.bbox(f"{app.word_spans[app.current_span]['line']}.{app.word_spans[app.current_span]['c0']}"),
+            "end", pt.index("end"), "focus", str(app.focus_get()), "toplevels", [str(w) for w in app.winfo_children() if isinstance(w, tk.Toplevel)])
         key(app, pt, f"<Key-{app._roster().index(speaker) + 1}>")
         pump(app, 0.4)
         assert TD.load(app.active_doc.path).segments[j]["speaker"] == speaker
