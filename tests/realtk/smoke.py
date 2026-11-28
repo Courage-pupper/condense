@@ -740,11 +740,14 @@ def check_top_stays(app, pt, k, d0):
             continue
         app._goto_segment(j)
         pump(app, 0.3)
+        placed = None
         if n_done == 0:  # the open segment low on the screen, paragraphs above it in view
-            app._place_word(app.word_spans[app.current_span]["start"], int(h - 4 * line_h))
+            placed = app._place_word(app.word_spans[app.current_span]["start"], int(h - 4 * line_h))
             pump(app, 0.2)
         before = app._view_anchor()
-        assert before and before.get("top") and before.get("cur"), before
+        assert before and before.get("top") and before.get("cur"), (before, "h", h, pt.winfo_height(), "line", line_h,
+            "placed", placed, "span", app.current_span, app._word_y(app.current_span) if app.current_span is not None else None,
+            "yview", pt.yview())
         key(app, pt, f"<Key-{app._roster().index(speaker) + 1}>")
         pump(app, 0.4)
         assert TD.load(app.active_doc.path).segments[j]["speaker"] == speaker
