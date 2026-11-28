@@ -762,9 +762,27 @@ def check_top_stays(app, pt, k, d0):
             app.update_idletasks()
             probe("after idle")
         placed = None
+        calls = []
         if n_done == 0:  # the open segment low on the screen, paragraphs above it in view
+            import traceback as _tb
+            originals = {}
+            for name in ("yview", "see", "yview_moveto", "yview_scroll", "yview_pickplace"):
+                orig = getattr(pt, name)
+                originals[name] = orig
+                def wrapped(*a, _o=orig, _n=name):
+                    r = _o(*a)
+                    if a:
+                        st = [f"{f.name}:{f.lineno}" for f in _tb.extract_stack()[-6:-1]]
+                        calls.append((_n, a, tuple(round(v, 3) for v in pt.yview()), st))
+                    return r
+                setattr(pt, name, wrapped)
             placed = app._place_word(app.word_spans[app.current_span]["start"], int(h - 4 * line_h))
+            probe("after place")
             pump(app, 0.2)
+            probe("after place+pump")
+            for name, orig in originals.items():
+                delattr(pt, name)
+            trace.append(("calls", calls))
         before = app._view_anchor()
         assert before and before.get("top") and before.get("cur"), (before, "h", h, pt.winfo_height(), "line", line_h,
             "placed", placed, "span", app.current_span, app._word_y(app.current_span) if app.current_span is not None else None,
