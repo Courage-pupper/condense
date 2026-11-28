@@ -125,7 +125,7 @@ pipe.launch_gui(); app = holder["app"]
 assert app.var_hb_encoder.get() == plat.DEFAULT_ENCODER and app._install_label() == "Add Condense to the Start Menu"
 assert app._quality_text(23) == "RF 23  ·  GPU qp 23"
 app.gpu_info = g; app._update_header()
-assert "ROCm ✓" in app.sub_lbl.cget("text") and "AMF ✓" in app.sub_lbl.cget("text"), app.sub_lbl.cget("text")
+assert "ROCm ✓" in app.hw_details and "AMF ✓" in app.hw_details, app.hw_details
 opened = []
 real_popen = subprocess.Popen
 pipe.subprocess.Popen = lambda cmd, *a, **k: opened.append(cmd) or real_popen([sys.executable, "-c", "pass"])

@@ -302,13 +302,28 @@ class Tooltip:
         self.widget, self.text, self.bg, self.fg, self.font = widget, text, bg, fg, font
         self.win = None
         self._job = None
+        self._shown = None
         widget.bind("<Enter>", self._schedule, add="+")
+        if callable(text):  # what it says depends on where the mouse is (a row of a list): follow it
+            widget.bind("<Motion>", self._moved, add="+")
         widget.bind("<Leave>", self._hide, add="+")
         widget.bind("<ButtonPress>", self._hide, add="+")
 
     def _schedule(self, _event=None):
         self._cancel()
         self._job = self.widget.after(self.DELAY_MS, self._show)
+
+    def _moved(self, _event=None):
+        if self.win is not None:
+            try:
+                now = self.text()
+            except Exception:  # noqa: BLE001
+                now = None
+            if now != self._shown:
+                self._hide()
+                self._schedule()
+        elif self._job is None:
+            self._schedule()
 
     def _cancel(self):
         if self._job is not None:
@@ -324,8 +339,11 @@ class Tooltip:
         if not text or self.win is not None:
             return
         try:
-            x = self.widget.winfo_rootx() + 12
-            y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
+            if callable(self.text):  # beside the mouse (the widget may be a whole list)
+                x, y = self.widget.winfo_pointerx() + 14, self.widget.winfo_pointery() + 18
+            else:
+                x = self.widget.winfo_rootx() + 12
+                y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
             win = tk.Toplevel(self.widget)
             win.condense_free = True  # (not tied to a window: Condense makes other new windows transient)
             win.wm_overrideredirect(True)
@@ -334,6 +352,7 @@ class Tooltip:
                      wraplength=420).pack()
             win.wm_geometry(f"+{x}+{y}")
             self.win = win
+            self._shown = text
         except tk.TclError:
             self.win = None
 

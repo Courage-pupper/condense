@@ -101,7 +101,7 @@ assert app.var_hb_encoder.get() == plat.DEFAULT_ENCODER and app.var_whisper_back
 assert app.var_diarize_mode.get().startswith("PyTorch GPU") and app.var_output_dir.get() == str(HOME / "Videos" / "Condense")
 assert app._quality_text(22) == "RF 22  ·  VA-API qp 22"
 app.gpu_info = g; app._update_header()
-assert "ROCm ✓" in app.sub_lbl.cget("text"), app.sub_lbl.cget("text")
+assert "ROCm ✓" in app.hw_details, app.hw_details
 opened = []
 real_popen = subprocess.Popen
 pipe.subprocess.Popen = lambda cmd, *a, **k: opened.append(cmd) or real_popen(["true"])
@@ -117,7 +117,7 @@ ok("Linux defaults in Settings, VA-API quality label, ROCm in the header, xdg-op
 print("[8] GPU test: a real calculation, the report, and a warning before running on the CPU")
 d = g["gpu_test"]
 assert d["works"] and d["arch"] == "gfx1100" and d["vram_gb"] == 24.0 and "test_ms" in d, d
-assert "AMD Radeon RX 7900 XTX (24 GB)" in app.sub_lbl.cget("text") and "ROCm ✓" in app.sub_lbl.cget("text")
+assert "AMD Radeon RX 7900 XTX (24 GB)" in app.hw_details and "ROCm ✓" in app.hw_details
 ok_, report = app._gpu_report(g)
 assert ok_ and report.startswith("✓ The GPU is ready") and "gfx1100, 24.0 GB" in report and "Test calculation: passed in" in report
 assert "PyTorch:         2.9.1+rocm6.4 · ROCm 6.4.43482" in report, report
@@ -133,7 +133,7 @@ windows_shown = []
 app._show_text_window = lambda title, text: windows_shown.append((title, text))
 app._on_gpu_test({"type": "gpu_test", "gpu": bad})
 assert windows_shown and windows_shown[-1][0] == "GPU test" and "cannot use the GPU" in app.lbl_status.cget("text")
-assert "ROCm ✗" in app.sub_lbl.cget("text") or "⚠" in app.sub_lbl.cget("text")
+assert "ROCm ✗" in app.hw_details or "⚠" in app.hw_details
 # before a run
 asked = []
 answer = {"v": False}

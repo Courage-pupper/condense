@@ -597,14 +597,26 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self._tool(header, "Setup & Status", self._show_setup_modal).pack(side=tk.RIGHT)
         self._build_project_button(header)
         self._label(header, "Condense", font="title", bg=THEME["bg_panel"]).pack(side=tk.LEFT)
-        self.sub_lbl = self._wrapping_label(header, "", font="mono_small", fg=THEME["fg_secondary"], bg=THEME["bg_panel"])
-        self.sub_lbl.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(14, 10))
+        # the computer in a few words — a dot and "GPU ready"; the details on hover and in Setup & Status
+        hw = tk.Frame(header, bg=THEME["bg_panel"], cursor="hand2")
+        hw.pack(side=tk.LEFT, padx=(16, 10))
+        self.hw_dot = tk.Label(hw, text="●", font=self.f["small"], fg=THEME["ok"], bg=THEME["bg_panel"])
+        self.hw_dot.pack(side=tk.LEFT, padx=(0, 5))
+        self.sub_lbl = self._label(hw, "", font="small", fg=THEME["fg_secondary"], bg=THEME["bg_panel"])
+        self.sub_lbl.pack(side=tk.LEFT)
+        self.hw_details = ""
+        for w in (hw, self.hw_dot, self.sub_lbl):
+            w.bind("<Button-1>", lambda e: self._show_setup_modal())
+        self._tip(self.sub_lbl, lambda: self.hw_details + "\n(click for Setup & Status)")
         self._update_header()
 
     def _update_header(self):
         g = self.gpu_info
         if g.get("warning"):
-            self.sub_lbl.configure(text=f"{g.get('gpu_name')}  ·  ⚠ {g['warning']}", fg=THEME["warn"])
+            self.hw_details = f"{g.get('gpu_name')}  ·  ⚠ {g['warning']}"
+            self.hw_dot.configure(fg=THEME["warn"])
+            w = str(g["warning"])
+            self.sub_lbl.configure(text="⚠ " + (w if len(w) <= 70 else w[:69].rstrip() + "…"), fg=THEME["warn"])  # all of it on hover
             return
         vram = (g.get("gpu_test") or {}).get("vram_gb")
         parts = [str(g.get("gpu_name")) + (f" ({vram:g} GB)" if vram and g.get("torch_gpu") else "")]
@@ -620,7 +632,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             else:
                 parts.append(f"VA-API {'✓' if g.get('vaapi_ok') else '✗'}")
         ok = g.get("mlx_ok", g.get("torch_gpu", True))
-        self.sub_lbl.configure(text="  ·  ".join(parts), fg=THEME["fg_secondary"] if ok else THEME["warn"])
+        self.hw_details = "  ·  ".join(parts)
+        self.hw_dot.configure(fg=THEME["ok"] if ok else THEME["warn"])
+        self.sub_lbl.configure(text="GPU ready" if ok else "No GPU — transcribing on the CPU", fg=THEME["fg_secondary"] if ok else THEME["warn"])
 
     def _build_footer(self):
         footer = tk.Frame(self, bg=THEME["bg_panel"], padx=14, pady=4)
