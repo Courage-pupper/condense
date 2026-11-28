@@ -60,14 +60,14 @@ class EditorMixin:
         self._persist["view_mode"] = self.var_view_mode
         self._combo_values["view_mode"] = ["Paragraphs", "Segments"]
         cb = ttk.Combobox(bar, textvariable=self.var_view_mode, values=["Paragraphs", "Segments"], state="readonly", width=10, font=self.f["small"])
-        cb.bind("<<ComboboxSelected>>", lambda e: self._rerender())
+        cb.bind("<<ComboboxSelected>>", lambda e: (self._rerender(), self._back_to_transcript()))
         bar.add(cb)
         bar.add(self._label(bar, "Show", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]))
         self.var_show_filter = tk.StringVar(value="All segments")
         cmb_show = ttk.Combobox(bar, textvariable=self.var_show_filter, state="readonly", width=15, font=self.f["small"],
                                 values=self.SHOW_FILTERS)
         self.cmb_show = cmb_show
-        cmb_show.bind("<<ComboboxSelected>>", lambda e: (self._autosave_edit(rerender=False), self._rerender()))
+        cmb_show.bind("<<ComboboxSelected>>", lambda e: (self._autosave_edit(rerender=False), self._rerender(), self._back_to_transcript()))
         bar.add(cmb_show)
         bar.add(self._separator(bar))
         bar.add(self._tool(bar, "Find", self._toggle_find, tip="Find and replace  ⌘F"))
@@ -90,6 +90,7 @@ class EditorMixin:
         self.btn_back = self._tool(transport, f"⟲ {step} s", lambda: self._skip(-1), tip="Back one step  ⌘[   (three: ⇧⌘[)")
         self.btn_play = ttk.Button(transport, text="▶", style=rounded.style_for(transport, "Play"), command=self._toggle_play)
         self._tip(self.btn_play, "Play / pause  Space")
+        self._no_focus(self.btn_play)
         self.btn_fwd = self._tool(transport, f"{step} s ⟳", lambda: self._skip(+1), tip="Forward one step  ⌘]   (three: ⇧⌘])")
         for b in (self.btn_back, self.btn_play, self.btn_fwd):
             b.pack(side=tk.LEFT, padx=(0, 2))
@@ -105,12 +106,15 @@ class EditorMixin:
         self.speed_scale = ttk.Scale(speed, from_=self.SPEED_MIN, to=self.SPEED_SLIDER_MAX, orient=tk.HORIZONTAL, length=110,
                                      variable=self.var_speed_num, command=self._on_speed_slide)
         self.speed_scale.pack(side=tk.LEFT, padx=(2, 4))
+        self._no_focus(self.speed_scale)
         self.speed_scale.bind("<ButtonRelease-1>", lambda e: self._speed_apply_now())
         self.speed_entry = self._entry(speed, self.var_speed, width=6, font="small")
         self.speed_entry.configure(justify=tk.CENTER)
         self.speed_entry.pack(side=tk.LEFT)
         for seq in ("<Return>", "<KP_Enter>", "<FocusOut>"):
             self.speed_entry.bind(seq, lambda e: self._speed_typed())
+        for seq in ("<Return>", "<KP_Enter>", "<Escape>"):  # done typing: back to the transcript
+            self.speed_entry.bind(seq, self._back_to_transcript, add="+")
         self.var_speed.trace_add("write", lambda *a: self._speed_sync_slider())
         player.add(speed)
         self.lbl_time = self._label(player, "0:00:00 / 0:00:00", font="mono_small", fg=T["fg_secondary"])
@@ -205,6 +209,7 @@ class EditorMixin:
         self.edit_row = row
         self.btn_checked = ttk.Button(row, text="✓", style=rounded.style_for(row, "Check"), command=self._toggle_checked)
         self.btn_checked.condense_keep = True
+        self._no_focus(self.btn_checked)
         self._tip(self.btn_checked, lambda: ("Checked — click to unmark" if rounded.base_style(str(self.btn_checked.cget("style"))) == "CheckOn.TButton"
                                              else "Mark checked") + "  C")
         row.add(self.btn_checked)
