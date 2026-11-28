@@ -13,7 +13,7 @@ class QueueMixin:
         self.lbl_queue_counts = self._label(top, "empty", font="small", fg=T["fg_secondary"], bg=T["bg_panel"])
         self.lbl_queue_counts.pack(side=tk.RIGHT)
 
-        bar = self._flow(panel, padx=4, pady=4, bg=T["bg_panel"])
+        bar = self._flow(panel, padx=4, pady=4, bg=T["bg_panel"], one_line=True, extra_menu=lambda: self.ctx_menu)  # ⋯: task actions
         bar.pack(fill=tk.X, pady=(6, 2))
         bar.add(self._tool(bar, "+ Videos", self._add_videos, primary=True))
         bar.add(self._tool(bar, "+ Merge Task", self._add_merge_task))
@@ -22,7 +22,6 @@ class QueueMixin:
         bar.add(self._tool(bar, "↑", self._move_up))
         bar.add(self._tool(bar, "↓", self._move_down))
         bar.add(self._tool(bar, "Remove", self._remove_selected))
-        bar.add(self._tool(bar, "⋯", self._show_queue_menu_button))
         self._wrapping_label(panel, "+ Videos: one task per video  ·  + Merge Task: several videos → one merged video and transcript",
                              font="small", fg=T["fg_dim"], bg=T["bg_panel"]).pack(fill=tk.X, pady=(0, 6))
 
@@ -164,9 +163,6 @@ class QueueMixin:
         if row and row not in self.queue_tree.selection():
             self.queue_tree.selection_set(row)
         self.ctx_menu.tk_popup(event.x_root, event.y_root)
-
-    def _show_queue_menu_button(self):
-        self.ctx_menu.tk_popup(self.winfo_pointerx(), self.winfo_pointery())
 
     # ================================================================== task handling
     @property

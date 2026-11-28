@@ -110,8 +110,11 @@ class FlowFrame(tk.Frame):
     one row: the buttons that don't fit go into a "⋯" menu at its end (in their order), instead of onto a second row
     that makes the toolbars look chopped. Separators (thin lines between groups) are dropped where a row ends."""
 
-    def __init__(self, master, padx: int = 6, pady: int = 4, one_line: bool = False, **kw):
+    def __init__(self, master, padx: int = 6, pady: int = 4, one_line: bool = False, extra_menu=None, **kw):
+        """extra_menu (one_line): a function giving a PopupMenu whose entries the ⋯ menu always ends with; then ⋯ is
+        always there — the row's own menu and, when space runs out, the buttons that did not fit."""
         super().__init__(master, **kw)
+        self.extra_menu = extra_menu
         self._items: List = []
         self._padx, self._pady = padx, pady
         self._last_width = None
@@ -175,6 +178,7 @@ class FlowFrame(tk.Frame):
         from condense.gui.popup import PopupMenu
         menu = PopupMenu(self.winfo_toplevel())
         btn = self._more
+        extra = self.extra_menu() if self.extra_menu else None
         for w in self.hidden:
             label = str(w.cget("text")).replace(" ▾", "")
             sub = getattr(w, "menu", None)
@@ -182,6 +186,10 @@ class FlowFrame(tk.Frame):
                 menu.add_command(label=label + " …", command=lambda m=sub: m.tk_popup(btn.winfo_rootx(), btn.winfo_rooty() + btn.winfo_height()))
             else:
                 menu.add_command(label=label, command=w.invoke, state="disabled" if "disabled" in str(w.cget("state")) else "normal")
+        if extra is not None:
+            if self.hidden and extra.items:
+                menu.add_separator()
+            menu.items.extend(extra.items)
         menu.tk_popup(btn.winfo_rootx(), btn.winfo_rooty() + btn.winfo_height())
         return menu
 
@@ -193,6 +201,8 @@ class FlowFrame(tk.Frame):
         sizes = [(w.winfo_reqwidth(), w.winfo_reqheight()) for w in items]
         needed = sum(ww for ww, _ in sizes) + self._padx * max(0, len(items) - 1)
         hide = set()
+        if self.extra_menu is not None:
+            needed += self._more_button().winfo_reqwidth() + self._padx
         if needed > width:
             more_w = self._more_button().winfo_reqwidth() + self._padx
             budget = width - more_w
@@ -226,7 +236,7 @@ class FlowFrame(tk.Frame):
             w.place(in_=self, x=x, y=0)
             x += ww + self._padx
             row_h = max(row_h, wh)
-        if self.hidden:
+        if self.hidden or self.extra_menu is not None:
             more = self._more_button()
             more.place(in_=self, x=x, y=0)
             row_h = max(row_h, more.winfo_reqheight())

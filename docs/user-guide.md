@@ -115,8 +115,9 @@ reviewing (below) and *Code* for coding ([Coding](#9-coding)). Switching keeps y
   Unchanged words keep their exact timing. Every change is saved, logged and can be undone (⌘Z / Ctrl+Z).
 
 **The controls, from top to bottom:** *Transcript ▾* (open, speakers, episodes, exports, mark all checked), the view
-(*Paragraphs*/*Segments*), the *Show* filter, *Find…*, ◀ *Uncertain* ▶, *✂ Cut* and *Episodes…*; then the player with
-*Playback ▾* for its options (follow the text, play a snippet when jumping, skip cuts, show the video, open in a video
+(*Paragraphs*/*Segments*), the *Show* filter, *Find*, ◀ *Uncertain* ▶, *✂ Cut* and *Episodes…* — on one row: what doesn't
+fit in a narrow window is in the **⋯** menu at its end; then the player: ⟲ back, ▶ play, forward ⟳ by a **step** you choose
+once under *Step ▾* (5, 10, 15 or 30 s; remembered), with *Playback ▾* for its options (follow the text, play a snippet when jumping, skip cuts, show the video, open in a video
 player); in the segment editor *Mark checked*, *Split*, *Merge*, *+ Insert*, *Delete*, *More ▾* (re-transcribe, revert,
 markers), *Save* and *Save & next*.
 
@@ -153,10 +154,11 @@ uses a linked video if it is on the transcript's own timeline; otherwise it cuts
 | **S** / **M** / **I** | split before the selected word / merge with the next segment / insert a segment |
 | **Delete** (⌫ on the Mac) | delete the open segment (asks first) |
 | **1 – 9** | assign speaker 1–9 |
-| ⌘[ ⌘] / Ctrl+[ Ctrl+] | back / forward 5 seconds |
+| ⌘[ ⌘] / Ctrl+[ Ctrl+] | back / forward one step (5–30 s, *Step ▾* or *Player ▸ Step*) |
+| ⇧⌘[ ⇧⌘] / Ctrl+Shift+[ Ctrl+Shift+] | back / forward three steps |
 | ⌘⇧. ⌘⇧, / Ctrl+Shift+. Ctrl+Shift+, | faster / slower |
 
-**Text size:** the **Aa** slider to the right, above the transcript, makes the transcript and the segment box larger or smaller (80–250 %; double-click it for 100 %), as do Ctrl/⌘ + scroll wheel over the transcript and *View ▸ Larger / Smaller Transcript Text*. It is remembered. *View ▸ Larger / Smaller Text* (⌘+ / Ctrl++) sizes the whole window.
+**Text size:** click **Aa 100 %** to the right, above the transcript, for larger, smaller or the default size of the transcript and the segment box (80–250 %), as do Ctrl/⌘ + scroll wheel over the transcript and *View ▸ Larger / Smaller Transcript Text*. It is remembered. *View ▸ Larger / Smaller Text* (⌘+ / Ctrl++) sizes the whole window.
 
 The line above the transcript shows how much is **checked**. Checked segments get a ✓, and the queue shows the
 percentage for each task. Condense remembers where you stopped in each transcript. If you reviewed a transcript elsewhere, right-click it in the Project tab or the task list and choose *Mark All Checked (100 %)* (or use the Edit menu); ⌘Z / Ctrl+Z undoes it.
@@ -213,7 +215,7 @@ Use pseudonyms here, not children's real names: the names end up in every export
 
 - **✎ Note** (under the segment text): a remark on a segment, such as context or something seen on video. Notes
   appear in the transcript and as `[Note: …]` in the TXT and paragraph exports.
-- **Find & replace** (⌘F / Ctrl+F, or *Find…*): highlights every match. Return / ⇧Return step through them.
+- **Find & replace** (⌘F / Ctrl+F, or *Find*): highlights every match. Return / ⇧Return step through them.
   *Replace* and *Replace all* are each one undo step, with options for case and whole words. Word timings stay.
 
   ![Find bar](images/find.png)

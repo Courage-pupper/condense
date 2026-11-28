@@ -607,11 +607,12 @@ class EditorMixin:
         total = max(1, len(spans))
         edited = sum(1 for s in doc.segments if s.get("edited"))
         self.lbl_ci_summary.config(
-            text=f"{doc.base_name}   ·   {doc.checked_fraction() * 100:.0f}% checked   ·   {len(spans)} words   ·   "
-                 f"{len(low)} uncertain ({len(low) * 100 / total:.0f}%)   ·   mean word probability {report['overall_ci'][0] * 100:.0f}%   ·   "
-                 f"{len(roster)} speaker(s)" + (f"   ·   {edited} edited" if edited else "")
-                 + (f"   ·   ✂ {cutlib.describe(doc.cuts)}" if doc.cuts else "")
-                 + (f"   ·   showing {len(groups)} {show.lower()}" if show != "All segments" else "")
+            # short and calm: one line beside "Aa", the cuts and the filter still fit (p: mean word probability)
+            text=f"{doc.base_name}  ·  {doc.checked_fraction() * 100:.0f}% checked  ·  {len(spans)} words  ·  "
+                 f"{len(low)} uncertain ({len(low) * 100 / total:.0f}%)  ·  mean p {report['overall_ci'][0] * 100:.0f}%  ·  "
+                 f"{len(roster)} speaker{'' if len(roster) == 1 else 's'}" + (f"  ·  {edited} edited" if edited else "")
+                 + (f"  ·  ✂ {cutlib.describe(doc.cuts)}" if doc.cuts else "")
+                 + (f"  ·  showing {len(groups)} {show.lower()}" if show != "All segments" else "")
         )
         self.cmb_seg_speaker.configure(values=roster)
         if self.__dict__.get("cmb_show") is not None:
