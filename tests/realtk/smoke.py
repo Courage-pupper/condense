@@ -243,7 +243,9 @@ def main():
         if app.focus_get() is pt:
             break
     seg0 = app.edit_seg_idx
-    for w in (app.btn_fwd, app.btn_back, app.btn_step, app.btn_mode_edit, app.btn_checked, app.btn_checked):  # (✓ twice: as it was)
+    native_menus = str(app.tk.call("tk", "windowingsystem")) == "aqua"  # the Mac's own menus wait for a real click
+    clicks = (app.btn_fwd, app.btn_back) + (() if native_menus else (app.btn_step,)) + (app.btn_mode_edit, app.btn_checked, app.btn_checked)
+    for w in clicks:  # (✓ twice: as it was)
         click(w)
         m = getattr(w, "menu", None)
         if m is not None and m.is_open:
