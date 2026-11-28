@@ -138,6 +138,9 @@ class EditorMixin:
             ("Open in QuickTime ↗" if IS_MAC_PLATFORM else "Open in a video player ↗", self._open_in_quicktime),
             ("Keyboard shortcuts…", self._show_shortcuts),
         ]))
+        # the clicked word — “word”  time · p 92 % — at the end of the player's row, where there is room for it
+        self.lbl_word = self._label(player, "", font="small", fg=T["fg_dim"], anchor="w")
+        player.add(self.lbl_word)
 
         info = tk.Frame(tab, bg=T["bg_panel"])
         info.pack(fill=tk.X, pady=(6, 4))
@@ -180,12 +183,9 @@ class EditorMixin:
         # speaker is chosen with the chips below (they show it too), Save and the rest are in ⋯ (⌘S still saves).
         head = tk.Frame(ep, bg=T["bg_card"])
         head.pack(fill=tk.X)
-        # fixed widths: the row's buttons stay where they are while ↑/↓ change these texts (no re-layout each time)
-        self.lbl_edit_title = self._label(head, "Click a word to edit its segment", font="section", anchor="w", width=34)
+        # a fixed width: the row's buttons stay where they are while ↑/↓ change the text (no re-layout each time)
+        self.lbl_edit_title = self._label(head, "Click a word to edit it", font="section", anchor="w", width=34)
         self.lbl_edit_title.pack(side=tk.LEFT)
-        # the clicked word — “word”  time · p 92 % — beside its segment (once a line of its own above the transcript)
-        self.lbl_word = self._label(head, "", font="small", fg=T["fg_dim"], anchor="w", width=30)
-        self.lbl_word.pack(side=tk.LEFT, padx=(12, 0))
         self.var_seg_speaker = tk.StringVar(value="")
         self.cmb_seg_speaker = ttk.Combobox(head, textvariable=self.var_seg_speaker, values=[], width=16, font=self.f["small"])  # (not shown)
         more = PopupMenu(self)
@@ -820,7 +820,7 @@ class EditorMixin:
         self.edit_note_original = ""
         self.var_seg_note.set("")
         self._show_note_row(False)
-        self.lbl_edit_title.config(text="Click a word to edit its segment")
+        self.lbl_edit_title.config(text="Click a word to edit it")
         self.preview_text.tag_remove("EDITSEG", "1.0", tk.END)
 
     def _editor_dirty(self) -> bool:
@@ -850,9 +850,9 @@ class EditorMixin:
         self.var_seg_note.set(self.edit_note_original)
         self._show_note_row(bool(self.edit_note_original))
         self._refresh_speaker_chips()
-        mark = "  ✎" if seg.get("edited") else ""  # (checked: the ✓ button beside it is green)
+        mark = " ✎" if seg.get("edited") else ""  # (checked: the ✓ button beside it is green)
         self.btn_checked.configure(style=rounded.style_for(self.btn_checked.master, "CheckOn" if seg.get("checked") else "Check"))
-        self.lbl_edit_title.config(text=f"Segment {seg_idx + 1}/{len(doc.segments)}  ·  {short_ts(seg.get('start', 0))} – {short_ts(seg.get('end', 0))}{mark}")
+        self.lbl_edit_title.config(text=f"{seg_idx + 1}/{len(doc.segments)} · {short_ts(seg.get('start', 0))} – {short_ts(seg.get('end', 0))}{mark}")
         orig = seg.get("text_whisper")
         rt = seg.get("retranscribed") or {}
         if rt and not seg.get("edited"):
