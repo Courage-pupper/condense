@@ -202,8 +202,8 @@ class CodingMixin:
     # ================================================================== Code / Edit
     def _mode_buttons(self):
         code = self.__dict__.get("tx_mode") == "code"
-        self.btn_mode_code.configure(style="SegOn.TButton" if code else "Seg.TButton")
-        self.btn_mode_edit.configure(style="Seg.TButton" if code else "SegOn.TButton")
+        self.btn_mode_code.configure(style=rounded.style_for(self.btn_mode_code.master, "SegOn" if code else "Seg"))
+        self.btn_mode_edit.configure(style=rounded.style_for(self.btn_mode_edit.master, "Seg" if code else "SegOn"))
 
     def _tx_word_now(self) -> Optional[Tuple[int, int]]:
         """(segment, word) of where you are in the mode shown: the word clicked or selected, else the playhead's."""

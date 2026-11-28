@@ -88,7 +88,7 @@ class EditorMixin:
         step = self._skip_step()
         transport = tk.Frame(player, bg=T["bg_card"])
         self.btn_back = self._tool(transport, f"⟲ {step} s", lambda: self._skip(-1), tip="Back one step  ⌘[   (three: ⇧⌘[)")
-        self.btn_play = ttk.Button(transport, text="▶", style="Play.TButton", command=self._toggle_play)
+        self.btn_play = ttk.Button(transport, text="▶", style=rounded.style_for(transport, "Play"), command=self._toggle_play)
         self._tip(self.btn_play, "Play / pause  Space")
         self.btn_fwd = self._tool(transport, f"{step} s ⟳", lambda: self._skip(+1), tip="Forward one step  ⌘]   (three: ⇧⌘])")
         for b in (self.btn_back, self.btn_play, self.btn_fwd):
@@ -170,31 +170,41 @@ class EditorMixin:
         ep = tk.Frame(tab, bg=T["bg_card"], padx=10, pady=8)
         ep.pack(side=tk.BOTTOM, fill=tk.X, pady=(8, 0))
         self.tx_edit_panel = ep  # Edit mode only
-        row = self._flow(ep, padx=6, pady=4, bg=T["bg_card"])
-        row.pack(fill=tk.X)
-        self.edit_row = row
-        self.lbl_edit_title = self._label(row, "Click a word to edit its segment", font="small_bold", width=46, anchor="w")
-        row.add(self.lbl_edit_title)
-        row.add(self._label(row, "Speaker", font="small", fg=T["fg_secondary"]))
+        # one calm row: the segment on the left; ✓, the segmentation tools, ⋯ and Save & next on the right. The
+        # speaker is chosen with the chips below (they show it too), Save and the rest are in ⋯ (⌘S still saves).
+        head = tk.Frame(ep, bg=T["bg_card"])
+        head.pack(fill=tk.X)
+        self.lbl_edit_title = self._label(head, "Click a word to edit its segment", font="section", anchor="w")
+        self.lbl_edit_title.pack(side=tk.LEFT)
         self.var_seg_speaker = tk.StringVar(value="")
-        self.cmb_seg_speaker = ttk.Combobox(row, textvariable=self.var_seg_speaker, values=[], width=16, font=self.f["small"])
-        row.add(self.cmb_seg_speaker)
-        self.btn_checked = self._tool(row, "Mark checked", self._toggle_checked)
-        self.btn_checked.configure(width=13)  # "✓ Checked" and "Mark checked" take the same room
+        self.cmb_seg_speaker = ttk.Combobox(head, textvariable=self.var_seg_speaker, values=[], width=16, font=self.f["small"])  # (not shown)
+        more = PopupMenu(self)
+        more.add_command(label="Save", command=self._save_segment_edit, accelerator=kbd("⌘S"))
+        more.add_command(label="Revert my changes", command=self._revert_segment_edit)
+        more.add_separator()
+        more.add_command(label="Re-transcribe this passage…", command=self._retranscribe_dialog)
+        markers = PopupMenu(self, parent=more)
+        for label, text, _k in MARKERS:
+            markers.add_command(label=label, command=lambda t=text: self._insert_marker(t))
+        more.add_cascade(label="Insert marker", menu=markers)
+        self.seg_more_menu = more
+        row = self._flow(head, padx=5, pady=4, bg=T["bg_card"], one_line=True, align="right", extra_menu=lambda: self.seg_more_menu)
+        row.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(12, 0))
+        self.edit_row = row
+        self.btn_checked = ttk.Button(row, text="✓", style=rounded.style_for(row, "Check"), command=self._toggle_checked)
+        self.btn_checked.condense_keep = True
+        self._tip(self.btn_checked, lambda: ("Checked — click to unmark" if rounded.base_style(str(self.btn_checked.cget("style"))) == "CheckOn.TButton"
+                                             else "Mark checked") + "  C")
         row.add(self.btn_checked)
         # the segmentation tools are used all the time while reviewing: one click, and one key in the transcript
         row.add(self._tool(row, "Split", self._split_at_current_word, tip="Split before the selected word  S"))
         row.add(self._tool(row, "Merge", self._merge_with_next, tip="Merge with the next segment  M"))
         row.add(self._tool(row, "Insert", self._insert_segment_dialog, tip="Insert a segment  I"))
         row.add(self._tool(row, "Delete", self._delete_segment, tip="Delete this segment (asks first)  " + ("⌫" if IS_MAC else "Del")))
-        row.add(self._dropdown(row, "More ▾", [
-            ("Re-transcribe this passage…", self._retranscribe_dialog),
-            ("Revert my changes", self._revert_segment_edit),
-            ("-",),
-            ("cascade", "Insert marker", [(label, lambda t=text: self._insert_marker(t)) for label, text, _k in MARKERS]),
-        ]))
-        row.add(self._tool(row, "Save", self._save_segment_edit, tip="Save the text  ⌘S"))
-        row.add(self._tool(row, "✓ Save & next", self._check_and_next, primary=True, tip="Save, mark checked, open the next segment  ⌘↩"))
+        save_next = self._tool(row, "✓ Save & next", self._check_and_next, primary=True, tip="Save, mark checked, open the next segment  ⌘↩")
+        save_next.condense_keep = True
+        row.add(save_next)
+        self.btn_save_next = save_next
         self.edit_text = tk.Text(ep, height=3, wrap=tk.WORD, font=self.f["transcript"], bg=T["bg_input"], fg=T["fg_primary"],
                                  insertbackground=T["fg_primary"], relief=tk.FLAT, highlightthickness=1, highlightbackground=T["border"],
                                  highlightcolor=T["accent"], padx=8, pady=6, undo=True)
@@ -215,7 +225,10 @@ class EditorMixin:
         for seq in (f"<{MOD}-Return>", f"<{MOD}-KP_Enter>"):
             self.ent_seg_note.bind(seq, lambda e: (self._check_and_next(), "break")[-1])
         self.edit_note_original = ""
-        self.lbl_edit_hint = self._label(ep, self.EDIT_HINT, font="small", fg=T["fg_dim"], height=1, anchor="w", justify=tk.LEFT)
+        # only what is worth knowing about this segment (re-transcribed, Whisper wrote something else); the usual
+        # hint about timing is a tooltip on the text box
+        self.lbl_edit_hint = self._label(ep, "", font="small", fg=T["fg_dim"], height=1, anchor="w", justify=tk.LEFT)
+        self._tip(self.edit_text, self.EDIT_HINT)
         self.lbl_edit_hint.pack(fill=tk.X)
         self.edit_seg_idx: Optional[int] = None
         self.edit_original = ("", "")
@@ -229,16 +242,23 @@ class EditorMixin:
         frame.rowconfigure(0, weight=1)
         frame.columnconfigure(0, weight=1)
         self._build_video_panel()
-        self.preview_text = tk.Text(frame, bg="#0b0d13", fg=T["fg_primary"], font=self.f["transcript"], relief=tk.FLAT, padx=16, pady=12,
+        # checked segments: a thin green bar in the margin beside their lines (instead of a ✓ in the text)
+        self.check_bar = tk.Canvas(frame, width=self.CHECK_BAR_W, bg="#0b0d13", highlightthickness=0, bd=0)
+        self.preview_text = tk.Text(frame, bg="#0b0d13", fg=T["fg_primary"], font=self.f["transcript"], relief=tk.FLAT, padx=12, pady=12,
                                     wrap=tk.WORD, highlightthickness=0, cursor="arrow", spacing1=2, spacing3=2, state=tk.DISABLED)
         sb = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=self.preview_text.yview)
-        self.preview_text.configure(yscrollcommand=sb.set)
-        self.preview_text.grid(row=0, column=0, sticky="nsew")
-        sb.grid(row=0, column=1, sticky="ns")
+        self.preview_text.configure(yscrollcommand=lambda a, b: (sb.set(a, b), self._schedule_check_bar()))
+        frame.columnconfigure(0, weight=0)
+        frame.columnconfigure(1, weight=1)
+        self.check_bar.grid(row=0, column=0, sticky="ns")
+        self.preview_text.grid(row=0, column=1, sticky="nsew")
+        sb.grid(row=0, column=2, sticky="ns")
+        self.preview_text.bind("<Configure>", lambda e: self._schedule_check_bar(), add="+")
         pt = self.preview_text
-        pt.tag_config("SEG_HDR", foreground=T["fg_dim"], font=self.f["mono_small"], spacing1=12)
+        # the line above a paragraph — speaker and times — is small and quiet: the spoken text leads
+        pt.tag_config("SEG_HDR", foreground=T["fg_dim"], font=self.f["small"], spacing1=12)
         for i, color in enumerate(SPEAKER_COLORS):
-            pt.tag_config(f"SPK{i}", foreground=color, font=self.f["mono_small_bold"], spacing1=12)
+            pt.tag_config(f"SPK{i}", foreground=color, font=self.f["small_bold"], spacing1=12)
         pt.tag_config("HIGH", foreground=T["fg_primary"])
         pt.tag_config("MED", foreground="#f5c56b")
         pt.tag_config("LOW", foreground="#fb923c")
@@ -248,7 +268,6 @@ class EditorMixin:
         pt.tag_config("PLAYING", background="#1d3a2e")
         pt.tag_config("CURRENT", background="#3b4a63")
         pt.tag_config("MARKER", foreground="#8fb3ff", font=self.f["marker"])
-        pt.tag_config("CHECKMARK", foreground=T["ok"], font=self.f["small_bold"])
         pt.tag_config("CUT", overstrike=True, foreground="#5b6475")
         pt.tag_config("NOTE", foreground="#c4b5fd", font=self.f["small"])
         pt.tag_config("FOUND", background="#5c4a12")
@@ -366,6 +385,54 @@ class EditorMixin:
         i = bisect.bisect_left(self.span_starts, t - 1e-6)
         cands = [j for j in (i - 1, i) if 0 <= j < len(self.span_starts)]
         return min(cands, key=lambda j: abs(self.span_starts[j] - t)) if cands else None
+
+    CHECK_BAR_W = 8
+
+    def _schedule_check_bar(self):
+        """Redraw the margin bars once, after the scrolling or drawing in progress (not on every scroll event)."""
+        if self.__dict__.get("_check_bar_job") is None:
+            try:
+                self._check_bar_job = self.after_idle(self._draw_check_bar)
+            except Exception:
+                self._check_bar_job = None
+
+    def _checked_bar_spans(self) -> List[Tuple[int, int]]:
+        """(top, bottom) on screen of the checked segments in view, as drawn in the margin."""
+        doc, pt = self.active_doc, self.preview_text
+        if doc is None or not self.__dict__.get("seg_ranges"):
+            return []
+        try:
+            h = int(pt.winfo_height())
+            top_line = int(str(pt.index("@0,0")).split(".")[0])
+            bot_line = int(str(pt.index(f"@0,{h}")).split(".")[0])
+        except Exception:
+            return []
+        out = []
+        for si, (a, b) in self.seg_ranges.items():
+            la, lb = int(a.split(".")[0]), int(b.split(".")[0])
+            if lb < top_line or la > bot_line or si >= len(doc.segments) or not doc.segments[si].get("checked"):
+                continue
+            lb_, cb = b.split(".")
+            last = f"{lb_}.{max(0, int(cb) - 1)}"
+            ia, ib = pt.dlineinfo(a), pt.dlineinfo(last)
+            ia = ia if isinstance(ia, tuple) else None
+            ib = ib if isinstance(ib, tuple) else None
+            if ia is None and ib is None and not (la < top_line and lb > bot_line):
+                continue
+            y0 = ia[1] + 2 if ia else 0
+            y1 = ib[1] + ib[3] - 2 if ib else h
+            out.append((y0, y1))
+        return out
+
+    def _draw_check_bar(self):
+        self._check_bar_job = None
+        cv = self.__dict__.get("check_bar")
+        if cv is None:
+            return
+        cv.delete("all")
+        x = self.CHECK_BAR_W // 2
+        for y0, y1 in self._checked_bar_spans():
+            cv.create_line(x, y0, x, max(y0 + 1, y1), fill=THEME["ok"], width=3, capstyle="round")
 
     def _word_y(self, i: int) -> Optional[Tuple[int, int]]:
         """(top, height) on screen of word span i, or None when it is not in view."""
@@ -552,8 +619,6 @@ class EditorMixin:
                 seg = rsegs[si]
                 seg_start = f"{out.line}.{out.col}"
                 words = seg["words"]
-                if doc.segments[si].get("checked"):
-                    put((" " if out.col > 0 else "") + "✓", "CHECKMARK")
                 in_marker = False
                 if words:
                     for wi, w in enumerate(words):
@@ -601,6 +666,7 @@ class EditorMixin:
         self.span_starts = [sp["start"] for sp in spans]
         self.span_lookup = {(sp["seg"], sp["w"]): i for i, sp in enumerate(spans)}
         self.seg_ranges = seg_ranges
+        self._schedule_check_bar()  # checked marks are in the margin: the text itself may not have changed
         if new_doc:
             self.sel_segs, self.sel_anchor = [], None
         self._paint_multi_selection()
@@ -743,8 +809,8 @@ class EditorMixin:
         self.edit_note_original = seg.get("note") or ""
         self.var_seg_note.set(self.edit_note_original)
         self._refresh_speaker_chips()
-        mark = ("  ✎" if seg.get("edited") else "") + ("  ✓" if seg.get("checked") else "")
-        self.btn_checked.configure(text="✓ Checked" if seg.get("checked") else "Mark checked")
+        mark = "  ✎" if seg.get("edited") else ""  # (checked: the ✓ button beside it is green)
+        self.btn_checked.configure(style=rounded.style_for(self.btn_checked.master, "CheckOn" if seg.get("checked") else "Check"))
         self.lbl_edit_title.config(text=f"Segment {seg_idx + 1}/{len(doc.segments)}  ·  {short_ts(seg.get('start', 0))} – {short_ts(seg.get('end', 0))}{mark}")
         self.after_idle(self.edit_row.relayout)  # the title's width changed
         orig = seg.get("text_whisper")
@@ -757,7 +823,7 @@ class EditorMixin:
             self.lbl_edit_hint.config(text=f"Whisper's own text for this segment differed: “{str(orig).strip()[:110]}” — listen and correct if needed.",
                                       fg=THEME["warn"])
         else:
-            self.lbl_edit_hint.config(text=self.EDIT_HINT, fg=THEME["fg_dim"])
+            self.lbl_edit_hint.config(text="", fg=THEME["fg_dim"])  # the usual hint is on the text box, on hover
         self._highlight_edit_segment()
 
     def _highlight_edit_segment(self):

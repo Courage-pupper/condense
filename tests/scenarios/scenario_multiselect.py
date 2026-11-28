@@ -78,7 +78,7 @@ assert not any(s.get("checked") for s in TD.load(d.path).segments)
 pt.tags.pop("sel", None)  # a redraw clears the selection, as in Tk
 app._span_at = lambda e: app.span_lookup[(0, 0)]
 app._on_text_click(None)
-assert app.sel_segs == [] and app.edit_seg_idx == 0 and chips()[0] == "Assign:"
+assert app.sel_segs == [] and app.edit_seg_idx == 0 and chips()[0] == "Speaker"
 app._span_at = lambda e: app.span_lookup[(2, 1)]
 app._on_shift_click(None)
 assert app.sel_segs == [0, 1, 2] and app.edit_seg_idx == 2

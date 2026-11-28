@@ -28,6 +28,7 @@ from condense.core.transcript import TranscriptDocument
 from condense.core.util import *  # noqa: F401,F403
 from condense.gui.theme import *  # noqa: F401,F403
 from condense.gui.popup import PopupMenu
+from condense.gui import rounded  # noqa: E402
 from condense.gui.widgets import (EDIT_MOD, EDIT_MOD_LABEL, IS_MAC, MOD, FlowFrame, ScrollFrame, Tooltip, geometry_fits,
                                   is_shortcut, kbd, screen_rects)
 from condense.pipeline.worker import PipelineWorker

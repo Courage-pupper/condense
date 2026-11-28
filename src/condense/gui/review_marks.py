@@ -160,24 +160,24 @@ class ReviewMarksMixin:
                                   fg="#c4b5fd"))
         else:
             current = self.var_seg_speaker.get().strip()
-            chips.add(self._label(chips, "Assign:", font="small", fg=T["fg_secondary"]))
+            chips.add(self._label(chips, "Speaker", font="small", fg=T["fg_dim"]))
         for i, name in enumerate(self._roster()):
             color = SPEAKER_COLORS[i % len(SPEAKER_COLORS)]
             active = name == current
+            # no outlines: the name in its colour; the segment's speaker filled
             chip = tk.Label(chips, text=(f"{i + 1}  " if i < 9 else "") + name, font=self.f["small_bold"], padx=8, pady=2, cursor="hand2",
-                            bg=color if active else T["bg_input"], fg=T["bg_root"] if active else color,
-                            highlightthickness=1, highlightbackground=color)
+                            bg=color if active else T["bg_card"], fg=T["bg_root"] if active else color, highlightthickness=0)
             chip.bind("<Button-1>", lambda e, n=name: self._assign_speaker(n))
             for seq in ("<Button-3>",) + (("<Button-2>", "<Control-Button-1>") if IS_MAC else ()):
                 chip.bind(seq, lambda e, n=name: self._speaker_chip_menu(e, n))
             chips.add(chip)
-        add = tk.Label(chips, text="0  + Speaker", font=self.f["small"], padx=8, pady=2, cursor="hand2", bg=T["bg_input"], fg=T["fg_secondary"],
-                       highlightthickness=1, highlightbackground=T["border"])
+        add = tk.Label(chips, text="0  + Speaker", font=self.f["small"], padx=8, pady=2, cursor="hand2", bg=T["bg_card"], fg=T["fg_dim"],
+                       highlightthickness=0)
         add.bind("<Button-1>", lambda e: self._add_speaker_quick())
         chips.add(add)
         if self._generic_speakers():  # labels from speaker detection still waiting for a name
-            who = tk.Label(chips, text="Who is who?…", font=self.f["small_bold"], padx=8, pady=2, cursor="hand2", bg=T["bg_input"],
-                           fg="#fbbf24", highlightthickness=1, highlightbackground="#fbbf24")
+            who = tk.Label(chips, text="Who is who?…", font=self.f["small_bold"], padx=8, pady=2, cursor="hand2", bg=T["bg_card"],
+                           fg="#fbbf24", highlightthickness=0)
             who.bind("<Button-1>", lambda e: self._match_speakers_dialog())
             chips.add(who)
 

@@ -110,11 +110,12 @@ class FlowFrame(tk.Frame):
     one row: the buttons that don't fit go into a "⋯" menu at its end (in their order), instead of onto a second row
     that makes the toolbars look chopped. Separators (thin lines between groups) are dropped where a row ends."""
 
-    def __init__(self, master, padx: int = 6, pady: int = 4, one_line: bool = False, extra_menu=None, **kw):
+    def __init__(self, master, padx: int = 6, pady: int = 4, one_line: bool = False, extra_menu=None, align: str = "left", **kw):
         """extra_menu (one_line): a function giving a PopupMenu whose entries the ⋯ menu always ends with; then ⋯ is
         always there — the row's own menu and, when space runs out, the buttons that did not fit."""
         super().__init__(master, **kw)
         self.extra_menu = extra_menu
+        self.align = align  # (one_line) "right": the row ends at the right edge
         self._items: List = []
         self._padx, self._pady = padx, pady
         self._last_width = None
@@ -170,7 +171,8 @@ class FlowFrame(tk.Frame):
 
     def _more_button(self):
         if self._more is None:
-            self._more = ttk.Button(self, text="⋯", style="Tool.TButton", command=self._open_more)
+            from condense.gui import rounded
+            self._more = ttk.Button(self, text="⋯", style=rounded.style_for(self, "Tool"), command=self._open_more)
             self._more.condense_keep = True
         return self._more
 
@@ -228,20 +230,26 @@ class FlowFrame(tk.Frame):
         while shown and self._is_separator(items[shown[-1]]):  # no separator at the end of the row
             hide.add(shown.pop())
         self.hidden = [items[i] for i in sorted(hide) if not self._is_separator(items[i])]
+        places = []
         for i, w in enumerate(items):
             if i in hide:
                 w.place_forget()
                 continue
             ww, wh = sizes[i]
-            w.place(in_=self, x=x, y=0)
+            places.append((w, x))
             x += ww + self._padx
             row_h = max(row_h, wh)
+        more = None
         if self.hidden or self.extra_menu is not None:
             more = self._more_button()
-            more.place(in_=self, x=x, y=0)
+            places.append((more, x))
+            x += more.winfo_reqwidth() + self._padx
             row_h = max(row_h, more.winfo_reqheight())
         elif self._more is not None:
             self._more.place_forget()
+        shift = max(0, width - (x - self._padx)) if self.align == "right" and width < 10_000 else 0
+        for w, wx in places:
+            w.place(in_=self, x=wx + shift, y=0)
         total_h = max(1, row_h)
         if int(self.cget("height")) != total_h:
             self.configure(height=total_h)

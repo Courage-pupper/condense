@@ -145,8 +145,15 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                    darkcolor=T["bg_selected"], focuscolor=T["bg_selected"])
         style.configure("SegOn.TButton", foreground="#ffffff", font=f["small_bold"], padding=(12, 3), width=-3, **sel)
         style.map("SegOn.TButton", background=[("active", T["bg_selected"])])
+        # the segment's ✓: grey, green once it is checked
+        style.configure("Check.TButton", foreground=T["fg_dim"], font=f["body_bold"], padding=(8, 2), width=-2, **soft)
+        style.map("Check.TButton", background=[("active", T["bg_soft_hover"])], foreground=[("active", T["ok"])])
+        style.configure("CheckOn.TButton", foreground=T["ok"], font=f["body_bold"], padding=(8, 2), width=-2, **soft)
+        style.map("CheckOn.TButton", background=[("active", T["bg_soft_hover"])])
         # rounded corners for all of these (image elements); where Tk can't make the images they stay square
         self._round_images = rounded.install(style, self, T)
+        self._scale_images = rounded.install_scale(style, self, T)  # sliders: a thin line, a small round knob
+        style.configure("Horizontal.TScale", background=T["bg_card"])  # (the player row's colour, behind the knob)
 
         # tabs: text, and a thin red line under the open one (an image element: clam can't draw only one edge)
         style.configure("TNotebook", background=T["bg_root"], borderwidth=0, tabmargins=(0, 0, 0, 2), bordercolor=T["bg_root"],
@@ -341,7 +348,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
 
     def _tool(self, parent, text: str, cmd, primary: bool = False, tip: Optional[str] = None):
         """A button. tip: what it does and its key, shown on hover — labels stay plain words (no "(M)", "⌘S")."""
-        b = ttk.Button(parent, text=text, style="Primary.TButton" if primary else "Tool.TButton", command=cmd)
+        b = ttk.Button(parent, text=text, style=rounded.style_for(parent, "Primary" if primary else "Tool"), command=cmd)
         if tip:
             self._tip(b, tip)
         return b
