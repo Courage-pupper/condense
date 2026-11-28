@@ -575,7 +575,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.sub_lbl.configure(text="  ·  ".join(parts), fg=THEME["fg_secondary"] if ok else THEME["warn"])
 
     def _build_footer(self):
-        footer = tk.Frame(self, bg=THEME["bg_panel"], padx=14, pady=(6, 3))
+        footer = tk.Frame(self, bg=THEME["bg_panel"], padx=14, pady=4)
         footer.pack(fill=tk.X, side=tk.BOTTOM)
         row = tk.Frame(footer, bg=THEME["bg_panel"])
         row.pack(fill=tk.X)
