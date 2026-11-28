@@ -28,7 +28,7 @@ from condense.core.transcript import TranscriptDocument
 from condense.core.util import *  # noqa: F401,F403
 from condense.gui.theme import *  # noqa: F401,F403
 from condense.gui.popup import PopupMenu
-from condense.gui.widgets import (EDIT_MOD, EDIT_MOD_LABEL, IS_MAC, MOD, FlowFrame, ScrollFrame, geometry_fits,
+from condense.gui.widgets import (EDIT_MOD, EDIT_MOD_LABEL, IS_MAC, MOD, FlowFrame, ScrollFrame, Tooltip, geometry_fits,
                                   is_shortcut, kbd, screen_rects)
 from condense.pipeline.worker import PipelineWorker
 from condense.media.compress import GOALS as COMPRESS_GOALS, TARGETS as COMPRESS_TARGETS  # noqa: F401

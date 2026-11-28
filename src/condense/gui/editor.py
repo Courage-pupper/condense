@@ -31,8 +31,8 @@ class EditorMixin:
         self.mode_holder.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.tx_mode = "edit"
         # ---- the Edit toolbar: what you use while reviewing stays visible; the rest is one click away in a menu ----
-        bar = self._flow(self.mode_holder, padx=5, pady=5, bg=T["bg_panel"])
-        bar.pack(fill=tk.X)
+        bar = self._flow(self.mode_holder, padx=4, pady=5, bg=T["bg_panel"], one_line=True)  # one row; the rest in ⋯
+        bar.pack(fill=tk.X, pady=5)
         self.tx_bar = bar
         bar.add(self._dropdown(bar, "Transcript ▾", [
             ("Open…", self._open_transcript),
@@ -70,12 +70,12 @@ class EditorMixin:
         cmb_show.bind("<<ComboboxSelected>>", lambda e: (self._autosave_edit(rerender=False), self._rerender()))
         bar.add(cmb_show)
         bar.add(self._separator(bar))
-        bar.add(self._tool(bar, "Find…", self._toggle_find))
+        bar.add(self._tool(bar, "Find", self._toggle_find))
         bar.add(self._tool(bar, "◀", lambda: self._jump_low_conf(-1)))
         bar.add(self._label(bar, "Uncertain", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]))
         bar.add(self._tool(bar, "▶", lambda: self._jump_low_conf(+1)))
         bar.add(self._separator(bar))
-        bar.add(self._tool(bar, "✂ Cut (X)", self._toggle_cut))
+        bar.add(self._tool(bar, "✂ Cut", self._toggle_cut))
         bar.add(self._tool(bar, "Episodes…", self._episodes_dialog))
         self.var_autoplay = tk.BooleanVar(value=True)
         self._persist["autoplay"] = self.var_autoplay
@@ -143,21 +143,24 @@ class EditorMixin:
         # Fixed heights for the lines that change on every ↑/↓: if they grew or shrank, the transcript would jump.
         top = tk.Frame(info, bg=T["bg_panel"])
         top.pack(fill=tk.X)
-        # text size of the transcript (and the segment box): a slider by the transcript it changes
-        size = tk.Frame(top, bg=T["bg_panel"])
+        # the transcript's text size: a small "Aa 100%" — click for larger / smaller (also View ▸, ⌘⌥+ / ⌘⌥−)
+        size = tk.Frame(top, bg=T["bg_panel"], cursor="hand2")
         size.pack(side=tk.RIGHT)
-        self._label(size, "Aa", font="small_bold", fg=T["fg_secondary"], bg=T["bg_panel"]).pack(side=tk.LEFT, padx=(8, 4))
+        aa = self._label(size, "Aa", font="small_bold", fg=T["fg_dim"], bg=T["bg_panel"])
+        aa.pack(side=tk.LEFT, padx=(8, 3))
         self.var_text_size = tk.DoubleVar(value=self.transcript_scale * 100)
-        self.scl_text_size = ttk.Scale(size, from_=self.TRANSCRIPT_SIZES[0] * 100, to=self.TRANSCRIPT_SIZES[-1] * 100, orient=tk.HORIZONTAL,
-                                       length=110, variable=self.var_text_size,
-                                       command=lambda v: self._set_transcript_size(round(float(v) / 5) * 5 / 100, save=False))
-        self.scl_text_size.pack(side=tk.LEFT)
-        self.scl_text_size.bind("<ButtonRelease-1>", lambda e: self._set_transcript_size(self.transcript_scale))
-        self.scl_text_size.bind("<Double-Button-1>", lambda e: self._set_transcript_size(1.0))
-        self.lbl_text_size = self._label(size, f"{self.transcript_scale * 100:.0f}%", font="small", fg=T["fg_secondary"], bg=T["bg_panel"], width=5)
+        self.lbl_text_size = self._label(size, f"{self.transcript_scale * 100:.0f}%", font="small", fg=T["fg_dim"], bg=T["bg_panel"], width=5)
         self.lbl_text_size.pack(side=tk.LEFT)
-        self.lbl_ci_summary = self._label(top, kbd("No transcript open. Select a finished job or use Open… (⇧⌘O)."), font="small_bold",
-                                          bg=T["bg_panel"], height=1, anchor="w", justify=tk.LEFT)
+        size_menu = PopupMenu(self)
+        size_menu.add_command(label="Larger transcript text", command=lambda: self._transcript_size_step(+1),
+                              accelerator="⌘⌥+" if IS_MAC else "Ctrl+Alt++")
+        size_menu.add_command(label="Smaller transcript text", command=lambda: self._transcript_size_step(-1),
+                              accelerator="⌘⌥−" if IS_MAC else "Ctrl+Alt+−")
+        size_menu.add_command(label="Default size", command=lambda: self._set_transcript_size(1.0))
+        for w in (size, aa, self.lbl_text_size):
+            w.bind("<Button-1>", lambda e: size_menu.tk_popup(e.x_root, e.y_root))
+        self.lbl_ci_summary = self._label(top, kbd("No transcript open. Select a finished job or use Open… (⇧⌘O)."), font="small",
+                                          fg=T["fg_secondary"], bg=T["bg_panel"], height=1, anchor="w", justify=tk.LEFT)
         self.lbl_ci_summary.pack(side=tk.LEFT, fill=tk.X, expand=True)
         self.lbl_word = self._label(info, "", font="mono_small", fg=T["fg_secondary"], bg=T["bg_panel"], anchor="w", justify=tk.LEFT, height=1)
         self.lbl_word.pack(fill=tk.X)

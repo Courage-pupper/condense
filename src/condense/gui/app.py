@@ -170,16 +170,27 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
         self.option_add("*TCombobox*Listbox.selectForeground", "#ffffff")
         self.option_add("*TCombobox*Listbox.font", f["body"])
 
-        style.configure("Queue.Treeview", background=T["bg_input"], foreground=T["fg_primary"], fieldbackground=T["bg_input"], borderwidth=0, font=f["body"])
-        style.configure("Queue.Treeview.Heading", background=T["bg_card"], foreground=T["fg_secondary"], font=f["small_bold"], relief="flat", padding=(4, 3))
+        style.configure("Queue.Treeview", background=T["bg_input"], foreground=T["fg_primary"], fieldbackground=T["bg_input"], borderwidth=0, font=f["body"],
+                        bordercolor=T["bg_input"], lightcolor=T["bg_input"], darkcolor=T["bg_input"])  # no frame around a list
+        style.configure("Queue.Treeview.Heading", background=T["bg_card"], foreground=T["fg_secondary"], font=f["small_bold"], relief="flat", padding=(4, 3),
+                        bordercolor=T["bg_card"], lightcolor=T["bg_card"], darkcolor=T["bg_card"])
+        style.map("Queue.Treeview.Heading", background=[("active", T["bg_soft"])])
         style.map("Queue.Treeview", background=[("selected", "#2b3348")], foreground=[("selected", "#ffffff")])
 
         # a 2 px line under the status bar: invisible while nothing runs (its trough is the footer's colour)
         style.configure("Horizontal.TProgressbar", troughcolor=T["bg_panel"], background=T["accent"], thickness=2, borderwidth=0,
                         bordercolor=T["bg_panel"], lightcolor=T["accent"], darkcolor=T["accent"])
-        for orient in ("Vertical", "Horizontal"):
-            style.configure(f"{orient}.TScrollbar", background=T["bg_card"], troughcolor=T["bg_panel"], arrowcolor=T["fg_dim"],
-                            bordercolor=T["bg_panel"], lightcolor=T["bg_card"], darkcolor=T["bg_card"])
+        # thin scrollbars without arrows: a soft thumb in a trough the colour of the panel
+        for orient, sticky in (("Vertical", "ns"), ("Horizontal", "ew")):
+            style.configure(f"{orient}.TScrollbar", background=T["bg_soft"], troughcolor=T["bg_panel"], arrowcolor=T["fg_dim"],
+                            bordercolor=T["bg_panel"], lightcolor=T["bg_soft"], darkcolor=T["bg_soft"], gripcount=0, arrowsize=9,
+                            borderwidth=0, relief="flat")
+            style.map(f"{orient}.TScrollbar", background=[("active", T["bg_soft_hover"]), ("pressed", T["bg_selected"])])
+            try:
+                style.layout(f"{orient}.TScrollbar", [(f"{orient}.Scrollbar.trough", {"sticky": sticky, "children": [
+                    (f"{orient}.Scrollbar.thumb", {"expand": "1", "sticky": "nswe"})]})])
+            except tk.TclError:
+                pass
 
     def _make_tab_images(self):
         """(normal, hover, open) images for a tab: the tab's colour, with a 2 px line at the bottom when open."""
@@ -299,7 +310,7 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
             nxt = next((s for s in reversed(sizes) if s < cur - 1e-6), sizes[0])
         self._set_transcript_size(nxt)
 
-    def _flow(self, parent, **kw) -> FlowFrame:
+    def _flow(self, parent, **kw) -> FlowFrame:  # (one_line=True: one row, what doesn't fit in a ⋯ menu)
         flow = FlowFrame(parent, **kw)
         self._flows.append(flow)
         return flow
@@ -333,7 +344,9 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                         highlightthickness=1, highlightbackground=THEME["border"], highlightcolor=THEME["accent"], font=self.f[font], show=show, width=width)
 
     def _separator(self, parent):
-        return tk.Frame(parent, bg=THEME["border"], width=1, height=self.f["small"].metrics("linespace") + 8)
+        sep = tk.Frame(parent, bg=THEME["border"], width=1, height=self.f["small"].metrics("linespace") + 8)
+        sep.condense_separator = True  # (a one-line toolbar drops it where the row ends)
+        return sep
 
     # ================================================================== menu bar
     def _build_menubar(self):
