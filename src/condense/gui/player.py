@@ -321,7 +321,7 @@ class PlayerMixin:
     def _player_start(self, pos: float, duration: Optional[float] = None):
         media = self._media()
         if media is None:
-            self.lbl_word.config(text="⚠ Playback media not found (moved or deleted?) — see 'media' in the .transcript.json", fg=THEME["warn"])
+            self.lbl_status.config(text="⚠ Playback media not found (moved or deleted?) — see 'media' in the .transcript.json")
             return
         self._kill_player()
         pos = max(0.0, pos)
@@ -529,7 +529,7 @@ class PlayerMixin:
         """Rename, add and remove speakers. Renames apply to every segment and export; swaps work."""
         doc = self.active_doc
         if doc is None:
-            self.lbl_word.config(text="Open a transcript first.")
+            self.lbl_status.config(text="Open a transcript first.")
             return
         self._autosave_edit()
         T = THEME

@@ -644,9 +644,10 @@ def main():
             collect(c)
     collect(app.tab_preview)
     labels = lambda m: m.labels()
-    assert {"Transcript ▾", "Playback ▾", "More ▾"} <= set(dropdowns), sorted(dropdowns)
+    assert {"Transcript ▾", "Playback ▾"} <= set(dropdowns), sorted(dropdowns)
     assert "Speakers…" in labels(dropdowns["Transcript ▾"]) and "Skip cut parts" in labels(dropdowns["Playback ▾"])
-    assert "Re-transcribe this passage…" in labels(dropdowns["More ▾"])
+    # the segment editor's ⋯: Save, Revert, Re-transcribe, markers
+    assert {"Save", "Re-transcribe this passage…", "Insert marker"} <= set(labels(app.seg_more_menu)), labels(app.seg_more_menu)
     app._set_transcript_size(1.0, save=False)
     ok("shortcuts, speakers, project overview + speakers, trim (with frames from ffmpeg), zoom")
 

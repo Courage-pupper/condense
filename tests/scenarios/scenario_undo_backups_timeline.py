@@ -93,7 +93,7 @@ app._save_settings()
 holder.clear(); pipe.launch_gui(); app2 = holder["app"]
 app2._render_doc(TD.load(d.path))
 assert app2.edit_seg_idx == 2 and abs(app2.play_pos - 6.7) < 1e-6
-print("    ", app2.lbl_word.cget("text"))
+print("    ", app2.lbl_status.cget("text"))
 ok("reopening the transcript returns to the same segment and playback position")
 
 print("[6] timeline")

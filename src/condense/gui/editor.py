@@ -163,8 +163,6 @@ class EditorMixin:
         self.lbl_ci_summary = self._label(top, kbd("No transcript open. Select a finished job or use Open… (⇧⌘O)."), font="small",
                                           fg=T["fg_secondary"], bg=T["bg_panel"], height=1, anchor="w", justify=tk.LEFT)
         self.lbl_ci_summary.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self.lbl_word = self._label(info, "", font="mono_small", fg=T["fg_secondary"], bg=T["bg_panel"], anchor="w", justify=tk.LEFT, height=1)
-        self.lbl_word.pack(fill=tk.X)
 
         # --- segment editor (bottom) ---
         ep = tk.Frame(tab, bg=T["bg_card"], padx=10, pady=8)
@@ -176,6 +174,9 @@ class EditorMixin:
         head.pack(fill=tk.X)
         self.lbl_edit_title = self._label(head, "Click a word to edit its segment", font="section", anchor="w")
         self.lbl_edit_title.pack(side=tk.LEFT)
+        # the clicked word — “word”  time · p 92 % — beside its segment (once a line of its own above the transcript)
+        self.lbl_word = self._label(head, "", font="small", fg=T["fg_dim"], anchor="w")
+        self.lbl_word.pack(side=tk.LEFT, padx=(12, 0))
         self.var_seg_speaker = tk.StringVar(value="")
         self.cmb_seg_speaker = ttk.Combobox(head, textvariable=self.var_seg_speaker, values=[], width=16, font=self.f["small"])  # (not shown)
         more = PopupMenu(self)
@@ -691,10 +692,12 @@ class EditorMixin:
             self._update_task_progress(doc)
             media = self._media()
             if media:
-                self.lbl_word.config(text="Click a word to edit its segment · drag or ⇧-click to select several · 1–9 assigns a speaker · "
-                                          "↑/↓ segments · ←/→ uncertain words · View ▸ Keyboard Shortcuts", fg=THEME["fg_dim"])
+                self.lbl_word.config(text="")
+                self.lbl_status.config(text=kbd("Click a word to edit its segment · drag or ⇧-click to select several · 1–9 assigns a speaker · "
+                                                "↑/↓ segments · ←/→ uncertain words · View ▸ Keyboard Shortcuts"))
             else:
-                self.lbl_word.config(text="⚠ Playback media not found (moved or deleted?) — see 'media' in the .transcript.json", fg=THEME["warn"])
+                self.lbl_word.config(text="")
+                self.lbl_status.config(text="⚠ Playback media not found (moved or deleted?) — see 'media' in the .transcript.json")
             self._resume_position(doc)
         self._update_time_label()
         self._timeline_redraw()
@@ -723,9 +726,9 @@ class EditorMixin:
         self.preview_text.tag_add("CURRENT", a, b)
         if scroll:
             self.preview_text.see(a)
-        pos = f"   ·   uncertain {self.low_conf.index(idx) + 1} of {len(self.low_conf)}" if idx in self.low_conf else ""
-        spk = f"   ·   {sp['speaker']}" if sp.get("speaker") else ""
-        self.lbl_word.config(text=f"“{sp['word']}”   {short_ts(sp['start'])}   ·   p {sp['prob'] * 100:.0f}%{spk}{pos}", fg=THEME["fg_secondary"])
+        pos = f"  ·  uncertain {self.low_conf.index(idx) + 1} of {len(self.low_conf)}" if idx in self.low_conf else ""
+        # (the speaker is the filled chip below)
+        self.lbl_word.config(text=f"“{sp['word']}”  {short_ts(sp['start'])}  ·  p {sp['prob'] * 100:.0f}%{pos}", fg=THEME["fg_dim"])
         if load_editor and sp["seg"] != self.edit_seg_idx:
             self._load_segment_into_editor(sp["seg"])
         if not self.playing:
