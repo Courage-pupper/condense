@@ -38,7 +38,7 @@ class CodingMixin:
         left = self.cd_book = tk.Frame(self.cd_left, bg=T["bg_panel"])
         hdr = tk.Frame(left, bg=T["bg_panel"])
         hdr.pack(fill=tk.X)
-        self._label(hdr, "Codebook", font="body_bold", bg=T["bg_panel"]).pack(side=tk.LEFT)
+        self._heading(hdr, "Codebook", bg=T["bg_panel"]).pack(side=tk.LEFT)
         self.var_cd_search = tk.StringVar(value="")
         ent = self._entry(left, self.var_cd_search, font="small", width=20)
         ent.pack(fill=tk.X, pady=(6, 4))
@@ -78,13 +78,16 @@ class CodingMixin:
         # ---- the Code toolbar (in place of the Edit toolbar) ----
         top = self._flow(self.mode_holder, padx=4, pady=5, bg=T["bg_panel"], one_line=True)  # one row; the rest in ⋯
         self.cd_bar = top
-        top.add(self._tool(top, "Code (↩)", lambda: self._cd_apply(self._cd_selected_code())))
-        top.add(self._tool(top, "New code (N)", lambda: self._cd_new_code(parent=self._cd_selected_code(), apply=True)))
-        top.add(self._tool(top, "By time…", lambda: self._cd_time_dialog(*(self._cdt_mark() or (None, None)))))
-        top.add(self._tool(top, "✎ Comment (M)", lambda: self._comment_dialog()))
+        top.add(self._tool(top, "Code", lambda: self._cd_apply(self._cd_selected_code()),
+                           tip="Code the selection with the chosen code  ↩   (or 1–9 for a recent code)"))
+        top.add(self._tool(top, "New code", lambda: self._cd_new_code(parent=self._cd_selected_code(), apply=True),
+                           tip="A new code for the selection  N"))
+        top.add(self._tool(top, "By time…", lambda: self._cd_time_dialog(*(self._cdt_mark() or (None, None))),
+                           tip="Code a stretch of the video by its times (I and O on the timeline)"))
+        top.add(self._tool(top, "✎ Comment", lambda: self._comment_dialog(), tip="Comment on the selection or the open segment  M"))
         top.add(self._separator(top))
-        top.add(self._tool(top, "▶ Selection", self._cd_play_selection))
-        top.add(self._tool(top, "⇔ Video", self._cd_video_size))
+        top.add(self._tool(top, "▶ Selection", self._cd_play_selection, tip="Play what is selected"))
+        top.add(self._tool(top, "⇔ Video", self._cd_video_size, tip="Make the video larger or smaller"))
         self.cd_recent = self._flow(self.mode_holder, padx=5, pady=2, bg=T["bg_panel"])
         # ---- the transcript with stripes, the codings under it (in the tab's text column) ----
         body = tk.PanedWindow(self.tx_paned, orient=tk.VERTICAL, sashwidth=6, bd=0, bg=T["bg_panel"], showhandle=False)
@@ -129,7 +132,7 @@ class CodingMixin:
         body.add(lst, minsize=110, height=190)
         lbar = tk.Frame(lst, bg=T["bg_panel"])
         lbar.pack(fill=tk.X, pady=(4, 2))
-        self.lbl_cd_list = self._label(lbar, "Codings", font="small_bold", bg=T["bg_panel"])
+        self.lbl_cd_list = self._heading(lbar, "Codings", bg=T["bg_panel"])
         self.lbl_cd_list.pack(side=tk.LEFT)
         self.var_cd_only = tk.BooleanVar(value=False)
         self._check(lbar, "only the selected code", self.var_cd_only, bg=T["bg_panel"], font="small").pack(side=tk.LEFT, padx=(10, 0))

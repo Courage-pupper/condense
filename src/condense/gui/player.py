@@ -495,9 +495,8 @@ class PlayerMixin:
     def _update_time_label(self):
         if self.__dict__.get("_scrub_target") is not None:
             return
-        speed = self._speed()
-        extra = f"  ·  {self.var_speed.get()}" if abs(speed - 1.0) > 1e-3 else ""
-        self.lbl_time.configure(text=f"{short_ts(self._current_pos())[:-2]} / {short_ts(self._duration())[:-2]}{extra}")
+        # (the speed is in its own box beside the slider: not repeated here)
+        self.lbl_time.configure(text=f"{short_ts(self._current_pos())[:-2]} / {short_ts(self._duration())[:-2]}")
         self._timeline_playhead()
         self._cdt_tick(self._current_pos())
 

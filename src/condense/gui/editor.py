@@ -70,12 +70,12 @@ class EditorMixin:
         cmb_show.bind("<<ComboboxSelected>>", lambda e: (self._autosave_edit(rerender=False), self._rerender()))
         bar.add(cmb_show)
         bar.add(self._separator(bar))
-        bar.add(self._tool(bar, "Find", self._toggle_find))
-        bar.add(self._tool(bar, "◀", lambda: self._jump_low_conf(-1)))
+        bar.add(self._tool(bar, "Find", self._toggle_find, tip="Find and replace  ⌘F"))
+        bar.add(self._tool(bar, "◀", lambda: self._jump_low_conf(-1), tip="Previous uncertain word  ←"))
         bar.add(self._label(bar, "Uncertain", font="small", fg=T["fg_secondary"], bg=T["bg_panel"]))
-        bar.add(self._tool(bar, "▶", lambda: self._jump_low_conf(+1)))
+        bar.add(self._tool(bar, "▶", lambda: self._jump_low_conf(+1), tip="Next uncertain word  →"))
         bar.add(self._separator(bar))
-        bar.add(self._tool(bar, "✂ Cut", self._toggle_cut))
+        bar.add(self._tool(bar, "✂ Cut", self._toggle_cut, tip="Cut the selection out of the analysis (or restore it)  X"))
         bar.add(self._tool(bar, "Episodes…", self._episodes_dialog))
         self.var_autoplay = tk.BooleanVar(value=True)
         self._persist["autoplay"] = self.var_autoplay
@@ -87,9 +87,10 @@ class EditorMixin:
         # back · play · forward, by a step chosen once (5–30 s); ⌘[ ⌘] jump one step, with ⇧ three
         step = self._skip_step()
         transport = tk.Frame(player, bg=T["bg_card"])
-        self.btn_back = self._tool(transport, f"⟲ {step} s", lambda: self._skip(-1))
+        self.btn_back = self._tool(transport, f"⟲ {step} s", lambda: self._skip(-1), tip="Back one step  ⌘[   (three: ⇧⌘[)")
         self.btn_play = ttk.Button(transport, text="▶", style="Play.TButton", command=self._toggle_play)
-        self.btn_fwd = self._tool(transport, f"{step} s ⟳", lambda: self._skip(+1))
+        self._tip(self.btn_play, "Play / pause  Space")
+        self.btn_fwd = self._tool(transport, f"{step} s ⟳", lambda: self._skip(+1), tip="Forward one step  ⌘]   (three: ⇧⌘])")
         for b in (self.btn_back, self.btn_play, self.btn_fwd):
             b.pack(side=tk.LEFT, padx=(0, 2))
         player.add(transport)
@@ -182,18 +183,18 @@ class EditorMixin:
         self.btn_checked.configure(width=13)  # "✓ Checked" and "Mark checked" take the same room
         row.add(self.btn_checked)
         # the segmentation tools are used all the time while reviewing: one click, and one key in the transcript
-        row.add(self._tool(row, "Split (S)", self._split_at_current_word))
-        row.add(self._tool(row, "Merge (M)", self._merge_with_next))
-        row.add(self._tool(row, "+ Insert (I)", self._insert_segment_dialog))
-        row.add(self._tool(row, "Delete (⌫)" if IS_MAC else "Delete (Del)", self._delete_segment))
+        row.add(self._tool(row, "Split", self._split_at_current_word, tip="Split before the selected word  S"))
+        row.add(self._tool(row, "Merge", self._merge_with_next, tip="Merge with the next segment  M"))
+        row.add(self._tool(row, "Insert", self._insert_segment_dialog, tip="Insert a segment  I"))
+        row.add(self._tool(row, "Delete", self._delete_segment, tip="Delete this segment (asks first)  " + ("⌫" if IS_MAC else "Del")))
         row.add(self._dropdown(row, "More ▾", [
             ("Re-transcribe this passage…", self._retranscribe_dialog),
             ("Revert my changes", self._revert_segment_edit),
             ("-",),
             ("cascade", "Insert marker", [(label, lambda t=text: self._insert_marker(t)) for label, text, _k in MARKERS]),
         ]))
-        row.add(self._tool(row, kbd("Save  ⌘S"), self._save_segment_edit))
-        row.add(self._tool(row, kbd("✓ Save & next  ⌘↩"), self._check_and_next, primary=True))
+        row.add(self._tool(row, "Save", self._save_segment_edit, tip="Save the text  ⌘S"))
+        row.add(self._tool(row, "✓ Save & next", self._check_and_next, primary=True, tip="Save, mark checked, open the next segment  ⌘↩"))
         self.edit_text = tk.Text(ep, height=3, wrap=tk.WORD, font=self.f["transcript"], bg=T["bg_input"], fg=T["fg_primary"],
                                  insertbackground=T["fg_primary"], relief=tk.FLAT, highlightthickness=1, highlightbackground=T["border"],
                                  highlightcolor=T["accent"], padx=8, pady=6, undo=True)

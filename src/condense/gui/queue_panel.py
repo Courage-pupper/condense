@@ -9,7 +9,7 @@ class QueueMixin:
         T = THEME
         top = tk.Frame(panel, bg=T["bg_panel"])
         top.pack(fill=tk.X)
-        self._label(top, "TASKS", font="section", fg=T["fg_dim"], bg=T["bg_panel"]).pack(side=tk.LEFT)
+        self._heading(top, "Tasks", bg=T["bg_panel"]).pack(side=tk.LEFT)
         self.lbl_queue_counts = self._label(top, "empty", font="small", fg=T["fg_secondary"], bg=T["bg_panel"])
         self.lbl_queue_counts.pack(side=tk.RIGHT)
 
@@ -73,7 +73,7 @@ class QueueMixin:
         T = THEME
         card = tk.Frame(panel, bg=T["bg_card"], padx=10, pady=8)
         card.pack(side=tk.BOTTOM, fill=tk.X, pady=(8, 0))
-        self.lbl_task_title = self._label(card, "TASK DETAILS — select a task", font="section", fg=T["accent"])
+        self.lbl_task_title = self._heading(card, "Task details — select a task")
         self.lbl_task_title.pack(anchor="w", pady=(0, 4))
         form = tk.Frame(card, bg=T["bg_card"])
         form.pack(fill=tk.X)
@@ -480,7 +480,7 @@ class QueueMixin:
             self.lst_inputs.delete(0, tk.END)
             if task is None:
                 n = len(self._get_selected_indices()) if self.__dict__.get("queue_tree") is not None else 0  # tree is built after this panel
-                self.lbl_task_title.config(text=f"{n} TASKS SELECTED — right-click to combine" if n > 1 else "TASK DETAILS — select a task")
+                self.lbl_task_title.config(text=f"{n} tasks selected — right-click to combine" if n > 1 else "Task details — select a task")
                 self.var_task_name.set("")
                 for v in (self.var_task_compress, self.var_task_audio, self.var_task_whisper):
                     v.set(False)
@@ -491,7 +491,8 @@ class QueueMixin:
                 self.lbl_task_note.config(text="")
             else:
                 merge = len(task["inputs"]) > 1
-                self.lbl_task_title.config(text=("MERGE TASK" if merge else "TASK") + f"  ·  {task['status'].upper()}")
+                status = {"Completed": "done"}.get(task["status"], task["status"].lower())
+                self.lbl_task_title.config(text=("Merge task" if merge else "Task") + f"  ·  {status}")
                 self.var_task_name.set(task["name"])
                 for p in task["inputs"]:
                     self.lst_inputs.insert(tk.END, Path(p).name)

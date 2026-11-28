@@ -54,7 +54,7 @@ class CodingTimelineMixin:
         bar = self._flow(parent, padx=4, pady=2, bg=T["bg_panel"], one_line=True)
         bar.pack(fill=tk.X, pady=(2, 0))
         self.cdt_bar = bar
-        bar.add(self._label(bar, "Timeline", font="small_bold", bg=T["bg_panel"]))
+        bar.add(self._heading(bar, "Timeline", bg=T["bg_panel"]))
         # the zoom: one switch, the current zoom lighter
         zoom = tk.Frame(bar, bg=T["bg_panel"])
         self.cdt_zoom_btns = {}

@@ -1,6 +1,7 @@
 """The main window, assembled from the GUI mixins."""
 from condense import __version__, updates
 from condense.gui._common import *  # noqa: F401,F403
+from condense.gui import rounded
 from condense.gui.editor import EditorMixin
 from condense.gui.history import HistoryMixin
 from condense.gui.navigation import NavigationMixin
@@ -144,6 +145,8 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                    darkcolor=T["bg_selected"], focuscolor=T["bg_selected"])
         style.configure("SegOn.TButton", foreground="#ffffff", font=f["small_bold"], padding=(12, 3), width=-3, **sel)
         style.map("SegOn.TButton", background=[("active", T["bg_selected"])])
+        # rounded corners for all of these (image elements); where Tk can't make the images they stay square
+        self._round_images = rounded.install(style, self, T)
 
         # tabs: text, and a thin red line under the open one (an image element: clam can't draw only one edge)
         style.configure("TNotebook", background=T["bg_root"], borderwidth=0, tabmargins=(0, 0, 0, 2), bordercolor=T["bg_root"],
@@ -336,8 +339,21 @@ class CondenseApp(QueueMixin, SettingsTabMixin, EditorMixin, NavigationMixin, Hi
                        indicatorbackground=[("selected", THEME["accent"]), ("active", THEME["bg_input"])])
         return ttk.Checkbutton(parent, text=text, variable=var, style=style_name)
 
-    def _tool(self, parent, text: str, cmd, primary: bool = False):
-        return ttk.Button(parent, text=text, style="Primary.TButton" if primary else "Tool.TButton", command=cmd)
+    def _tool(self, parent, text: str, cmd, primary: bool = False, tip: Optional[str] = None):
+        """A button. tip: what it does and its key, shown on hover — labels stay plain words (no "(M)", "⌘S")."""
+        b = ttk.Button(parent, text=text, style="Primary.TButton" if primary else "Tool.TButton", command=cmd)
+        if tip:
+            self._tip(b, tip)
+        return b
+
+    def _heading(self, parent, text: str, bg: Optional[str] = None, **kw):
+        """The one heading style of the window (Tasks, Codebook, Codings, Timeline, Settings cards): small, bold,
+        grey, in normal case — the content is what stands out, not its label."""
+        return self._label(parent, text, font="section", fg=THEME["fg_secondary"], bg=bg, **kw)
+
+    def _tip(self, widget, text):
+        """A tooltip in the app's style; shortcuts written with Mac symbols read Ctrl+… on Linux and Windows."""
+        return Tooltip(widget, (lambda: kbd(text())) if callable(text) else kbd(text), font=self.f["small"])
 
     def _entry(self, parent, var, show: str = "", width: int = 20, font: str = "mono_small"):
         return tk.Entry(parent, textvariable=var, bg=THEME["bg_input"], fg=THEME["fg_primary"], insertbackground=THEME["fg_primary"], relief=tk.FLAT,
