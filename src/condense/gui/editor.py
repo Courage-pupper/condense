@@ -183,8 +183,8 @@ class EditorMixin:
         # speaker is chosen with the chips below (they show it too), Save and the rest are in ⋯ (⌘S still saves).
         head = tk.Frame(ep, bg=T["bg_card"])
         head.pack(fill=tk.X)
-        # a fixed width: the row's buttons stay where they are while ↑/↓ change the text (no re-layout each time)
-        self.lbl_edit_title = self._label(head, "Click a word to edit it", font="section", anchor="w", width=34)
+        # as wide as its text; the buttons are right-aligned, so they stay where they are while ↑/↓ change it
+        self.lbl_edit_title = self._label(head, "Click a word to edit it", font="section", anchor="w")
         self.lbl_edit_title.pack(side=tk.LEFT)
         self.var_seg_speaker = tk.StringVar(value="")
         self.cmb_seg_speaker = ttk.Combobox(head, textvariable=self.var_seg_speaker, values=[], width=16, font=self.f["small"])  # (not shown)
